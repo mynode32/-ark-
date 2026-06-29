@@ -14,63 +14,173 @@
     body { font-family: 'Inter', sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
     .demo-header { padding: 20px 40px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
     .demo-logo { font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 800; background: linear-gradient(135deg, #FFD700, #FFA502); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .demo-nav { display: flex; gap: 24px; }
+    .demo-nav { display: flex; gap: 24px; align-items: center; }
     .demo-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: color 0.3s; }
     .demo-nav a:hover { color: #FFD700; }
-    .demo-hero { padding: 80px 40px; text-align: center; background: linear-gradient(135deg, #0F0C29 0%, #302B63 50%, #24243E 100%); }
+    
+    /* Layout */
+    .store-layout { display: flex; min-height: 100vh; }
+    .store-main { flex: 1; padding-bottom: 60px; }
+    
+    /* Side Cart */
+    .store-cart { width: 380px; background: #111; border-left: 1px solid rgba(255,255,255,0.1); padding: 24px; display: flex; flex-direction: column; }
+    .store-cart h2 { font-family: 'Outfit'; font-size: 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+    .cart-items { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+    .cart-item { display: flex; gap: 16px; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; align-items: center; }
+    .item-img { width: 60px; height: 60px; background: rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+    .item-info { flex: 1; }
+    .item-info h4 { font-size: 14px; margin-bottom: 4px; }
+    .item-info p { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .item-price { font-weight: 600; font-family: 'Outfit'; }
+    
+    .cart-summary { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px; margin-top: 24px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; }
+    .summary-line { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; color: rgba(255,255,255,0.7); }
+    .total-line { margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(255,255,255,0.2); color: #fff; font-size: 18px; font-weight: 700; font-family: 'Outfit'; }
+    .checkout-btn { width: 100%; padding: 16px; margin-top: 20px; background: #fff; color: #000; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s; }
+    .checkout-btn:hover { background: #FFD700; }
+    
+    .demo-hero { padding: 60px 40px; text-align: center; background: linear-gradient(135deg, #0F0C29 0%, #302B63 50%, #24243E 100%); }
     .demo-hero h1 { font-family: 'Outfit', sans-serif; font-size: 48px; margin-bottom: 16px; }
     .demo-hero p { font-size: 18px; color: rgba(255,255,255,0.6); max-width: 600px; margin: 0 auto 32px; }
     .demo-btn { display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #FFD700, #FFA502); color: #1a1a2e; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; text-decoration: none; transition: all 0.3s; box-shadow: 0 4px 15px rgba(255,215,0,0.2); }
     .demo-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,215,0,0.4); }
-    .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 60px 40px; }
+    .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 40px; }
     .demo-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 64px; transition: all 0.3s; }
     .demo-card:hover { transform: translateY(-4px); border-color: rgba(255,215,0,0.3); background: rgba(255,255,255,0.08); }
-    .demo-admin-link { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; text-decoration: none; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.3s; z-index: 100; display: flex; align-items: center; gap: 8px; }
+    .demo-admin-link { position: fixed; bottom: 20px; left: 20px; padding: 12px 24px; background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #fff; text-decoration: none; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.3s; z-index: 100; display: flex; align-items: center; gap: 8px; }
     .demo-admin-link:hover { background: rgba(255,215,0,0.1); border-color: #FFD700; color: #FFD700; }
     
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
+      .store-layout { flex-direction: column; }
+      .store-cart { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); }
       .demo-header { flex-direction: column; gap: 16px; }
       .demo-hero h1 { font-size: 36px; }
-      .demo-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 30px 20px; }
     }
   </style>
-  <script type="module" crossorigin src="/assets/main-DkHokHJT.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/storage-CjHaOMlw.js">
-  <link rel="stylesheet" crossorigin href="/assets/main-Bv-AwWa0.css">
+  <script type="module" crossorigin src="/assets/main-dRDeso-E.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/storage-E7uHjJpW.js">
+  <link rel="stylesheet" crossorigin href="/assets/main-BOVj14dW.css">
 </head>
 <body>
-  <header class="demo-header">
-    <div class="demo-logo">DEMO MAĞAZA</div>
-    <nav class="demo-nav">
-      <a href="#">Yeni Gelenler</a>
-      <a href="#">Kadın</a>
-      <a href="#">Erkek</a>
-      <a href="#">İndirimler</a>
-    </nav>
-  </header>
-  
-  <section class="demo-hero">
-    <h1>🎡 Çark Çevir Kazan</h1>
-    <p>Bu bir demo mağaza sayfasıdır. Sayfada biraz aşağı kaydırarak veya butona tıklayarak çark widget'ını test edebilirsiniz.</p>
-    <button class="demo-btn" id="open-wheel-btn">Hemen Test Et</button>
-  </section>
-  
-  <div class="demo-grid">
-    <div class="demo-card">👕</div>
-    <div class="demo-card">👗</div>
-    <div class="demo-card">👟</div>
-    <div class="demo-card">🧥</div>
-    <div class="demo-card">👜</div>
-    <div class="demo-card">🕶️</div>
-    <div class="demo-card">⌚</div>
-    <div class="demo-card">💍</div>
+  <div class="store-layout">
+    <div class="store-main">
+      <header class="demo-header">
+        <div class="demo-logo">DEMO MAĞAZA</div>
+        <nav class="demo-nav">
+          <a href="#">Yeni Gelenler</a>
+          <a href="#">Erkek</a>
+          <a href="#">İndirimler</a>
+        </nav>
+      </header>
+      
+      <section class="demo-hero">
+        <h1>🎡 Çark Çevir Kazan</h1>
+        <p>Aşağıdaki çarkı çevirerek kazandığınız indirimin sağ taraftaki sepetinize anında yansımasını test edebilirsiniz.</p>
+        <button class="demo-btn" id="open-wheel-btn">Hemen Test Et</button>
+      </section>
+      
+      <div class="demo-grid">
+        <div class="demo-card">👕</div>
+        <div class="demo-card">👗</div>
+        <div class="demo-card">👟</div>
+        <div class="demo-card">🧥</div>
+      </div>
+    </div>
+    
+    <aside class="store-cart">
+      <h2>🛒 Alışveriş Sepeti</h2>
+      <div class="cart-items">
+        <div class="cart-item">
+          <div class="item-img">👕</div>
+          <div class="item-info">
+            <h4>Premium Siyah Tişört</h4>
+            <p>Beden: L • Adet: 1</p>
+          </div>
+          <div class="item-price">500,00 ₺</div>
+        </div>
+        <div class="cart-item">
+          <div class="item-img">🧥</div>
+          <div class="item-info">
+            <h4>Deri Ceket</h4>
+            <p>Beden: M • Adet: 1</p>
+          </div>
+          <div class="item-price">1.000,00 ₺</div>
+        </div>
+      </div>
+      
+      <div class="cart-summary" id="cart-summary-box">
+        <div class="summary-line">
+          <span>Ara Toplam:</span>
+          <span>1.500,00 ₺</span>
+        </div>
+        <div class="summary-line" id="cart-shipping-line">
+          <span>Kargo:</span>
+          <span id="shipping-amount">49,90 ₺</span>
+        </div>
+        <div class="summary-line" id="cart-discount-line" style="display:none; color: #2ED573; font-weight: 600;">
+          <span id="discount-label">Kupon İndirimi:</span>
+          <span id="discount-amount">-0,00 ₺</span>
+        </div>
+        <div class="summary-line total-line">
+          <span>Genel Toplam:</span>
+          <span id="cart-grand-total">1.549,90 ₺</span>
+        </div>
+        <button class="checkout-btn">Güvenle Öde</button>
+      </div>
+    </aside>
   </div>
   
   <a href="admin.html" class="demo-admin-link"><span>⚙️</span> Admin Paneline Git</a>
   
   <script>
+    // Demo ortamında her yenilemede güncel renkleri görmek için önbelleği temizle
+    localStorage.removeItem('carkConfig');
+  </script>
+  <script>
     document.getElementById('open-wheel-btn').addEventListener('click', () => {
       if (window.CarkWidget) window.CarkWidget.open();
+    });
+
+    // Otomatik sepet uygulama testi (İkas Entegrasyonu Simülasyonu)
+    window.addEventListener('carkWidget:win', (e) => {
+      const prize = e.detail;
+      const subtotal = 1500;
+      let shippingCost = 49.90;
+      let discountAmount = 0;
+      let newTotal = subtotal + shippingCost;
+      
+      const summaryBox = document.getElementById('cart-summary-box');
+      
+      if (prize.discountType === 'percentage') {
+        discountAmount = subtotal * (prize.discountValue / 100);
+      } else if (prize.discountType === 'fixed') {
+        discountAmount = Math.min(subtotal, prize.discountValue);
+      } else if (prize.discountType === 'freeShipping') {
+        shippingCost = 0;
+        const shippingEl = document.getElementById('shipping-amount');
+        shippingEl.innerHTML = '<span style="text-decoration: line-through; opacity: 0.5;">49,90 ₺</span> <span style="color: #2ED573; font-weight: bold; margin-left: 4px;">ÜCRETSİZ</span>';
+      }
+      
+      newTotal = subtotal + shippingCost - discountAmount;
+      
+      if (discountAmount > 0) {
+        const discountLine = document.getElementById('cart-discount-line');
+        const discountLabel = document.getElementById('discount-label');
+        const discountAmountEl = document.getElementById('discount-amount');
+        
+        discountLabel.textContent = `Kupon İndirimi (${prize.prize}):`;
+        discountAmountEl.textContent = `-${discountAmount.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺`;
+        discountLine.style.display = 'flex';
+      }
+
+      // Update grand total
+      const grandTotal = document.getElementById('cart-grand-total');
+      grandTotal.textContent = `${newTotal.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺`;
+      
+      // Vurgulama Animasyonu (Sadece görsel geri bildirim, alert yok)
+      summaryBox.style.borderColor = '#2ED573';
+      summaryBox.style.boxShadow = '0 0 20px rgba(46, 213, 115, 0.2)';
+      summaryBox.style.background = 'rgba(46, 213, 115, 0.05)';
     });
   </script>
 </body>

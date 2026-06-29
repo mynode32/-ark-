@@ -1,4 +1,4 @@
-import{g as v,s as u,a as y,e as h,c as b,b as f}from"./storage-CjHaOMlw.js";function k(g){const t=JSON.stringify(g.segments.map(e=>({label:e.label,color:e.color,textColor:e.textColor,probability:e.probability,couponCode:e.couponCode||void 0,discountType:e.discountType,discountValue:e.discountValue,icon:e.icon})));return`<!-- Çark Çevir Kazan Widget -->
+import{g as v,s as u,a as y,e as h,c as b,b as f}from"./storage-E7uHjJpW.js";function k(g){const t=JSON.stringify(g.segments.map(e=>({label:e.label,color:e.color,textColor:e.textColor,probability:e.probability,couponCode:e.couponCode||void 0,discountType:e.discountType,discountValue:e.discountValue,icon:e.icon})));return`<!-- Çark Çevir Kazan Widget -->
 <script src="/dist/cark-widget.js"><\/script>
 <script>
   CarkWidget.init({
