@@ -37,6 +37,11 @@ widgetRouter.post('/spin', async (req, res) => {
       return res.status(400).json({ error: 'Ad, telefon ve e-posta zorunludur' });
     }
 
+    const entries = getEntries();
+    if (entries.some(e => e.email === email || e.phone === phone)) {
+      return res.status(400).json({ error: 'Bu bilgilerle daha önce katılım sağlanmış.' });
+    }
+
     const config = getWidgetConfig();
     const segments = config.segments;
 
