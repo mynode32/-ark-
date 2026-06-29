@@ -106,8 +106,10 @@ export const DEFAULT_CONFIG = {
   },
 };
 
+export const getApiUrl = () => window.CARK_API_URL || 'https://cark-backend.onrender.com';
+
 function getApiBase() {
-  return window.CARK_API_URL || '';
+  return getApiUrl();
 }
 
 // --- Config (backend-first, localStorage fallback) ---
