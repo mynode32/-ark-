@@ -1,0 +1,5 @@
+🎡 Çark Backend running on http://localhost:3001
+   Widget API:  http://localhost:3001/api/widget/config
+   Admin API:   http://localhost:3001/api/admin/config
+   Admin Auth:  Bearer token = "admin123"
+   İkas API:    NOT CONFIGURED (local coupons)

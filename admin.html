@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Çark Widget - Admin Panel</title>
+  <meta name="description" content="Çark widget yönetim paneli - dilimleri, ayarları ve katılımcıları yönetin">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/admin.css">
+</head>
+<body>
+  <!-- Password Protection -->
+  <div class="admin-password-overlay" id="adminPasswordOverlay">
+    <div class="admin-password-box">
+      <div class="admin-password-icon">🔒</div>
+      <h2>Admin Paneli</h2>
+      <p>Devam etmek için şifreyi girin</p>
+      <input type="password" class="admin-password-input" id="adminPasswordInput" placeholder="Şifre" autocomplete="off">
+      <div class="admin-password-error" id="adminPasswordError">Hatalı şifre!</div>
+      <button class="btn btn-primary" id="adminPasswordBtn" style="width:100%">Giriş Yap</button>
+      <div class="admin-password-hint">Varsayılan şifre: <code>admin123</code></div>
+    </div>
+  </div>
+
+  <div class="admin-container" id="adminContent" style="display:none">
+    <header class="admin-header">
+      <div class="admin-logo">🎡 Çark Admin</div>
+      <nav class="admin-nav">
+        <a class="active" data-tab="settings">⚙️ Çark Ayarları</a>
+        <a data-tab="entries">👥 Katılımcılar</a>
+        <a data-tab="integration">🔌 Entegrasyon</a>
+      </nav>
+    </header>
+    <main id="admin-main">
+      <!-- Tabs will be rendered here by admin.js -->
+    </main>
+  </div>
+  
+  <div class="toast" id="toast">✅ Kaydedildi</div>
+  
+  <div class="edit-modal-overlay" id="editModal">
+    <div class="edit-modal">
+      <h3>
+        <span>✏️ Dilim Düzenle</span>
+        <button class="close-modal-btn" id="closeModalBtn">&times;</button>
+      </h3>
+      <div id="editModalContent"></div>
+    </div>
+  </div>
+  
+  <a href="index.html" style="position:fixed;bottom:20px;left:20px;padding:12px 24px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#fff;text-decoration:none;font-size:14px;backdrop-filter:blur(10px);transition:all 0.3s;z-index:100;display:flex;align-items:center;gap:8px;">
+    <span>←</span> Demo Sayfası
+  </a>
+  
+  <script type="module" src="/src/admin.js"></script>
+</body>
+</html>
