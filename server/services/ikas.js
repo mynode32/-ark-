@@ -3,16 +3,6 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-/**
- * İkas GraphQL API integration
- *
- * For production: set IKAS_API_KEY and IKAS_STORE_ID in server/.env
- *
- * Required İkas API Permissions:
- *   - coupon:create  (kupon kodu oluşturma)
- *   - customer:create (müşteri oluşturma)
- */
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const COUNTER_PATH = resolve(__dirname, '..', 'data', 'coupon-counter.txt');
 
@@ -21,9 +11,7 @@ function getCounter() {
     if (existsSync(COUNTER_PATH)) {
       return parseInt(readFileSync(COUNTER_PATH, 'utf-8').trim(), 10) || 1;
     }
-  } catch {
-    /* ignore */
-  }
+  } catch { /* ignore */ }
   return Date.now() % 10000;
 }
 
@@ -35,33 +23,62 @@ function incrementCounter() {
       mkdirSync(dir, { recursive: true });
     }
     writeFileSync(COUNTER_PATH, String(next), 'utf-8');
-  } catch {
-    /* ignore */
-  }
+  } catch { /* ignore */ }
   return next;
 }
 
 function generateCouponCode(label) {
   const counter = incrementCounter();
-  const safe =
-    label
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .slice(0, 4)
-      .toUpperCase() || 'CARK';
+  const safe = label.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'CARK';
   return `${safe}${counter}`;
 }
 
-/**
- * Creates a coupon in İkas via GraphQL API
- * Falls back to local coupon generation if API key not configured
- */
+let currentAccessToken = null;
+let tokenExpiresAt = 0;
+
+async function getAccessToken() {
+  if (!config.ikas.clientId || !config.ikas.clientSecret) {
+    return null;
+  }
+  if (currentAccessToken && Date.now() < tokenExpiresAt) {
+    return currentAccessToken;
+  }
+
+  const bodyParams = new URLSearchParams();
+  bodyParams.append('grant_type', 'client_credentials');
+  bodyParams.append('client_id', config.ikas.clientId);
+  bodyParams.append('client_secret', config.ikas.clientSecret);
+
+  const response = await fetch(config.ikas.authUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: bodyParams.toString(),
+  });
+
+  const data = await response.json();
+  if (data.access_token) {
+    currentAccessToken = data.access_token;
+    // expires_in usually in seconds
+    tokenExpiresAt = Date.now() + (data.expires_in * 1000) - 60000;
+    return currentAccessToken;
+  }
+  
+  throw new Error("Ikas Auth failed: " + JSON.stringify(data));
+}
+
 export async function createCoupon({ label, discountType, discountValue }) {
-  if (!config.ikas.apiKey) {
-    console.log('[İkas] API key yok, lokal kupon üretiliyor');
-    return {
-      code: generateCouponCode(label),
-      isLocal: true,
-    };
+  let token;
+  try {
+    token = await getAccessToken();
+  } catch (e) {
+    console.error('[İkas] Token alınamadı:', e.message);
+  }
+
+  if (!token) {
+    console.log('[İkas] API anahtarları yok veya geçersiz, lokal kupon üretiliyor');
+    return { code: generateCouponCode(label), isLocal: true };
   }
 
   try {
@@ -69,28 +86,20 @@ export async function createCoupon({ label, discountType, discountValue }) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': config.ikas.apiKey,
-        'x-store-id': config.ikas.storeId,
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         query: `
           mutation CreateCoupon($input: CouponInput!) {
             createCoupon(input: $input) {
-              coupon {
-                code
-              }
+              coupon { code }
             }
           }
         `,
         variables: {
           input: {
             code: generateCouponCode(label),
-            discountType:
-              discountType === 'percentage'
-                ? 'PERCENTAGE'
-                : discountType === 'fixed'
-                  ? 'FIXED_AMOUNT'
-                  : 'FREE_SHIPPING',
+            discountType: discountType === 'percentage' ? 'PERCENTAGE' : discountType === 'fixed' ? 'FIXED_AMOUNT' : 'FREE_SHIPPING',
             discountValue: discountValue,
             usageLimit: 1,
             isActive: true,
@@ -117,29 +126,28 @@ export async function createCoupon({ label, discountType, discountValue }) {
   }
 }
 
-/**
- * Creates a customer in İkas (optional, for marketing lists)
- */
 export async function createCustomer({ name, phone, email }) {
-  if (!config.ikas.apiKey) {
-    return null;
+  let token;
+  try {
+    token = await getAccessToken();
+  } catch (e) {
+    console.error('[İkas] Token alınamadı:', e.message);
   }
+
+  if (!token) return null;
 
   try {
     const response = await fetch(config.ikas.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': config.ikas.apiKey,
-        'x-store-id': config.ikas.storeId,
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         query: `
           mutation CreateCustomer($input: CustomerInput!) {
             createCustomer(input: $input) {
-              customer {
-                id
-              }
+              customer { id }
             }
           }
         `,

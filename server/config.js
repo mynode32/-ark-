@@ -27,8 +27,10 @@ export const config = {
   adminPassword: env.ADMIN_PASSWORD || 'admin123',
   dataDir: env.DATA_DIR || resolve(__dirname, '..', 'data'),
   ikas: {
-    apiUrl: env.IKAS_API_URL || 'https://api.ikas.com/graphql',
-    apiKey: env.IKAS_API_KEY || '',
+    apiUrl: env.IKAS_API_URL || 'https://api.myikas.com/api/v2/admin/graphql',
+    authUrl: env.IKAS_AUTH_URL || 'https://api.myikas.com/api/admin/oauth/token',
+    clientId: env.IKAS_CLIENT_ID || '',
+    clientSecret: env.IKAS_CLIENT_SECRET || '',
     storeId: env.IKAS_STORE_ID || '',
   },
   corsOrigin: env.CORS_ORIGIN || '*',
