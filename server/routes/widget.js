@@ -43,8 +43,8 @@ widgetRouter.post('/spin', async (req, res) => {
     }
 
     const config = getWidgetConfig();
-    const segments = config.segments;
-    const activeSegments = (segments && segments.length > 0) ? segments : config.segments;
+    const configSegments = config.segments;
+    const activeSegments = (segments && segments.length > 0) ? segments : configSegments;
 
     // Pick winner server-side (weighted random)
     const totalProb = activeSegments.reduce((s, seg) => s + (seg.probability || 0), 0);
