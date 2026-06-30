@@ -190,6 +190,9 @@ class CarkApp {
 
       const winner = result.winner;
 
+      // Animate the wheel
+      await this.wheel.spin(winner);
+
       markSpun(this.config.settings.cooldownHours || 24);
 
       setTimeout(() => {
