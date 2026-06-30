@@ -165,13 +165,14 @@ export function generateId() {
 
 // --- Spin (always goes through backend if available) ---
 
-export async function spin(userData) {
+export async function spin(userData, segments = null) {
   const base = getApiBase();
   if (base) {
+    const payload = segments ? { ...userData, segments } : userData;
     const res = await fetch(`${base}/api/widget/spin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

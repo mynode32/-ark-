@@ -186,7 +186,7 @@ class CarkApp {
         name: userData.name,
         phone: userData.phone,
         email: userData.email,
-      });
+      }, this.segments);
 
       const winner = result.winner;
 

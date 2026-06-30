@@ -31,7 +31,7 @@ widgetRouter.get('/config', (req, res) => {
  */
 widgetRouter.post('/spin', async (req, res) => {
   try {
-    const { name, phone, email } = req.body;
+    const { name, phone, email, segments } = req.body;
 
     if (!name || !phone || !email) {
       return res.status(400).json({ error: 'Ad, telefon ve e-posta zorunludur' });
@@ -44,24 +44,25 @@ widgetRouter.post('/spin', async (req, res) => {
 
     const config = getWidgetConfig();
     const segments = config.segments;
+    const activeSegments = (segments && segments.length > 0) ? segments : config.segments;
 
     // Pick winner server-side (weighted random)
-    const totalProb = segments.reduce((s, seg) => s + seg.probability, 0);
+    const totalProb = activeSegments.reduce((s, seg) => s + (seg.probability || 0), 0);
     let rand = Math.random() * totalProb;
-    let winner = segments[segments.length - 1];
-    for (const seg of segments) {
-      rand -= seg.probability;
+    let winner = activeSegments[activeSegments.length - 1];
+    for (const seg of activeSegments) {
+      rand -= (seg.probability || 0);
       if (rand <= 0) {
         winner = seg;
         break;
       }
     }
 
-    let couponCode = null;
-    let isLocalCoupon = false;
+    let couponCode = winner.couponCode || null;
+    let isLocalCoupon = true;
 
-    // Create coupon if winner has a discount type (not noLuck)
-    if (winner.discountType !== 'noLuck') {
+    // Create coupon if winner has a discount type, no code provided and not noLuck
+    if (winner.discountType !== 'noLuck' && !couponCode) {
       const coupon = await createCoupon({
         label: winner.label,
         discountType: winner.discountType,

@@ -164,14 +164,14 @@ export class ModalManager {
       
       if (segment.couponCode) {
         this.els.couponContainer.style.display = 'block';
-        this.els.couponText.textContent = "Sepete Uygulandı! ✅";
-        this.els.couponText.style.fontSize = "22px";
-        this.els.couponText.style.color = "#2ED573";
+        this.els.couponText.textContent = segment.couponCode;
+        this.els.couponText.style.fontSize = ""; // reset to css
+        this.els.couponText.style.color = ""; // reset to css
         
         const labelEl = this.els.couponContainer.querySelector('.cark-coupon-label');
-        if (labelEl) labelEl.textContent = 'İndirim Durumu:';
+        if (labelEl) labelEl.textContent = 'İndirim Kodunuz:';
         
-        if (this.els.copyBtn) this.els.copyBtn.style.display = 'none';
+        if (this.els.copyBtn) this.els.copyBtn.style.display = 'inline-flex';
       } else {
         this.els.couponContainer.style.display = 'none';
       }
