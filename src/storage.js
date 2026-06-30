@@ -188,12 +188,13 @@ export async function spin(userData, segments = null) {
   }
 
   const config = getLocalConfig();
-  const segments = config.segments;
-  const totalProb = segments.reduce((s, seg) => s + seg.probability, 0);
+  const configSegments = config.segments;
+  const activeSegments = segments && segments.length > 0 ? segments : configSegments;
+  const totalProb = activeSegments.reduce((s, seg) => s + (seg.probability || 0), 0);
   let rand = Math.random() * totalProb;
-  let winner = segments[segments.length - 1];
-  for (const seg of segments) {
-    rand -= seg.probability;
+  let winner = activeSegments[activeSegments.length - 1];
+  for (const seg of activeSegments) {
+    rand -= (seg.probability || 0);
     if (rand <= 0) {
       winner = seg;
       break;
