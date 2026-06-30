@@ -137,22 +137,31 @@ export async function createCustomer({ name, phone, email }) {
   if (!token) return null;
 
   try {
-    const response = await fetch(config.ikas.apiUrl, {
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0] || 'Bilinmiyor';
+    const lastName = nameParts.slice(1).join(' ') || ' ';
+
+    const response = await fetch(config.ikas.apiUrl.replace('/v2/', '/v1/'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         query: `
-          mutation CreateCustomer($input: CustomerInput!) {
-            createCustomer(input: $input) {
-              customer { id }
+          mutation SaveCustomer($input: CustomerInput!) {
+            saveCustomer(input: $input) {
+              id
             }
           }
         `,
         variables: {
-          input: { name, phone, email, acceptsMarketing: true },
+          input: {
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            phone: phone,
+          },
         },
       }),
     });
