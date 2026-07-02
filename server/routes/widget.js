@@ -76,7 +76,9 @@ widgetRouter.post('/spin', async (req, res) => {
 
     // Optional: create customer in İkas
     if (winner.discountType !== 'noLuck') {
-      createCustomer({ name, phone, email }).catch(() => {});
+      createCustomer({ name, phone, email }).catch((err) => {
+        console.error(`[İkas] Müşteri oluşturulamadı (${email}):`, err.message);
+      });
     }
 
     // Save entry

@@ -89,11 +89,12 @@ export class FormManager {
       this.inputs.phone.classList.add('error');
     }
 
-    // Email
+    // Email — ASCII-only local/domain part, matches what İkas's API actually accepts
+    // (Gmail/most providers don't support Türkçe karakterler like ı/ş/ğ in addresses)
     const emailVal = this.inputs.email.value.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(emailVal)) {
-      errors.push('Geçerli bir e-posta adresi giriniz.');
+      errors.push('Geçerli bir e-posta adresi giriniz (Türkçe karakter içermemeli).');
       this.inputs.email.classList.add('error');
     }
 
