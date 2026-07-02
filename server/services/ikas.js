@@ -285,6 +285,11 @@ export async function createCustomer({ name, phone, email }) {
             lastName: lastName,
             email: email,
             phone: phone,
+            // Widget zorunlu KVKK/izin kutucuklarını işaretletmeden çevirmeye izin vermiyor,
+            // yani buraya ulaşan her katılımcı zaten iletişim iznini vermiş demektir.
+            subscriptionStatus: 'SUBSCRIBED',
+            smsSubscriptionStatus: 'SUBSCRIBED',
+            phoneSubscriptionStatus: 'SUBSCRIBED',
           },
         },
       }),
