@@ -264,7 +264,6 @@ export async function createCustomer({ name, phone, email }) {
     const firstName = nameParts[0] || 'Bilinmiyor';
     const lastName = nameParts.slice(1).join(' ') || ' ';
 
-    // Ikas v2 API createCustomer
     const response = await fetch(config.ikas.apiUrl, {
       method: 'POST',
       headers: {
@@ -274,9 +273,9 @@ export async function createCustomer({ name, phone, email }) {
       signal: AbortSignal.timeout(5000),
       body: JSON.stringify({
         query: `
-          mutation CreateCustomer($input: CreateCustomerInput!) {
-            createCustomer(input: $input) {
-              customer { id }
+          mutation SaveCustomer($input: CustomerInput!) {
+            saveCustomer(input: $input) {
+              id
             }
           }
         `,
@@ -297,7 +296,7 @@ export async function createCustomer({ name, phone, email }) {
       return null;
     }
 
-    return data.data?.createCustomer?.customer || null;
+    return data.data?.saveCustomer || null;
   } catch (err) {
     console.error('[Ikas] Musteri baglanti hatasi:', err.message);
     return null;
