@@ -131,7 +131,7 @@ export async function createCustomer({ name, phone, email }) {
   try {
     token = await getAccessToken();
   } catch (e) {
-    console.error('[İkas] Token alınamadı:', e.message);
+    console.error('[Ikas] Token alinamadi:', e.message);
   }
 
   if (!token) return null;
@@ -141,17 +141,19 @@ export async function createCustomer({ name, phone, email }) {
     const firstName = nameParts[0] || 'Bilinmiyor';
     const lastName = nameParts.slice(1).join(' ') || ' ';
 
-    const response = await fetch(config.ikas.apiUrl.replace('/v2/', '/v1/'), {
+    // Ikas v2 API createCustomer
+    const response = await fetch(config.ikas.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
+      signal: AbortSignal.timeout(5000),
       body: JSON.stringify({
         query: `
-          mutation SaveCustomer($input: CustomerInput!) {
-            saveCustomer(input: $input) {
-              id
+          mutation CreateCustomer($input: CreateCustomerInput!) {
+            createCustomer(input: $input) {
+              customer { id }
             }
           }
         `,
@@ -168,13 +170,13 @@ export async function createCustomer({ name, phone, email }) {
 
     const data = await response.json();
     if (data.errors) {
-      console.error('[İkas] Müşteri oluşturma hatası:', data.errors);
+      console.error('[Ikas] Musteri olusturma hatasi:', data.errors);
       return null;
     }
 
     return data.data?.createCustomer?.customer || null;
   } catch (err) {
-    console.error('[İkas] Müşteri bağlantı hatası:', err.message);
+    console.error('[Ikas] Musteri baglanti hatasi:', err.message);
     return null;
   }
 }
