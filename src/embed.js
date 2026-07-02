@@ -1,4 +1,5 @@
-export function generateEmbedCode(config) {
+export function generateEmbedCode(config, backendUrl) {
+  const base = backendUrl || 'https://BACKEND-URLINIZ';
   const segmentsJSON = JSON.stringify(
     config.segments.map((s) => ({
       label: s.label,
@@ -13,10 +14,10 @@ export function generateEmbedCode(config) {
   );
 
   return `<!-- Çark Çevir Kazan Widget -->
-<script src="/dist/cark-widget.js"></script>
+<script src="${base}/dist/cark-widget.js"></script>
 <script>
   CarkWidget.init({
-    apiBaseUrl: "", // backend URL varsa buraya yazın, örn: "https://kendi-siteniz.com"
+    apiBaseUrl: "${base}", // backend'inizin adresi — çark ayarlarını ve kuponları buradan çeker
     storeName: "${config.settings.storeName || 'Mağaza'}",
     segments: ${segmentsJSON}
   });

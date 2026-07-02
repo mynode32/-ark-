@@ -126,6 +126,129 @@ export async function createCoupon({ label, discountType, discountValue }) {
   }
 }
 
+/**
+ * Lists existing İkas campaigns (discount rules created in the İkas dashboard/builder)
+ * so the admin can pick one to attach a wheel segment to.
+ */
+export async function listCampaigns() {
+  let token;
+  try {
+    token = await getAccessToken();
+  } catch (e) {
+    console.error('[İkas] Token alınamadı:', e.message);
+  }
+
+  if (!token) return [];
+
+  try {
+    const response = await fetch(config.ikas.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({
+        query: `
+          query ListCampaign($pagination: PaginationInput) {
+            listCampaign(pagination: $pagination) {
+              data {
+                id
+                title
+                type
+                hasCoupon
+                isFreeShipping
+                usageLimit
+                usageCount
+              }
+            }
+          }
+        `,
+        variables: { pagination: { limit: 100 } },
+      }),
+    });
+
+    const data = await response.json();
+    if (data.errors) {
+      console.error('[İkas] Kampanya listesi alınamadı:', JSON.stringify(data.errors));
+      return [];
+    }
+
+    return data.data?.listCampaign?.data || [];
+  } catch (err) {
+    console.error('[İkas] Kampanya listesi bağlantı hatası:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Adds a single freshly-generated, one-time-use coupon code to an existing İkas campaign
+ * (a campaign/discount rule the store owner already built in the İkas dashboard).
+ * We generate the code ourselves so we never depend on parsing İkas's response for it —
+ * we only need to know whether the call succeeded.
+ */
+export async function addCouponToCampaign({ campaignId, label }) {
+  const code = generateCouponCode(label);
+
+  let token;
+  try {
+    token = await getAccessToken();
+  } catch (e) {
+    console.error('[İkas] Token alınamadı:', e.message);
+  }
+
+  if (!token) {
+    console.log('[İkas] API anahtarları yok, lokal kupon üretiliyor');
+    return { code, isLocal: true };
+  }
+
+  try {
+    const response = await fetch(config.ikas.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({
+        query: `
+          mutation AddCoupons($input: AddCouponsInput!) {
+            campaignAddCoupons(input: $input) {
+              id
+              code
+            }
+          }
+        `,
+        variables: {
+          input: {
+            campaignId,
+            coupons: [
+              {
+                code,
+                canCombineWithOtherCampaigns: false,
+                usageLimit: 1,
+              },
+            ],
+          },
+        },
+      }),
+    });
+
+    const data = await response.json();
+    if (data.errors) {
+      console.error('[İkas] Kampanyaya kupon eklenemedi:', JSON.stringify(data.errors));
+      return { code, isLocal: true };
+    }
+
+    // İkas normalizes/lowercases the stored code — return exactly what it confirmed
+    const savedCode = data.data?.campaignAddCoupons?.[0]?.code || code;
+    return { code: savedCode, isLocal: false };
+  } catch (err) {
+    console.error('[İkas] Kupon ekleme bağlantı hatası:', err.message);
+    return { code, isLocal: true };
+  }
+}
+
 export async function createCustomer({ name, phone, email }) {
   let token;
   try {

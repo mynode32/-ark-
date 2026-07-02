@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { adminAuth } from '../middleware/auth.js';
 import { getWidgetConfig, saveWidgetConfig, getEntries, clearEntries } from '../store.js';
+import { listCampaigns } from '../services/ikas.js';
 
 export const adminRouter = Router();
 
@@ -97,6 +98,16 @@ adminRouter.get('/entries/export', (req, res) => {
     `attachment; filename="cark-katilimcilar-${new Date().toISOString().split('T')[0]}.csv"`,
   );
   res.send(csv);
+});
+
+/**
+ * GET /api/admin/ikas/campaigns
+ * Lists İkas campaigns (discount rules built in the İkas dashboard) so the admin
+ * can attach one to a wheel segment instead of typing a coupon code by hand.
+ */
+adminRouter.get('/ikas/campaigns', async (req, res) => {
+  const campaigns = await listCampaigns();
+  res.json({ campaigns });
 });
 
 /**

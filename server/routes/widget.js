@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getWidgetConfig, getEntries, addEntry } from '../store.js';
-import { createCoupon, createCustomer } from '../services/ikas.js';
+import { createCoupon, createCustomer, addCouponToCampaign } from '../services/ikas.js';
 
 export const widgetRouter = Router();
 
@@ -61,13 +61,15 @@ widgetRouter.post('/spin', async (req, res) => {
     let couponCode = winner.couponCode || null;
     let isLocalCoupon = true;
 
-    // Create coupon if winner has a discount type, no code provided and not noLuck
+    // Create/attach a coupon if winner has a discount type and no fixed code was set
     if (winner.discountType !== 'noLuck' && !couponCode) {
-      const coupon = await createCoupon({
-        label: winner.label,
-        discountType: winner.discountType,
-        discountValue: winner.discountValue,
-      });
+      const coupon = winner.ikasCampaignId
+        ? await addCouponToCampaign({ campaignId: winner.ikasCampaignId, label: winner.label })
+        : await createCoupon({
+            label: winner.label,
+            discountType: winner.discountType,
+            discountValue: winner.discountValue,
+          });
       couponCode = coupon.code;
       isLocalCoupon = coupon.isLocal;
     }

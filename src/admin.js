@@ -188,7 +188,7 @@ class AdminPanel {
                     <div class="segment-color" style="background:${seg.color}"></div>
                     <div class="segment-info">
                       <div class="segment-label" style="color:${seg.textColor || '#fff'}">${seg.icon || ''} ${seg.label}</div>
-                      <div class="segment-meta">Kazanma Şansı: %${seg.probability} ${seg.couponCode ? `• Kod: ${seg.couponCode}` : ''}</div>
+                      <div class="segment-meta">Kazanma Şansı: %${seg.probability} ${seg.couponCode ? `• Kod: ${seg.couponCode}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
                     </div>
                     <div class="segment-actions">
                       <button class="edit-btn" data-id="${seg.id}" title="Düzenle">✏️</button>
@@ -364,13 +364,14 @@ class AdminPanel {
     this.editingSegmentId = id;
     let seg = id ? this.config.segments.find((s) => String(s.id) === String(id)) : null;
     if (!seg) {
-      const colors = ['#6C5CE7', '#E17055', '#00B894', '#FDCB6E', '#E84393', '#0984E3'];
+      const colors = ['#1E3A8A', '#9F1239', '#065F46', '#B8860B', '#6B21A8', '#92400E', '#831843'];
       seg = {
         label: 'Yeni Ödül',
         color: colors[Math.floor(Math.random() * colors.length)],
         textColor: '#FFFFFF',
         probability: 10,
         couponCode: '',
+        ikasCampaignId: null,
         discountType: 'percentage',
         discountValue: 10,
         icon: '🎁',
@@ -419,8 +420,17 @@ class AdminPanel {
           <input type="number" class="form-input" id="seg-value" value="${seg.discountValue}">
         </div>
         <div class="form-group" id="seg-coupon-group" style="display:${seg.discountType === 'noLuck' ? 'none' : 'block'}">
-          <label>Kupon Kodu</label>
-          <input type="text" class="form-input" id="seg-coupon" value="${seg.couponCode || ''}" placeholder="Boş bırakılırsa backend oluşturur">
+          <label>Sabit Kupon Kodu</label>
+          <input type="text" class="form-input" id="seg-coupon" value="${seg.couponCode || ''}" placeholder="Boş bırakılırsa aşağıdaki İkas kampanyası kullanılır">
+        </div>
+      </div>
+      <div class="form-group" id="seg-ikas-campaign-group" style="display:${seg.discountType === 'noLuck' ? 'none' : 'block'}">
+        <label>İkas Kampanyası (opsiyonel)</label>
+        <select class="form-input" id="seg-ikas-campaign">
+          <option value="">Yok — lokal/otomatik kupon</option>
+        </select>
+        <div id="seg-ikas-campaign-hint" style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">
+          Kazanan bu dilime denk geldiğinde, İkas Builder'da oluşturduğunuz bu kampanyaya otomatik yeni bir tek kullanımlık kupon kodu eklenir.
         </div>
       </div>
       <div class="form-group">
@@ -445,6 +455,7 @@ class AdminPanel {
     document.getElementById('seg-type').addEventListener('change', (e) => {
       const valGroup = document.getElementById('seg-val-group');
       const couponGroup = document.getElementById('seg-coupon-group');
+      const campaignGroup = document.getElementById('seg-ikas-campaign-group');
       const isNoLuck = e.target.value === 'noLuck';
       const isFree = e.target.value === 'freeShipping';
       if (valGroup) {
@@ -453,7 +464,12 @@ class AdminPanel {
       if (couponGroup) {
         couponGroup.style.display = isNoLuck ? 'none' : 'block';
       }
+      if (campaignGroup) {
+        campaignGroup.style.display = isNoLuck ? 'none' : 'block';
+      }
     });
+
+    this.populateIkasCampaignSelect(seg.ikasCampaignId);
 
     document
       .getElementById('cancelSegBtn')
@@ -464,11 +480,12 @@ class AdminPanel {
         id: this.editingSegmentId || generateId(),
         label: document.getElementById('seg-label').value || 'Yeni Ödül',
         icon: document.getElementById('seg-icon').value || '',
-        color: document.getElementById('seg-color').value || '#6C5CE7',
+        color: document.getElementById('seg-color').value || '#1E3A8A',
         textColor: document.getElementById('seg-textcolor').value || '#FFFFFF',
         discountType: document.getElementById('seg-type').value || 'percentage',
         discountValue: parseInt(document.getElementById('seg-value')?.value) || 0,
         couponCode: document.getElementById('seg-coupon')?.value || null,
+        ikasCampaignId: document.getElementById('seg-ikas-campaign')?.value || null,
         probability: parseInt(document.getElementById('seg-prob').value) || 10,
       };
 
@@ -483,6 +500,65 @@ class AdminPanel {
 
       document.getElementById('editModal').classList.remove('active');
       await this.saveAndRender({ segments: this.config.segments });
+    });
+  }
+
+  /** Fetches İkas campaigns once and caches them for the session */
+  async fetchIkasCampaigns() {
+    if (this._ikasCampaigns) {
+      return this._ikasCampaigns;
+    }
+    const base = getApiBase();
+    if (!base) {
+      this._ikasCampaigns = [];
+      return this._ikasCampaigns;
+    }
+    try {
+      const res = await fetch(`${base}/api/admin/ikas/campaigns`, {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('cark_admin_token')}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this._ikasCampaigns = data.campaigns || [];
+      } else {
+        this._ikasCampaigns = [];
+      }
+    } catch {
+      this._ikasCampaigns = [];
+    }
+    return this._ikasCampaigns;
+  }
+
+  async populateIkasCampaignSelect(selectedId) {
+    const select = document.getElementById('seg-ikas-campaign');
+    const hint = document.getElementById('seg-ikas-campaign-hint');
+    if (!select) {
+      return;
+    }
+    const campaigns = await this.fetchIkasCampaigns();
+
+    // Modal may have been closed/re-opened for a different segment by the time this resolves
+    const currentSelect = document.getElementById('seg-ikas-campaign');
+    if (!currentSelect) {
+      return;
+    }
+
+    if (campaigns.length === 0) {
+      if (hint) {
+        hint.textContent =
+          'İkas kampanyası bulunamadı (İkas bağlı değil veya kampanya yok). İkas Builder\'dan bir kampanya oluşturduktan sonra buradan seçebilir, ya da yukarıya sabit bir kupon kodu girebilirsiniz.';
+      }
+      return;
+    }
+
+    campaigns.forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.title + (c.hasCoupon ? '' : ' (kuponsuz kampanya — önce İkas\'ta kupon özelliğini açın)');
+      if (String(c.id) === String(selectedId)) {
+        opt.selected = true;
+      }
+      currentSelect.appendChild(opt);
     });
   }
 
@@ -695,7 +771,7 @@ class AdminPanel {
   // --- Integration Tab ---
 
   renderIntegrationTab() {
-    const embedCode = generateEmbedCode(this.config);
+    const embedCode = generateEmbedCode(this.config, getApiBase());
     const ikasGuide = generateIkasGuide();
     return `
       <div class="tab-content active" id="tab-integration">
@@ -703,8 +779,7 @@ class AdminPanel {
           <div class="admin-card">
             <h3>🌐 Embed Kodu</h3>
             <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">
-              Bu kodu sitenizin <code>&lt;/body&gt;</code> etiketinden hemen önce ekleyin.
-              Backend kullanıyorsanız <code>apiBaseUrl</code> parametresini ekleyin.
+              Bu kodu İkas mağaza temanızda <code>&lt;/body&gt;</code> etiketinden hemen önce ekleyin.
             </p>
             <div class="embed-code">
               <button class="btn btn-secondary embed-copy-btn" id="copyEmbedBtn">Kopyala</button>
