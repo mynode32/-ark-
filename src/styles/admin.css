@@ -312,6 +312,12 @@ select.form-input {
   background-position: right 12px center;
   padding-right: 36px;
 }
+/* The dropdown popup ignores the select's own background, so without this
+   its <option> list renders as white-on-white in most browsers. */
+select.form-input option {
+  background: #1a1a2e;
+  color: #fff;
+}
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
