@@ -36,6 +36,7 @@ export class ModalManager {
               
               <!-- Form View -->
               <div class="cark-form-view">
+                <span class="cark-eyebrow">✨ Sana Özel Davet</span>
                 <h2 class="cark-title">Çarkı Çevir<br>Hediyeni Kazan!</h2>
                 <p class="cark-subtitle">Hemen çarkı çevir, birbirinden güzel indirimleri kap</p>
                 

@@ -125,13 +125,13 @@ class CarkApp {
         window.dispatchEvent(winEvent);
       }
 
-      // Show result after spin animation
+      // Show result right after the wheel's own landing/celebration animation finishes
       setTimeout(() => {
         if (winner.discountType !== 'noLuck') {
           this.confetti.fire();
         }
         this.modalMgr.showResult(winner, () => this.resetForRetry());
-      }, 500);
+      }, 150);
     } catch (err) {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Çevir Kazan';

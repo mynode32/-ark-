@@ -3,8 +3,8 @@ export const DEFAULT_CONFIG = {
     {
       id: 1,
       label: '%5 İNDİRİM',
-      color: '#1A1A1A', // Onyx
-      textColor: '#FFD700', // Gold text
+      color: '#1E3A8A', // Sapphire
+      textColor: '#FFFFFF',
       probability: 20,
       couponCode: null,
       discountType: 'percentage',
@@ -14,7 +14,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 2,
       label: '%10 İNDİRİM',
-      color: '#8B0000', // Crimson
+      color: '#9F1239', // Ruby
       textColor: '#FFFFFF',
       probability: 15,
       couponCode: null,
@@ -25,8 +25,8 @@ export const DEFAULT_CONFIG = {
     {
       id: 3,
       label: '75₺',
-      color: '#1A1A1A', // Onyx
-      textColor: '#FFD700',
+      color: '#065F46', // Emerald
+      textColor: '#FFFFFF',
       probability: 15,
       couponCode: null,
       discountType: 'fixed',
@@ -36,8 +36,8 @@ export const DEFAULT_CONFIG = {
     {
       id: 4,
       label: 'Kargo Bedava',
-      color: '#004B23', // Emerald
-      textColor: '#FFFFFF',
+      color: '#B8860B', // Dark Gold
+      textColor: '#1A1A2E',
       probability: 10,
       couponCode: null,
       discountType: 'freeShipping',
@@ -47,8 +47,8 @@ export const DEFAULT_CONFIG = {
     {
       id: 5,
       label: '200₺',
-      color: '#1A1A1A', // Onyx
-      textColor: '#FFD700',
+      color: '#6B21A8', // Amethyst
+      textColor: '#FFFFFF',
       probability: 5,
       couponCode: null,
       discountType: 'fixed',
@@ -58,7 +58,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 6,
       label: '%15 İNDİRİM',
-      color: '#B8860B', // Dark Gold
+      color: '#92400E', // Bronze
       textColor: '#FFFFFF',
       probability: 10,
       couponCode: null,
@@ -69,8 +69,8 @@ export const DEFAULT_CONFIG = {
     {
       id: 7,
       label: 'Pas',
-      color: '#1A1A1A', // Onyx
-      textColor: '#FFD700',
+      color: '#27272A', // Onyx
+      textColor: '#FFFFFF',
       probability: 15,
       couponCode: null,
       discountType: 'noLuck',
@@ -80,7 +80,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 8,
       label: '%20 İNDİRİM',
-      color: '#4B0082', // Purple
+      color: '#831843', // Burgundy
       textColor: '#FFFFFF',
       probability: 10,
       couponCode: null,

@@ -132,6 +132,9 @@
   <script>
     // Demo ortamında her yenilemede güncel renkleri görmek için önbelleği temizle
     localStorage.removeItem('carkConfig');
+    // ?apiUrl=http://localhost:3001 ile yerel/farklı bir backend'e bağlanmayı test etmek için
+    var _apiUrl = new URLSearchParams(location.search).get('apiUrl');
+    if (_apiUrl) window.CARK_API_URL = _apiUrl;
   </script>
   <script type="module" src="/src/main.js"></script>
   <script>
