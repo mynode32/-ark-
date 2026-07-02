@@ -26,7 +26,7 @@ const WIDGET_CSS = `
 .cark-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 999999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
 .cark-overlay.active { opacity: 1; pointer-events: all; }
 .cark-modal {
-  position: relative; width: 90%; max-width: 850px;
+  position: relative; width: 90%; max-width: 920px;
   background:
     radial-gradient(circle at 15% -10%, rgba(255, 215, 0, 0.1), transparent 45%),
     radial-gradient(circle at 100% 110%, rgba(255, 165, 2, 0.08), transparent 45%),
@@ -41,7 +41,7 @@ const WIDGET_CSS = `
 .cark-close-btn:hover { background: rgba(255,255,255,0.15); transform: rotate(90deg) scale(1.1); }
 .cark-content { display: flex; min-height: 500px; }
 .cark-wheel-section {
-  flex: 0 0 45%; padding: 30px; display: flex; align-items: center; justify-content: center; position: relative;
+  flex: 0 0 50%; padding: 24px; display: flex; align-items: center; justify-content: center; position: relative;
   background: radial-gradient(circle at 50% 45%, rgba(255, 215, 0, 0.1), transparent 62%), rgba(0, 0, 0, 0.25);
   border-right: 1px solid var(--cark-glass-border); overflow: hidden;
 }
@@ -102,7 +102,7 @@ const WIDGET_CSS = `
   .cark-modal { width: 95%; max-height: 90vh; overflow-y: auto; }
   .cark-content { flex-direction: column; }
   .cark-wheel-section { padding: 30px 20px; border-right: none; border-bottom: 1px solid var(--cark-glass-border); }
-  .cark-canvas { max-width: 280px; max-height: 280px; }
+  .cark-canvas { max-width: 300px; max-height: 300px; }
   .cark-form-section { padding: 30px 20px; }
   .cark-title { font-size: 26px; text-align: center; }
   .cark-subtitle { text-align: center; }

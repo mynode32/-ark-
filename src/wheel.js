@@ -19,8 +19,8 @@ export class WheelEngine {
 
   _setupCanvas() {
     const dpr = window.devicePixelRatio || 1;
-    const cssWidth = 400;
-    const cssHeight = 400;
+    const cssWidth = 440;
+    const cssHeight = 440;
     this.canvas.width = cssWidth * dpr;
     this.canvas.height = cssHeight * dpr;
     this.canvas.style.width = cssWidth + 'px';
@@ -118,18 +118,35 @@ export class WheelEngine {
       ctx.font = '22px sans-serif';
       ctx.fillText(seg.icon || '', r * 0.35, 0);
 
-      // Label at 65% radius
+      // Label at 65% radius — auto-shrunk (and truncated as a last resort) so text
+      // can never run past the wheel's edge no matter how long the label is
       const label = seg.label || '';
-      const fontSize = label.length > 12 ? 12 : label.length > 8 ? 14 : 16;
+      const textCenterR = r * 0.65;
+      const maxLabelWidth = Math.max(20, 2 * (r - 8 - textCenterR));
+      let fontSize = 16;
       ctx.font = `800 ${fontSize}px 'Outfit', sans-serif`;
+      let displayLabel = label;
+      let labelWidth = ctx.measureText(displayLabel).width;
+      while (labelWidth > maxLabelWidth && fontSize > 8) {
+        fontSize -= 1;
+        ctx.font = `800 ${fontSize}px 'Outfit', sans-serif`;
+        labelWidth = ctx.measureText(displayLabel).width;
+      }
+      if (labelWidth > maxLabelWidth) {
+        while (displayLabel.length > 3 && ctx.measureText(displayLabel + '…').width > maxLabelWidth) {
+          displayLabel = displayLabel.slice(0, -1);
+        }
+        displayLabel += '…';
+      }
+
       ctx.fillStyle = seg.textColor || '#FFFFFF';
-      
+
       // Premium text shadow
       ctx.shadowColor = 'rgba(0,0,0,0.8)';
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 1;
       ctx.shadowOffsetY = 1;
-      ctx.fillText(label, r * 0.65, 0);
+      ctx.fillText(displayLabel, textCenterR, 0);
       
       ctx.restore();
 
