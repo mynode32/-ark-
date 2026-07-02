@@ -503,15 +503,19 @@ class AdminPanel {
     });
   }
 
-  /** Fetches İkas campaigns once and caches them for the session */
+  /**
+   * Fetches İkas campaigns and caches them for the session.
+   * Only a successful response is cached — a failed/empty attempt (e.g. the
+   * backend was still waking up from Render's free-tier sleep) is retried
+   * next time the modal opens instead of being stuck empty forever.
+   */
   async fetchIkasCampaigns() {
     if (this._ikasCampaigns) {
       return this._ikasCampaigns;
     }
     const base = getApiBase();
     if (!base) {
-      this._ikasCampaigns = [];
-      return this._ikasCampaigns;
+      return [];
     }
     try {
       const res = await fetch(`${base}/api/admin/ikas/campaigns`, {
@@ -520,13 +524,12 @@ class AdminPanel {
       if (res.ok) {
         const data = await res.json();
         this._ikasCampaigns = data.campaigns || [];
-      } else {
-        this._ikasCampaigns = [];
+        return this._ikasCampaigns;
       }
     } catch {
-      this._ikasCampaigns = [];
+      /* ignore, will retry next time the modal opens */
     }
-    return this._ikasCampaigns;
+    return [];
   }
 
   async populateIkasCampaignSelect(selectedId) {
@@ -545,8 +548,18 @@ class AdminPanel {
 
     if (campaigns.length === 0) {
       if (hint) {
-        hint.textContent =
-          'İkas kampanyası bulunamadı (İkas bağlı değil veya kampanya yok). İkas Builder\'dan bir kampanya oluşturduktan sonra buradan seçebilir, ya da yukarıya sabit bir kupon kodu girebilirsiniz.';
+        hint.innerHTML =
+          'İkas kampanyası bulunamadı. Backend az önce uyandıysa (Render ücretsiz plan) birkaç saniye sürebilir — ' +
+          '<a href="#" id="retryIkasCampaigns" style="color:var(--cark-primary,#ffd700);text-decoration:underline;">tekrar dene</a>. ' +
+          'Yoksa İkas Builder\'dan bir kampanya oluşturup buradan seçebilir, ya da yukarıya sabit bir kupon kodu girebilirsiniz.';
+        const retryLink = document.getElementById('retryIkasCampaigns');
+        if (retryLink) {
+          retryLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            hint.textContent = 'Yükleniyor...';
+            this.populateIkasCampaignSelect(selectedId);
+          });
+        }
       }
       return;
     }
