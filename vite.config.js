@@ -5,7 +5,9 @@ export default defineConfig({
   root: '.',
   publicDir: 'public',
   build: {
-    outDir: 'dist',
+    // Separate from vite.embed.config.js's outDir ('dist', which the backend
+    // serves at /dist/cark-widget.js for embeds) so the two builds never fight.
+    outDir: 'dist-app',
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),

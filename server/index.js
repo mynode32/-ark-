@@ -18,6 +18,12 @@ app.use(express.json());
 // other store) can load it via a plain <script src="..."> tag from this backend.
 app.use('/dist', express.static(resolve(__dirname, '..', 'dist')));
 
+// Serves the built admin panel + demo page (index.html, admin.html) so store
+// owners can reach https://<backend>/admin.html directly without running a
+// local dev server. Falls through (no local dist-app in dev) to the API
+// routes below, so `npm run dev` in server/ still works standalone.
+app.use(express.static(resolve(__dirname, '..', 'dist-app')));
+
 // API routes
 app.use('/api/auth', authRouter);
 app.use('/api/widget', widgetRouter);
