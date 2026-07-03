@@ -11,27 +11,38 @@
   <link rel="stylesheet" href="/src/styles/admin.css">
 </head>
 <body>
-  <!-- Password Protection -->
+  <!-- Auth -->
   <div class="admin-password-overlay" id="adminPasswordOverlay">
     <div class="admin-password-box">
       <div class="admin-password-icon">🔒</div>
-      <h2>Admin Paneli</h2>
-      <p>Devam etmek için şifreyi girin</p>
-      <input type="password" class="admin-password-input" id="adminPasswordInput" placeholder="Şifre" autocomplete="off">
-      <div class="admin-password-error" id="adminPasswordError">Hatalı şifre!</div>
-      <button class="btn btn-primary" id="adminPasswordBtn" style="width:100%">Giriş Yap</button>
-      <div class="admin-password-hint">Varsayılan şifre: <code>admin123</code></div>
+      <h2 id="authTitle">Giriş Yap</h2>
+      <p id="authSubtitle">Mağazanızın admin paneline giriş yapın</p>
+
+      <div id="authFieldStoreName" style="display:none">
+        <input type="text" class="admin-password-input" id="authStoreName" placeholder="Mağaza Adı" autocomplete="off">
+      </div>
+      <input type="email" class="admin-password-input" id="authEmail" placeholder="E-posta" autocomplete="username">
+      <input type="password" class="admin-password-input" id="authPassword" placeholder="Şifre" autocomplete="current-password">
+
+      <div class="admin-password-error" id="adminPasswordError"></div>
+      <button class="btn btn-primary" id="authSubmitBtn" style="width:100%">Giriş Yap</button>
+
+      <div class="admin-password-hint">
+        <span id="authSwitchToRegisterWrap">Hesabınız yok mu? <a href="#" id="authSwitchToRegister">Mağaza Oluştur</a></span>
+        <span id="authSwitchToLoginWrap" style="display:none">Zaten hesabınız var mı? <a href="#" id="authSwitchToLogin">Giriş Yap</a></span>
+      </div>
     </div>
   </div>
 
   <div class="admin-container" id="adminContent" style="display:none">
     <header class="admin-header">
-      <div class="admin-logo">🎡 Çark Admin</div>
+      <div class="admin-logo">🎡 Çark Admin <span id="adminStoreName" style="font-size:13px;font-weight:400;opacity:0.6;"></span></div>
       <nav class="admin-nav">
         <a class="active" data-tab="settings">⚙️ Çark Ayarları</a>
         <a data-tab="entries">👥 Katılımcılar</a>
         <a data-tab="integration">🔌 Entegrasyon</a>
       </nav>
+      <button id="logoutBtn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;">Çıkış Yap</button>
     </header>
     <main id="admin-main">
       <!-- Tabs will be rendered here by admin.js -->

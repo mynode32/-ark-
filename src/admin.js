@@ -9,54 +9,45 @@ import {
 import { generateEmbedCode, generateIkasGuide } from './embed.js';
 
 function getApiBase() {
-  return window.CARK_API_URL || '';
+  return window.CARK_API_URL || 'https://cark-backend.onrender.com';
+}
+
+function authToken() {
+  return localStorage.getItem('cark_admin_token') || '';
 }
 
 class AdminPanel {
   constructor() {
     this.config = getLocalConfig();
+    this.store = null;
     this.currentTab = 'settings';
     this.editingSegmentId = null;
+    this.authMode = 'login';
     this.init();
   }
 
   async init() {
-    // Check URL hash for password
-    const hash = window.location.hash.slice(1);
-    const savedToken = sessionStorage.getItem('cark_admin_token');
-    const base = getApiBase();
-
-    if (base) {
-      // Backend mode: use token auth
-      if (hash) {
-        sessionStorage.setItem('cark_admin_token', hash);
-      }
-
-      const token = sessionStorage.getItem('cark_admin_token');
-      if (token) {
-        try {
-          const res = await fetch(`${base}/api/admin/auth-check`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            this.showContent();
-            this.loadFromBackend();
-            return;
-          }
-        } catch {
-          /* ignore */
+    const token = authToken();
+    if (token) {
+      const base = getApiBase();
+      try {
+        const res = await fetch(`${base}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.store = data.store;
+          this.showContent();
+          this.loadFromBackend();
+          return;
         }
-        sessionStorage.removeItem('cark_admin_token');
+      } catch {
+        /* ignore, falls through to auth form */
       }
-    } else {
-      // Local mode: use simple password from admin.html
-      if (savedToken || hash) {
-        this.showContent();
-        return;
-      }
+      localStorage.removeItem('cark_admin_token');
     }
 
-    this.showPasswordForm(hash);
+    this.showAuthForm('login');
   }
 
   showContent() {
@@ -68,71 +59,117 @@ class AdminPanel {
     if (content) {
       content.style.display = 'block';
     }
+    const nameEl = document.getElementById('adminStoreName');
+    if (nameEl && this.store) {
+      nameEl.textContent = `— ${this.store.name}`;
+    }
+    document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
+
     this.setupTabs();
     this.render();
   }
 
-  showPasswordForm(_hash) {
+  showAuthForm(mode) {
+    this.authMode = mode;
     const overlay = document.getElementById('adminPasswordOverlay');
     if (!overlay) {
       return;
     }
     overlay.style.display = 'flex';
 
-    const input = document.getElementById('adminPasswordInput');
+    const title = document.getElementById('authTitle');
+    const subtitle = document.getElementById('authSubtitle');
+    const storeNameWrap = document.getElementById('authFieldStoreName');
+    const storeNameInput = document.getElementById('authStoreName');
+    const emailInput = document.getElementById('authEmail');
+    const passwordInput = document.getElementById('authPassword');
     const error = document.getElementById('adminPasswordError');
-    const btn = document.getElementById('adminPasswordBtn');
-    const hint = document.querySelector('.admin-password-hint');
+    const btn = document.getElementById('authSubmitBtn');
+    const toRegisterWrap = document.getElementById('authSwitchToRegisterWrap');
+    const toLoginWrap = document.getElementById('authSwitchToLoginWrap');
 
-    if (hint) {
-      hint.innerHTML = 'Backend bağlı değil, şifre gerekmez. Herhangi bir şey yazın.';
-    }
+    const isRegister = mode === 'register';
+    title.textContent = isRegister ? 'Mağaza Oluştur' : 'Giriş Yap';
+    subtitle.textContent = isRegister
+      ? 'Kendi çark widget hesabınızı oluşturun'
+      : 'Mağazanızın admin paneline giriş yapın';
+    storeNameWrap.style.display = isRegister ? 'block' : 'none';
+    btn.textContent = isRegister ? 'Hesap Oluştur' : 'Giriş Yap';
+    toRegisterWrap.style.display = isRegister ? 'none' : 'inline';
+    toLoginWrap.style.display = isRegister ? 'inline' : 'none';
+    error.style.display = 'none';
 
-    const check = async () => {
+    document.getElementById('authSwitchToRegister').onclick = (e) => {
+      e.preventDefault();
+      this.showAuthForm('register');
+    };
+    document.getElementById('authSwitchToLogin').onclick = (e) => {
+      e.preventDefault();
+      this.showAuthForm('login');
+    };
+
+    const showError = (msg) => {
+      error.style.display = 'block';
+      error.textContent = msg;
+    };
+
+    const submit = async () => {
       const base = getApiBase();
-      if (base) {
-        const token = input.value;
-        try {
-          const res = await fetch(`${base}/api/admin/auth-check`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            sessionStorage.setItem('cark_admin_token', token);
-            this.showContent();
-            this.loadFromBackend();
-            return;
-          }
-        } catch {
-          /* ignore */
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      const storeName = storeNameInput.value.trim();
+
+      if (!email || !password || (isRegister && !storeName)) {
+        showError('Lütfen tüm alanları doldurun');
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const path = isRegister ? '/api/auth/register' : '/api/auth/login';
+        const body = isRegister ? { storeName, email, password } : { email, password };
+        const res = await fetch(`${base}${path}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showError(data.error || 'Bir hata oluştu');
+          return;
         }
-        error.style.display = 'block';
-        error.textContent = 'Şifre hatalı veya backend bağlantı hatası';
-        setTimeout(() => {
-          error.style.display = 'none';
-        }, 3000);
-      } else {
-        sessionStorage.setItem('cark_admin_token', 'local');
+        localStorage.setItem('cark_admin_token', data.token);
+        this.store = data.store;
         this.showContent();
+        this.loadFromBackend();
+      } catch {
+        showError('Backend bağlantı hatası');
+      } finally {
+        btn.disabled = false;
       }
     };
 
-    btn.onclick = check;
-    input.onkeydown = (e) => {
+    btn.onclick = submit;
+    passwordInput.onkeydown = (e) => {
       if (e.key === 'Enter') {
-        check();
+        submit();
       }
     };
-    input.focus();
+    (isRegister ? storeNameInput : emailInput).focus();
+  }
+
+  logout() {
+    localStorage.removeItem('cark_admin_token');
+    this.store = null;
+    document.getElementById('adminContent').style.display = 'none';
+    this.showAuthForm('login');
   }
 
   async loadFromBackend() {
     const base = getApiBase();
-    if (!base) {
-      return;
-    }
     try {
       const res = await fetch(`${base}/api/admin/config`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('cark_admin_token')}` },
+        headers: { Authorization: `Bearer ${authToken()}` },
       });
       if (res.ok) {
         this.config = await res.json();
@@ -286,7 +323,7 @@ class AdminPanel {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionStorage.getItem('cark_admin_token')}`,
+          Authorization: `Bearer ${authToken()}`,
         },
         body: JSON.stringify(payload),
       });
@@ -519,7 +556,7 @@ class AdminPanel {
     }
     try {
       const res = await fetch(`${base}/api/admin/ikas/campaigns`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('cark_admin_token')}` },
+        headers: { Authorization: `Bearer ${authToken()}` },
       });
       if (res.ok) {
         const data = await res.json();
@@ -675,8 +712,8 @@ class AdminPanel {
 
     document.getElementById('exportBtn')?.addEventListener('click', () => {
       const base = getApiBase();
-      if (base && sessionStorage.getItem('cark_admin_token')) {
-        window.open(`${base}/api/admin/entries/export?token=${sessionStorage.getItem('cark_admin_token')}`, '_blank');
+      if (authToken()) {
+        window.open(`${base}/api/admin/entries/export?token=${authToken()}`, '_blank');
       } else {
         exportLocalCSV();
       }
@@ -688,10 +725,10 @@ class AdminPanel {
         return;
       }
       const base = getApiBase();
-      if (base && sessionStorage.getItem('cark_admin_token')) {
+      if (authToken()) {
         await fetch(`${base}/api/admin/entries`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${sessionStorage.getItem('cark_admin_token')}` },
+          headers: { Authorization: `Bearer ${authToken()}` },
         });
       } else {
         clearLocalEntries();
@@ -708,9 +745,9 @@ class AdminPanel {
     let entries = [];
     let stats = { total: 0, today: 0, mostWon: '-' };
 
-    if (base && sessionStorage.getItem('cark_admin_token')) {
+    if (authToken()) {
       try {
-        const token = sessionStorage.getItem('cark_admin_token');
+        const token = authToken();
         const [entriesRes, statsRes] = await Promise.all([
           fetch(`${base}/api/admin/entries?limit=500`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${base}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -784,7 +821,7 @@ class AdminPanel {
   // --- Integration Tab ---
 
   renderIntegrationTab() {
-    const embedCode = generateEmbedCode(this.config, getApiBase());
+    const embedCode = generateEmbedCode(this.config, getApiBase(), this.store?.slug);
     const ikasGuide = generateIkasGuide();
     return `
       <div class="tab-content active" id="tab-integration">
@@ -792,7 +829,7 @@ class AdminPanel {
           <div class="admin-card">
             <h3>🌐 Embed Kodu</h3>
             <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">
-              Bu kodu İkas mağaza temanızda <code>&lt;/body&gt;</code> etiketinden hemen önce ekleyin.
+              Bu kodu mağaza temanızda <code>&lt;/body&gt;</code> etiketinden hemen önce ekleyin.
             </p>
             <div class="embed-code">
               <button class="btn btn-secondary embed-copy-btn" id="copyEmbedBtn">Kopyala</button>
@@ -800,8 +837,40 @@ class AdminPanel {
             </div>
           </div>
           <div class="admin-card">
-            <h3>🛍️ İkas Entegrasyonu</h3>
-            <div class="integration-guide">${ikasGuide}</div>
+            <h3>🔌 Platform Bağlantısı</h3>
+            <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin-bottom:16px;">
+              İkas mağazanızı bağlarsanız kazanılan kuponlar ve müşteriler otomatik olarak İkas'a işlenir.
+              Bağlamazsanız çark yine çalışır, kupon kodları admin panelde/CSV'de görünür — siz manuel uygularsınız.
+            </p>
+            <div id="platformStatus" style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:16px;">Yükleniyor...</div>
+            <div class="form-group">
+              <label>Platform</label>
+              <select class="form-input" id="platform-select">
+                <option value="none">Yok — Manuel Mod</option>
+                <option value="ikas">İkas</option>
+              </select>
+            </div>
+            <div id="ikasCredsFields" style="display:none">
+              <div class="form-group">
+                <label>İkas Mağaza Alt Alan Adı (subdomain)</label>
+                <input type="text" class="form-input" id="platform-ikasStoreId" placeholder="orn: yhmoda">
+              </div>
+              <div class="form-group">
+                <label>Client ID</label>
+                <input type="text" class="form-input" id="platform-ikasClientId" placeholder="İkas Standart Uygulama Client ID">
+              </div>
+              <div class="form-group">
+                <label>Client Secret</label>
+                <input type="password" class="form-input" id="platform-ikasClientSecret" placeholder="Kayıtlıysa boş bırakabilirsiniz">
+              </div>
+            </div>
+            <div class="btn-group" style="justify-content:flex-end;">
+              <button class="btn btn-primary" id="savePlatformBtn">Kaydet</button>
+            </div>
+            <details style="margin-top:20px;">
+              <summary style="cursor:pointer;color:rgba(255,255,255,0.6);font-size:13px;">İkas nasıl bağlanır?</summary>
+              <div class="integration-guide">${ikasGuide}</div>
+            </details>
           </div>
         </div>
       </div>
@@ -814,6 +883,72 @@ class AdminPanel {
         this.showToast('Embed kodu kopyalandı');
       });
     });
+
+    const select = document.getElementById('platform-select');
+    const ikasFields = document.getElementById('ikasCredsFields');
+    select.addEventListener('change', () => {
+      ikasFields.style.display = select.value === 'ikas' ? 'block' : 'none';
+    });
+
+    this.loadPlatformCredentials();
+
+    document.getElementById('savePlatformBtn').addEventListener('click', async () => {
+      const base = getApiBase();
+      const platform = select.value;
+      const body = {
+        platform,
+        ikasStoreId: document.getElementById('platform-ikasStoreId').value.trim(),
+        ikasClientId: document.getElementById('platform-ikasClientId').value.trim(),
+        ikasClientSecret: document.getElementById('platform-ikasClientSecret').value.trim(),
+      };
+      try {
+        const res = await fetch(`${base}/api/admin/platform-credentials`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          this.showToast('Platform ayarları kaydedildi');
+          this.loadPlatformCredentials();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          this.showToast(data.error || 'Kaydedilemedi');
+        }
+      } catch {
+        this.showToast('Backend bağlantı hatası');
+      }
+    });
+  }
+
+  async loadPlatformCredentials() {
+    const base = getApiBase();
+    const statusEl = document.getElementById('platformStatus');
+    try {
+      const res = await fetch(`${base}/api/admin/platform-credentials`, {
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      if (!res.ok) {
+        return;
+      }
+      const creds = await res.json();
+      const select = document.getElementById('platform-select');
+      const ikasFields = document.getElementById('ikasCredsFields');
+      if (!select) {
+        return;
+      }
+      select.value = creds.platform || 'none';
+      ikasFields.style.display = creds.platform === 'ikas' ? 'block' : 'none';
+      document.getElementById('platform-ikasStoreId').value = creds.ikasStoreId || '';
+      document.getElementById('platform-ikasClientId').value = creds.ikasClientId || '';
+      if (statusEl) {
+        statusEl.textContent =
+          creds.platform === 'ikas'
+            ? `✅ İkas'a bağlı${creds.hasSecret ? '' : ' (client secret eksik!)'}`
+            : '⚪ Bağlı değil — manuel mod aktif';
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   showToast(msg) {

@@ -132,9 +132,12 @@
   <script>
     // Demo ortamında her yenilemede güncel renkleri görmek için önbelleği temizle
     localStorage.removeItem('carkConfig');
-    // ?apiUrl=http://localhost:3001 ile yerel/farklı bir backend'e bağlanmayı test etmek için
-    var _apiUrl = new URLSearchParams(location.search).get('apiUrl');
+    // ?apiUrl=http://localhost:3001&storeSlug=yhmoda ile yerel/farklı bir backend'e ve mağazaya bağlanmayı test etmek için
+    var _params = new URLSearchParams(location.search);
+    var _apiUrl = _params.get('apiUrl');
+    var _storeSlug = _params.get('storeSlug');
     if (_apiUrl) window.CARK_API_URL = _apiUrl;
+    if (_storeSlug) window.CARK_STORE_SLUG = _storeSlug;
   </script>
   <script type="module" src="/src/main.js"></script>
   <script>

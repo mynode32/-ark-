@@ -107,6 +107,7 @@ export const DEFAULT_CONFIG = {
 };
 
 export const getApiUrl = () => window.CARK_API_URL || 'https://cark-backend.onrender.com';
+export const getStoreSlug = () => window.CARK_STORE_SLUG || '';
 
 function getApiBase() {
   return getApiUrl();
@@ -116,9 +117,10 @@ function getApiBase() {
 
 export async function fetchConfig() {
   const base = getApiBase();
-  if (base) {
+  const slug = getStoreSlug();
+  if (base && slug) {
     try {
-      const res = await fetch(`${base}/api/widget/config`);
+      const res = await fetch(`${base}/api/widget/${encodeURIComponent(slug)}/config`);
       if (!res.ok) {
         throw new Error('API hatası');
       }
@@ -167,9 +169,10 @@ export function generateId() {
 
 export async function spin(userData, segments = null) {
   const base = getApiBase();
-  if (base) {
+  const slug = getStoreSlug();
+  if (base && slug) {
     const payload = segments ? { ...userData, segments } : userData;
-    const res = await fetch(`${base}/api/widget/spin`, {
+    const res = await fetch(`${base}/api/widget/${encodeURIComponent(slug)}/spin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -215,11 +218,12 @@ export async function spin(userData, segments = null) {
 
 export async function canSpin() {
   const base = getApiBase();
-  if (base) {
+  const slug = getStoreSlug();
+  if (base && slug) {
     try {
       const phone = document.getElementById('cark-phone')?.value?.replace(/\D/g, '');
       if (phone) {
-        const res = await fetch(`${base}/api/widget/check-spin`, {
+        const res = await fetch(`${base}/api/widget/${encodeURIComponent(slug)}/check-spin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone }),

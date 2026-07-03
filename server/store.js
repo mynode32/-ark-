@@ -1,87 +1,20 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { query } from './db.js';
 
-const DEFAULT_CONFIG = {
+const GENERIC_DEFAULT_CONFIG = {
   segments: [
-    {
-      id: 1,
-      label: '%10 İNDİRİM',
-      color: '#1E3A8A',
-      textColor: '#FFFFFF',
-      probability: 20,
-      couponCode: null,
-      ikasCampaignId: 'b759060a-8ee4-48e7-9dc0-bcb670fe1a88', // FUYGUR
-      discountType: 'percentage',
-      discountValue: 10,
-      icon: '🏷️',
-    },
-    {
-      id: 2,
-      label: '30₺ İNDİRİM',
-      color: '#9F1239',
-      textColor: '#FFFFFF',
-      probability: 20,
-      couponCode: null,
-      ikasCampaignId: 'a7d4ba68-6ffc-46e1-86a3-96ba637c9fa2', // YH30
-      discountType: 'fixed',
-      discountValue: 30,
-      icon: '💰',
-    },
-    {
-      id: 3,
-      label: '150₺ İndirim',
-      color: '#065F46',
-      textColor: '#FFFFFF',
-      probability: 15,
-      couponCode: null,
-      ikasCampaignId: '46884d16-94d6-439f-a48f-b5e294301345', // Siparişe Özel 150₺ İndirim (500₺ üzeri)
-      discountType: 'fixed',
-      discountValue: 150,
-      icon: '🎁',
-    },
-    {
-      id: 4,
-      label: 'Ücretsiz Kargo',
-      color: '#B8860B',
-      textColor: '#1A1A2E',
-      probability: 20,
-      couponCode: null,
-      ikasCampaignId: '27cd0566-5cb8-4637-a2b4-0e4e89f459bf', // Ücretsiz Kargo!
-      discountType: 'freeShipping',
-      discountValue: 0,
-      icon: '🚚',
-    },
-    {
-      id: 5,
-      label: '500₺ Hediye Çeki',
-      color: '#6B21A8',
-      textColor: '#FFFFFF',
-      probability: 5,
-      couponCode: null,
-      ikasCampaignId: '3f23a147-7d60-439f-8664-174d297ce84a', // 2500₺ üzeri 500₺ Hediye Çeki
-      discountType: 'fixed',
-      discountValue: 500,
-      icon: '💎',
-    },
-    {
-      id: 6,
-      label: 'Tekrar Dene',
-      color: '#27272A',
-      textColor: '#FFFFFF',
-      probability: 20,
-      couponCode: null,
-      ikasCampaignId: null,
-      discountType: 'noLuck',
-      discountValue: 0,
-      icon: '🍀',
-    },
+    { id: 1, label: '%5 İNDİRİM', color: '#1E3A8A', textColor: '#FFFFFF', probability: 20, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 5, icon: '🏷️' },
+    { id: 2, label: '%10 İNDİRİM', color: '#9F1239', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 10, icon: '🎁' },
+    { id: 3, label: '75₺', color: '#065F46', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'fixed', discountValue: 75, icon: '💰' },
+    { id: 4, label: 'Kargo Bedava', color: '#B8860B', textColor: '#1A1A2E', probability: 10, couponCode: null, ikasCampaignId: null, discountType: 'freeShipping', discountValue: 0, icon: '🚚' },
+    { id: 5, label: '200₺', color: '#6B21A8', textColor: '#FFFFFF', probability: 5, couponCode: null, ikasCampaignId: null, discountType: 'fixed', discountValue: 200, icon: '💎' },
+    { id: 6, label: '%15 İNDİRİM', color: '#92400E', textColor: '#FFFFFF', probability: 10, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 15, icon: '⭐' },
+    { id: 7, label: 'Pas', color: '#27272A', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'noLuck', discountValue: 0, icon: '🍀' },
+    { id: 8, label: '%20 İNDİRİM', color: '#831843', textColor: '#FFFFFF', probability: 10, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 20, icon: '🔥' },
   ],
   settings: {
-    storeName: 'yhmoda',
+    storeName: 'Mağaza',
     cooldownHours: 24,
-    redirectUrl: 'https://yhmoda.com/cart',
+    redirectUrl: '',
     triggerType: 'delay',
     triggerDelay: 3000,
     triggerScrollPercent: 50,
@@ -97,38 +30,72 @@ const DEFAULT_CONFIG = {
   },
 };
 
-function ensureDir() {
-  const dir = resolve(__dirname, '..', 'data');
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+export function defaultConfigFor(storeName) {
+  const cfg = JSON.parse(JSON.stringify(GENERIC_DEFAULT_CONFIG));
+  if (storeName) {
+    cfg.settings.storeName = storeName;
   }
-  return dir;
+  return cfg;
 }
 
-function readJSON(filename) {
-  const dir = ensureDir();
-  const path = resolve(dir, filename);
-  if (!existsSync(path)) {
+function rowToStore(row) {
+  if (!row) {
     return null;
   }
-  try {
-    return JSON.parse(readFileSync(path, 'utf-8'));
-  } catch {
-    return null;
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    email: row.email,
+    passwordHash: row.password_hash,
+    widgetConfig: row.widget_config,
+    createdAt: row.created_at,
+  };
+}
+
+export async function createStore({ slug, name, email, passwordHash, widgetConfig }) {
+  const res = await query(
+    `INSERT INTO stores (slug, name, email, password_hash, widget_config)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [slug, name, email, passwordHash, JSON.stringify(widgetConfig)],
+  );
+  return rowToStore(res.rows[0]);
+}
+
+export async function findStoreBySlug(slug) {
+  const res = await query('SELECT * FROM stores WHERE slug = $1', [slug]);
+  return rowToStore(res.rows[0]);
+}
+
+export async function findStoreByEmail(email) {
+  const res = await query('SELECT * FROM stores WHERE email = $1', [email]);
+  return rowToStore(res.rows[0]);
+}
+
+export async function findStoreById(id) {
+  const res = await query('SELECT * FROM stores WHERE id = $1', [id]);
+  return rowToStore(res.rows[0]);
+}
+
+export async function slugExists(slug) {
+  const res = await query('SELECT 1 FROM stores WHERE slug = $1', [slug]);
+  return res.rowCount > 0;
+}
+
+// --- Widget config ---
+
+export async function getWidgetConfig(storeId) {
+  const store = await findStoreById(storeId);
+  return store ? store.widgetConfig : null;
+}
+
+export async function saveWidgetConfig(storeId, data) {
+  const store = await findStoreById(storeId);
+  if (!store) {
+    throw new Error('Mağaza bulunamadı');
   }
-}
-
-function writeJSON(filename, data) {
-  const dir = ensureDir();
-  writeFileSync(resolve(dir, filename), JSON.stringify(data, null, 2), 'utf-8');
-}
-
-export function getWidgetConfig() {
-  return readJSON('config.json') || { ...DEFAULT_CONFIG };
-}
-
-export function saveWidgetConfig(data) {
-  const config = getWidgetConfig();
+  const config = store.widgetConfig;
   if (data.segments) {
     config.segments = data.segments;
   }
@@ -141,21 +108,97 @@ export function saveWidgetConfig(data) {
   if (data.embed) {
     config.embed = { ...config.embed, ...data.embed };
   }
-  writeJSON('config.json', config);
+  await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
   return config;
 }
 
-export function getEntries() {
-  return readJSON('entries.json') || [];
+// --- Entries ---
+
+function rowToEntry(row) {
+  return {
+    id: row.id,
+    timestamp: row.timestamp instanceof Date ? row.timestamp.toISOString() : row.timestamp,
+    name: row.name,
+    phone: row.phone,
+    email: row.email,
+    prize: row.prize,
+    couponCode: row.coupon_code,
+    discountType: row.discount_type,
+    discountValue: row.discount_value === null ? null : Number(row.discount_value),
+  };
 }
 
-export function addEntry(entry) {
-  const entries = getEntries();
-  entries.push(entry);
-  writeJSON('entries.json', entries);
-  return entry;
+export async function getEntries(storeId) {
+  const res = await query('SELECT * FROM entries WHERE store_id = $1 ORDER BY "timestamp" ASC', [storeId]);
+  return res.rows.map(rowToEntry);
 }
 
-export function clearEntries() {
-  writeJSON('entries.json', []);
+export async function findEntryByEmailOrPhone(storeId, email, phone) {
+  const res = await query(
+    'SELECT 1 FROM entries WHERE store_id = $1 AND (email = $2 OR phone = $3) LIMIT 1',
+    [storeId, email, phone],
+  );
+  return res.rowCount > 0;
+}
+
+export async function findLastEntryByPhone(storeId, phone) {
+  const res = await query(
+    'SELECT * FROM entries WHERE store_id = $1 AND phone = $2 ORDER BY "timestamp" DESC LIMIT 1',
+    [storeId, phone],
+  );
+  return res.rows[0] ? rowToEntry(res.rows[0]) : null;
+}
+
+export async function addEntry(storeId, entry) {
+  const res = await query(
+    `INSERT INTO entries (store_id, "timestamp", name, phone, email, prize, coupon_code, discount_type, discount_value)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [
+      storeId,
+      entry.timestamp || new Date().toISOString(),
+      entry.name,
+      entry.phone,
+      entry.email,
+      entry.prize,
+      entry.couponCode,
+      entry.discountType,
+      entry.discountValue,
+    ],
+  );
+  return rowToEntry(res.rows[0]);
+}
+
+export async function clearEntries(storeId) {
+  await query('DELETE FROM entries WHERE store_id = $1', [storeId]);
+}
+
+// --- Platform credentials ---
+
+export async function getPlatformCredentials(storeId) {
+  const res = await query('SELECT * FROM store_platform_credentials WHERE store_id = $1', [storeId]);
+  const row = res.rows[0];
+  if (!row) {
+    return { platform: 'none', ikasClientId: null, ikasClientSecretEnc: null, ikasStoreId: null };
+  }
+  return {
+    platform: row.platform,
+    ikasClientId: row.ikas_client_id,
+    ikasClientSecretEnc: row.ikas_client_secret_enc,
+    ikasStoreId: row.ikas_store_id,
+  };
+}
+
+export async function savePlatformCredentials(storeId, { platform, ikasClientId, ikasClientSecretEnc, ikasStoreId }) {
+  await query(
+    `INSERT INTO store_platform_credentials (store_id, platform, ikas_client_id, ikas_client_secret_enc, ikas_store_id)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (store_id) DO UPDATE SET
+       platform = EXCLUDED.platform,
+       ikas_client_id = EXCLUDED.ikas_client_id,
+       ikas_client_secret_enc = EXCLUDED.ikas_client_secret_enc,
+       ikas_store_id = EXCLUDED.ikas_store_id`,
+    [storeId, platform, ikasClientId || null, ikasClientSecretEnc || null, ikasStoreId || null],
+  );
+  return getPlatformCredentials(storeId);
 }

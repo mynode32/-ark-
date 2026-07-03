@@ -22,23 +22,27 @@ function loadEnv() {
 
 const env = loadEnv();
 
-const adminPassword = env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
-if (!adminPassword) {
-  throw new Error(
-    'ADMIN_PASSWORD ortam değişkeni tanımlı değil. server/.env dosyasına ADMIN_PASSWORD=... ekleyin.'
-  );
-}
-
 const ikasStoreId = env.IKAS_STORE_ID || process.env.IKAS_STORE_ID || '';
+
+const jwtSecret = env.JWT_SECRET || process.env.JWT_SECRET;
+const encryptionKey = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
+const databaseUrl = env.DATABASE_URL || process.env.DATABASE_URL || '';
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET ortam değişkeni tanımlı değil. server/.env dosyasına JWT_SECRET=... ekleyin.');
+}
 
 export const config = {
   port: parseInt(env.PORT || process.env.PORT || '3001'),
-  adminPassword,
-  dataDir: env.DATA_DIR || resolve(__dirname, '..', 'data'),
+  databaseUrl,
+  jwtSecret,
+  encryptionKey,
   ikas: {
-    // GraphQL host is shared across all stores
+    // GraphQL host is shared across all stores; auth host/clientId/secret are
+    // now per-store (see server/services/platforms/ikas.js) except for the
+    // one-off migration script, which still reads these as the legacy
+    // single-tenant fallback for yhmoda's existing credentials.
     apiUrl: env.IKAS_API_URL || process.env.IKAS_API_URL || 'https://api.myikas.com/api/v1/admin/graphql',
-    // OAuth token host is store-specific: https://<store-subdomain>.myikas.com/api/admin/oauth/token
     authUrl:
       env.IKAS_AUTH_URL ||
       process.env.IKAS_AUTH_URL ||

@@ -260,6 +260,9 @@ window.CarkWidget = {
     if (options.apiBaseUrl) {
       window.CARK_API_URL = options.apiBaseUrl;
     }
+    if (options.storeSlug) {
+      window.CARK_STORE_SLUG = options.storeSlug;
+    }
     await app.init(options);
   },
   open: () => app.open(),

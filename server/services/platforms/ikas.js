@@ -1,93 +1,56 @@
-import { config } from '../config.js';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { config } from '../../config.js';
+import { generateCouponCode } from './couponCode.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const COUNTER_PATH = resolve(__dirname, '..', 'data', 'coupon-counter.txt');
+// storeId -> { token, expiresAt } — per-tenant token cache since one process
+// now serves many stores' Ikas credentials.
+const tokenCache = new Map();
 
-function getCounter() {
-  try {
-    if (existsSync(COUNTER_PATH)) {
-      return parseInt(readFileSync(COUNTER_PATH, 'utf-8').trim(), 10) || 1;
-    }
-  } catch { /* ignore */ }
-  return Date.now() % 10000;
-}
-
-function incrementCounter() {
-  const next = getCounter() + 1;
-  try {
-    const dir = resolve(__dirname, '..', 'data');
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    writeFileSync(COUNTER_PATH, String(next), 'utf-8');
-  } catch { /* ignore */ }
-  return next;
-}
-
-function generateCouponCode(label) {
-  const counter = incrementCounter();
-  const safe = label.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'CARK';
-  return `${safe}${counter}`;
-}
-
-let currentAccessToken = null;
-let tokenExpiresAt = 0;
-
-async function getAccessToken() {
-  if (!config.ikas.clientId || !config.ikas.clientSecret) {
+async function getAccessToken(creds, storeId) {
+  if (!creds.clientId || !creds.clientSecret || !creds.storeId) {
     return null;
   }
-  if (currentAccessToken && Date.now() < tokenExpiresAt) {
-    return currentAccessToken;
+  const cached = tokenCache.get(storeId);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.token;
   }
 
+  const authUrl = `https://${creds.storeId}.myikas.com/api/admin/oauth/token`;
   const bodyParams = new URLSearchParams();
   bodyParams.append('grant_type', 'client_credentials');
-  bodyParams.append('client_id', config.ikas.clientId);
-  bodyParams.append('client_secret', config.ikas.clientSecret);
+  bodyParams.append('client_id', creds.clientId);
+  bodyParams.append('client_secret', creds.clientSecret);
 
-  const response = await fetch(config.ikas.authUrl, {
+  const response = await fetch(authUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: bodyParams.toString(),
   });
 
   const data = await response.json();
   if (data.access_token) {
-    currentAccessToken = data.access_token;
-    // expires_in usually in seconds
-    tokenExpiresAt = Date.now() + (data.expires_in * 1000) - 60000;
-    return currentAccessToken;
+    tokenCache.set(storeId, { token: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 - 60000 });
+    return data.access_token;
   }
-  
-  throw new Error("Ikas Auth failed: " + JSON.stringify(data));
+
+  throw new Error('Ikas Auth failed: ' + JSON.stringify(data));
 }
 
-export async function createCoupon({ label, discountType, discountValue }) {
+export async function createCoupon({ label, discountType, discountValue }, creds, storeId) {
   let token;
   try {
-    token = await getAccessToken();
+    token = await getAccessToken(creds, storeId);
   } catch (e) {
     console.error('[İkas] Token alınamadı:', e.message);
   }
 
   if (!token) {
-    console.log('[İkas] API anahtarları yok veya geçersiz, lokal kupon üretiliyor');
     return { code: generateCouponCode(label), isLocal: true };
   }
 
   try {
     const response = await fetch(config.ikas.apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         query: `
           mutation CreateCoupon($input: CouponInput!) {
@@ -130,23 +93,22 @@ export async function createCoupon({ label, discountType, discountValue }) {
  * Lists existing İkas campaigns (discount rules created in the İkas dashboard/builder)
  * so the admin can pick one to attach a wheel segment to.
  */
-export async function listCampaigns() {
+export async function listCampaigns(creds, storeId) {
   let token;
   try {
-    token = await getAccessToken();
+    token = await getAccessToken(creds, storeId);
   } catch (e) {
     console.error('[İkas] Token alınamadı:', e.message);
   }
 
-  if (!token) return [];
+  if (!token) {
+    return [];
+  }
 
   try {
     const response = await fetch(config.ikas.apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(8000),
       body: JSON.stringify({
         query: `
@@ -184,31 +146,25 @@ export async function listCampaigns() {
 /**
  * Adds a single freshly-generated, one-time-use coupon code to an existing İkas campaign
  * (a campaign/discount rule the store owner already built in the İkas dashboard).
- * We generate the code ourselves so we never depend on parsing İkas's response for it —
- * we only need to know whether the call succeeded.
  */
-export async function addCouponToCampaign({ campaignId, label }) {
+export async function addCouponToCampaign({ campaignId, label }, creds, storeId) {
   const code = generateCouponCode(label);
 
   let token;
   try {
-    token = await getAccessToken();
+    token = await getAccessToken(creds, storeId);
   } catch (e) {
     console.error('[İkas] Token alınamadı:', e.message);
   }
 
   if (!token) {
-    console.log('[İkas] API anahtarları yok, lokal kupon üretiliyor');
     return { code, isLocal: true };
   }
 
   try {
     const response = await fetch(config.ikas.apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(8000),
       body: JSON.stringify({
         query: `
@@ -222,13 +178,7 @@ export async function addCouponToCampaign({ campaignId, label }) {
         variables: {
           input: {
             campaignId,
-            coupons: [
-              {
-                code,
-                canCombineWithOtherCampaigns: false,
-                usageLimit: 1,
-              },
-            ],
+            coupons: [{ code, canCombineWithOtherCampaigns: false, usageLimit: 1 }],
           },
         },
       }),
@@ -240,7 +190,6 @@ export async function addCouponToCampaign({ campaignId, label }) {
       return { code, isLocal: true };
     }
 
-    // İkas normalizes/lowercases the stored code — return exactly what it confirmed
     const savedCode = data.data?.campaignAddCoupons?.[0]?.code || code;
     return { code: savedCode, isLocal: false };
   } catch (err) {
@@ -249,15 +198,17 @@ export async function addCouponToCampaign({ campaignId, label }) {
   }
 }
 
-export async function createCustomer({ name, phone, email }) {
+export async function createCustomer({ name, phone, email }, creds, storeId) {
   let token;
   try {
-    token = await getAccessToken();
+    token = await getAccessToken(creds, storeId);
   } catch (e) {
     console.error('[Ikas] Token alinamadi:', e.message);
   }
 
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
 
   try {
     const nameParts = name.trim().split(' ');
@@ -266,10 +217,7 @@ export async function createCustomer({ name, phone, email }) {
 
     const response = await fetch(config.ikas.apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(5000),
       body: JSON.stringify({
         query: `
@@ -281,12 +229,10 @@ export async function createCustomer({ name, phone, email }) {
         `,
         variables: {
           input: {
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            phone: phone,
-            // Widget zorunlu KVKK/izin kutucuklarını işaretletmeden çevirmeye izin vermiyor,
-            // yani buraya ulaşan her katılımcı zaten iletişim iznini vermiş demektir.
+            firstName,
+            lastName,
+            email,
+            phone,
             subscriptionStatus: 'SUBSCRIBED',
             smsSubscriptionStatus: 'SUBSCRIBED',
             phoneSubscriptionStatus: 'SUBSCRIBED',

@@ -1,25 +1,13 @@
-export function generateEmbedCode(config, backendUrl) {
+export function generateEmbedCode(config, backendUrl, storeSlug) {
   const base = backendUrl || 'https://BACKEND-URLINIZ';
-  const segmentsJSON = JSON.stringify(
-    config.segments.map((s) => ({
-      label: s.label,
-      color: s.color,
-      textColor: s.textColor,
-      probability: s.probability,
-      couponCode: s.couponCode || undefined,
-      discountType: s.discountType,
-      discountValue: s.discountValue,
-      icon: s.icon,
-    })),
-  );
+  const slug = storeSlug || 'MAGAZA-SLUGUNUZ';
 
   return `<!-- Çark Çevir Kazan Widget -->
 <script src="${base}/dist/cark-widget.js"></script>
 <script>
   CarkWidget.init({
-    apiBaseUrl: "${base}", // backend'inizin adresi — çark ayarlarını ve kuponları buradan çeker
-    storeName: "${config.settings.storeName || 'Mağaza'}",
-    segments: ${segmentsJSON}
+    apiBaseUrl: "${base}",   // backend'inizin adresi
+    storeSlug: "${slug}"     // mağazanızın benzersiz kimliği — segment/ayarlar buradan otomatik çekilir
   });
 </script>`;
 }

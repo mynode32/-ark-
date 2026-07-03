@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 
 export function adminAuth(req, res, next) {
@@ -9,9 +10,15 @@ export function adminAuth(req, res, next) {
     token = req.query.token;
   }
 
-  if (!token || token !== config.adminPassword) {
+  if (!token) {
     return res.status(401).json({ error: 'Yetkisiz erişim' });
   }
 
-  next();
+  try {
+    const payload = jwt.verify(token, config.jwtSecret);
+    req.storeId = payload.storeId;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Yetkisiz erişim' });
+  }
 }
