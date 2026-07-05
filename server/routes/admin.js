@@ -10,6 +10,7 @@ import {
   savePlatformCredentials,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
+import { clearTokenCache } from '../services/platforms/ikas.js';
 import { encryptSecret } from '../services/crypto.js';
 
 export const adminRouter = Router();
@@ -158,6 +159,10 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
     ikasClientSecretEnc: platform === 'ikas' ? secretEnc : null,
     ikasStoreId: platform === 'ikas' ? ikasStoreId : null,
   });
+
+  // Credentials just changed — any cached access token was minted for the
+  // old ones and would otherwise keep authenticating as the wrong account.
+  clearTokenCache(req.storeId);
 
   res.json({
     platform: updated.platform,

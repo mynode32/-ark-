@@ -5,6 +5,13 @@ import { generateCouponCode } from './couponCode.js';
 // now serves many stores' Ikas credentials.
 const tokenCache = new Map();
 
+// Must be called whenever a store's Ikas credentials change — otherwise a
+// stale token for the *previous* credentials keeps being reused until it
+// naturally expires, silently talking to the wrong Ikas account.
+export function clearTokenCache(storeId) {
+  tokenCache.delete(storeId);
+}
+
 async function getAccessToken(creds, storeId) {
   if (!creds.clientId || !creds.clientSecret || !creds.storeId) {
     return null;
