@@ -103,6 +103,7 @@ export const DEFAULT_CONFIG = {
       "Tanıtım, pazarlama, reklam ve benzeri amaçlarla tarafıma ticari elektronik ileti gönderilmesine izin veriyorum. Elektronik Ticari İleti Aydınlatma Metni'ni okudum onay veriyorum.",
     kvkkText:
       'Paylaştığım bilgilerin KVKK kapsamında tarafınızca korunmasını, sms ve WhatsApp üzerinden bilgilendirmeleri almayı kabul ediyorum.',
+    kvkkFullText: '',
   },
   theme: {
     wheelSize: 330,

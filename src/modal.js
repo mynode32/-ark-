@@ -67,12 +67,12 @@ export class ModalManager {
                       <span class="cark-checkmark">
                         <svg viewBox="0 0 14 14" fill="none"><path d="M3 7L6 10L11 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                       </span>
-                      <span class="cark-checkbox-text">${this.config.kvkk.kvkkText}</span>
+                      <span class="cark-checkbox-text">${this.config.kvkk.kvkkText}${this.config.kvkk.kvkkFullText ? ' <a href="#" class="cark-policy-link" id="cark-kvkk-policy-link">(Aydınlatma Metnini Oku)</a>' : ''}</span>
                     </label>
                   </div>
-                  
+
                   <div class="cark-error" id="cark-error"></div>
-                  
+
                   <button type="submit" class="cark-submit-btn">Çevir Kazan</button>
                 </form>
               </div>
@@ -82,7 +82,7 @@ export class ModalManager {
                 <div class="cark-result-icon"></div>
                 <h2 class="cark-result-title"></h2>
                 <p class="cark-result-prize"></p>
-                
+
                 <div class="cark-coupon-box" id="cark-coupon-container">
                   <span class="cark-coupon-label">Kupon Kodun:</span>
                   <div class="cark-coupon-code-wrapper">
@@ -90,12 +90,19 @@ export class ModalManager {
                     <button class="cark-copy-btn" id="cark-copy-btn" title="Kopyala">📋</button>
                   </div>
                 </div>
-                
+
                 <button class="cark-cta-btn" id="cark-cta-btn">Alışverişe Başla →</button>
               </div>
 
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="cark-policy-overlay" id="cark-policy-overlay">
+        <div class="cark-policy-box">
+          <button class="cark-policy-close" id="cark-policy-close" aria-label="Kapat">&times;</button>
+          <div class="cark-policy-text" id="cark-policy-text"></div>
         </div>
       </div>
     `;
@@ -124,6 +131,12 @@ export class ModalManager {
       couponText: root.querySelector('#cark-coupon-text'),
       copyBtn: root.querySelector('#cark-copy-btn'),
       ctaBtn: root.querySelector('#cark-cta-btn'),
+
+      // Policy (KVKK full text) els
+      policyOverlay: root.querySelector('#cark-policy-overlay'),
+      policyText: root.querySelector('#cark-policy-text'),
+      policyCloseBtn: root.querySelector('#cark-policy-close'),
+      policyLink: root.querySelector('#cark-kvkk-policy-link'),
     };
     return this.els;
   }
@@ -188,6 +201,27 @@ export class ModalManager {
   reset() {
     this.els.formView.style.display = 'block';
     this.els.resultView.style.display = 'none';
+  }
+
+  /** "(Aydınlatma Metnini Oku)" linkine tıklanınca tam KVKK metnini bir üst katmanda gösterir */
+  setupPolicyLink() {
+    if (!this.els.policyLink || !this.els.policyOverlay) return;
+
+    // textContent kullanılıyor ki admin panelinde yapıştırılan metin ne olursa
+    // olsun (HTML içerse bile) güvenle düz metin olarak gösterilsin
+    this.els.policyText.textContent = this.config.kvkk.kvkkFullText || '';
+
+    const open = (e) => {
+      e.preventDefault();
+      this.els.policyOverlay.classList.add('active');
+    };
+    const close = () => this.els.policyOverlay.classList.remove('active');
+
+    this.els.policyLink.addEventListener('click', open);
+    this.els.policyCloseBtn.addEventListener('click', close);
+    this.els.policyOverlay.addEventListener('click', (e) => {
+      if (e.target === this.els.policyOverlay) close();
+    });
   }
 
   setupCopyButton() {

@@ -49,6 +49,7 @@ class CarkApp {
     });
 
     this.modalMgr.setupCopyButton();
+    this.modalMgr.setupPolicyLink();
 
     els.overlay.addEventListener('click', (e) => {
       if (e.target === els.overlay) {

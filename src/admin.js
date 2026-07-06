@@ -301,8 +301,12 @@ class AdminPanel {
                 <textarea class="form-input" id="setting-etiText">${this.config.kvkk.etiText}</textarea>
               </div>
               <div class="form-group">
-                <label>KVKK Aydınlatma Metni</label>
+                <label>KVKK Onay Metni (checkbox yanında görünen kısa metin)</label>
                 <textarea class="form-input" id="setting-kvkkText">${this.config.kvkk.kvkkText}</textarea>
+              </div>
+              <div class="form-group">
+                <label>KVKK Aydınlatma Metni (tam metin — "Aydınlatma Metnini Oku" linkiyle açılır, boş bırakılırsa link görünmez)</label>
+                <textarea class="form-input" id="setting-kvkkFullText" style="min-height:220px;">${this.config.kvkk.kvkkFullText || ''}</textarea>
               </div>
               <div class="btn-group" style="justify-content: flex-end;">
                 <button class="btn btn-primary" id="saveKvkkBtn">KVKK Metinlerini Kaydet</button>
@@ -391,6 +395,7 @@ class AdminPanel {
       const kvkk = {
         etiText: document.getElementById('setting-etiText').value,
         kvkkText: document.getElementById('setting-kvkkText').value,
+        kvkkFullText: document.getElementById('setting-kvkkFullText').value,
       };
       await this.saveAndRender({ kvkk });
     });
