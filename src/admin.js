@@ -5,6 +5,7 @@ import {
   clearLocalEntries,
   exportLocalCSV,
   generateId,
+  DEFAULT_CONFIG,
 } from './storage.js';
 import { generateEmbedCode, generateIkasGuide } from './embed.js';
 
@@ -14,6 +15,14 @@ function getApiBase() {
 
 function authToken() {
   return localStorage.getItem('cark_admin_token') || '';
+}
+
+function hexToRgba(hex, alpha) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 class AdminPanel {
@@ -198,7 +207,11 @@ class AdminPanel {
     if (this.currentTab === 'settings') {
       main.innerHTML = this.renderSettingsTab();
       this.setupSettingsListeners();
-      this.drawPreviewWheel();
+      this.drawPreviewWheel('previewCanvas');
+    } else if (this.currentTab === 'appearance') {
+      main.innerHTML = this.renderAppearanceTab();
+      this.setupAppearanceListeners();
+      this.drawPreviewWheel('appearancePreviewCanvas');
     } else if (this.currentTab === 'entries') {
       main.innerHTML = this.renderEntriesTab();
       this.setupEntriesListeners();
@@ -393,6 +406,151 @@ class AdminPanel {
     const ok = await this.saveConfigToBackend(payload);
     this.render();
     this.showToast(ok ? "Backend'e kaydedildi" : 'Backend yok, lokal kaydedildi');
+  }
+
+  // --- Appearance Tab ---
+
+  renderAppearanceTab() {
+    const theme = { ...DEFAULT_CONFIG.theme, ...(this.config.theme || {}) };
+    const autoOn = theme.autoSiteTheme !== false;
+
+    return `
+      <div class="tab-content active" id="tab-appearance">
+        <div class="admin-grid">
+          <div>
+            <div class="admin-card" style="margin-bottom: 24px;">
+              <h3>🎨 Renkler</h3>
+              <div class="form-group">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                  <input type="checkbox" id="theme-autoSiteTheme" ${autoOn ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#ffd700;">
+                  Sitenin arka planına otomatik uyum sağla
+                </label>
+                <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:6px;">
+                  Açıkken pop-up'ın arka planı, widget'ın gömülü olduğu sitenin renk tonuna göre otomatik ayarlanır. Kapatırsanız aşağıda kendi sabit renklerinizi seçebilirsiniz.
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Ana Renk (vurgu)</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="theme-primaryColor" value="${theme.primaryColor}">
+                    <span style="font-family:monospace;font-size:12px">${theme.primaryColor}</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>İkincil Renk</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="theme-primaryColorDark" value="${theme.primaryColorDark}">
+                    <span style="font-family:monospace;font-size:12px">${theme.primaryColorDark}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Ok Rengi</label>
+                <div class="color-input-wrapper">
+                  <input type="color" id="theme-pointerColor" value="${theme.pointerColor}">
+                  <span style="font-family:monospace;font-size:12px">${theme.pointerColor}</span>
+                </div>
+              </div>
+              <div id="manualBgColors" style="display:${autoOn ? 'none' : 'block'}">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Arka Plan (Koyu)</label>
+                    <div class="color-input-wrapper">
+                      <input type="color" id="theme-bgDark" value="${theme.bgDark}">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Arka Plan (Orta)</label>
+                    <div class="color-input-wrapper">
+                      <input type="color" id="theme-bgMid" value="${theme.bgMid}">
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Arka Plan (Açık)</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="theme-bgLight" value="${theme.bgLight}">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-card">
+              <h3>📐 Boyut ve Hareket</h3>
+              <div class="form-group">
+                <label>Çark Boyutu</label>
+                <div class="probability-slider">
+                  <input type="range" id="theme-wheelSize" min="220" max="440" step="10" value="${theme.wheelSize}">
+                  <div class="probability-value" id="theme-wheelSize-val">${theme.wheelSize}px</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Dönüş Süresi</label>
+                <div class="probability-slider">
+                  <input type="range" id="theme-spinDuration" min="3000" max="12000" step="500" value="${theme.spinDurationMs}">
+                  <div class="probability-value" id="theme-spinDuration-val">${(theme.spinDurationMs / 1000).toFixed(1)} sn</div>
+                </div>
+              </div>
+              <div class="btn-group" style="justify-content: flex-end;">
+                <button class="btn btn-primary" id="saveAppearanceBtn">Görünümü Kaydet</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="admin-card">
+              <h3>👁️ Önizleme</h3>
+              <div class="preview-container">
+                <canvas id="appearancePreviewCanvas" width="340" height="340"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  setupAppearanceListeners() {
+    const autoCheckbox = document.getElementById('theme-autoSiteTheme');
+    const manualBgColors = document.getElementById('manualBgColors');
+    autoCheckbox.addEventListener('change', () => {
+      manualBgColors.style.display = autoCheckbox.checked ? 'none' : 'block';
+    });
+
+    const wheelSizeInput = document.getElementById('theme-wheelSize');
+    wheelSizeInput.addEventListener('input', (e) => {
+      document.getElementById('theme-wheelSize-val').textContent = `${e.target.value}px`;
+    });
+
+    const spinDurationInput = document.getElementById('theme-spinDuration');
+    spinDurationInput.addEventListener('input', (e) => {
+      document.getElementById('theme-spinDuration-val').textContent = `${(e.target.value / 1000).toFixed(1)} sn`;
+    });
+
+    // Renk seçimi anında önizlemeye yansısın
+    ['theme-primaryColor', 'theme-primaryColorDark', 'theme-pointerColor'].forEach((id) => {
+      document.getElementById(id).addEventListener('input', () => this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm()));
+    });
+
+    document.getElementById('saveAppearanceBtn').addEventListener('click', async () => {
+      const theme = this.readAppearanceForm();
+      await this.saveAndRender({ theme });
+    });
+  }
+
+  readAppearanceForm() {
+    return {
+      autoSiteTheme: document.getElementById('theme-autoSiteTheme').checked,
+      primaryColor: document.getElementById('theme-primaryColor').value,
+      primaryColorDark: document.getElementById('theme-primaryColorDark').value,
+      pointerColor: document.getElementById('theme-pointerColor').value,
+      bgDark: document.getElementById('theme-bgDark').value,
+      bgMid: document.getElementById('theme-bgMid').value,
+      bgLight: document.getElementById('theme-bgLight').value,
+      wheelSize: parseInt(document.getElementById('theme-wheelSize').value) || 330,
+      spinDurationMs: parseInt(document.getElementById('theme-spinDuration').value) || 7000,
+    };
   }
 
   // --- Segment Modal ---
@@ -614,11 +772,12 @@ class AdminPanel {
 
   // --- Preview ---
 
-  drawPreviewWheel() {
-    const canvas = document.getElementById('previewCanvas');
+  drawPreviewWheel(canvasId = 'previewCanvas', themeOverride = null) {
+    const canvas = document.getElementById(canvasId);
     if (!canvas) {
       return;
     }
+    const theme = { ...DEFAULT_CONFIG.theme, ...(this.config.theme || {}), ...(themeOverride || {}) };
     const ctx = canvas.getContext('2d');
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
@@ -640,7 +799,7 @@ class AdminPanel {
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = '#1a1a2e';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,215,0,0.3)';
+    ctx.strokeStyle = hexToRgba(theme.primaryColor, 0.3);
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -672,9 +831,9 @@ class AdminPanel {
 
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.2, 0, Math.PI * 2);
-    ctx.fillStyle = '#0F0C29';
+    ctx.fillStyle = theme.bgDark;
     ctx.fill();
-    ctx.strokeStyle = '#FFD700';
+    ctx.strokeStyle = theme.primaryColor;
     ctx.lineWidth = 2;
     ctx.stroke();
   }

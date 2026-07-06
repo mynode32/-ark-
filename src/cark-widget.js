@@ -3,12 +3,15 @@ import { Confetti } from './confetti.js';
 import { FormManager } from './form.js';
 import { ModalManager } from './modal.js';
 import { fetchConfig, spin, canSpin, markSpun } from './storage.js';
+import { applyWidgetTheme } from './siteTheme.js';
 
 const WIDGET_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap');
 :root {
   --cark-primary: #FFD700;
+  --cark-primary-rgb: 255, 215, 0;
   --cark-primary-dark: #FFA502;
+  --cark-pointer-color: #FF4757;
   --cark-bg-dark: #0F0C29;
   --cark-bg-mid: #302B63;
   --cark-bg-light: #24243E;
@@ -28,11 +31,11 @@ const WIDGET_CSS = `
 .cark-modal {
   position: relative; width: 90%; max-width: 920px;
   background:
-    radial-gradient(circle at 15% -10%, rgba(255, 215, 0, 0.1), transparent 45%),
+    radial-gradient(circle at 15% -10%, rgba(var(--cark-primary-rgb), 0.1), transparent 45%),
     radial-gradient(circle at 100% 110%, rgba(255, 165, 2, 0.08), transparent 45%),
-    linear-gradient(145deg, rgba(15, 12, 41, 0.95), rgba(48, 43, 99, 0.95), rgba(36, 36, 62, 0.95));
-  border: 1px solid rgba(255, 215, 0, 0.25); border-radius: 28px;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 0 40px rgba(255,215,0,0.05), 0 0 20px rgba(255,215,0,0.1);
+    linear-gradient(145deg, color-mix(in srgb, var(--cark-bg-dark) 95%, transparent), color-mix(in srgb, var(--cark-bg-mid) 95%, transparent), color-mix(in srgb, var(--cark-bg-light) 95%, transparent));
+  border: 1px solid rgba(var(--cark-primary-rgb), 0.25); border-radius: 28px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 0 40px rgba(var(--cark-primary-rgb), 0.05), 0 0 20px rgba(var(--cark-primary-rgb), 0.1);
   transform: scale(0.9) translateY(20px); transition: all 0.5s cubic-bezier(0.175,0.885,0.32,1.275); color: var(--cark-text); overflow: hidden; backdrop-filter: blur(20px);
 }
 .cark-modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, var(--cark-primary), var(--cark-primary-dark), var(--cark-primary), transparent); opacity: 0.8; z-index: 1; }
@@ -42,23 +45,24 @@ const WIDGET_CSS = `
 .cark-content { display: flex; min-height: 500px; }
 .cark-wheel-section {
   flex: 0 0 50%; padding: 24px; display: flex; align-items: center; justify-content: center; position: relative;
-  background: radial-gradient(circle at 50% 45%, rgba(255, 215, 0, 0.1), transparent 62%), rgba(0, 0, 0, 0.25);
+  background: radial-gradient(circle at 50% 45%, rgba(var(--cark-primary-rgb), 0.1), transparent 62%), rgba(0, 0, 0, 0.25);
   border-right: 1px solid var(--cark-glass-border); overflow: hidden;
 }
-.cark-wheel-section::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 215, 0, 0.35) 1px, transparent 1px); background-size: 26px 26px; opacity: 0.15; pointer-events: none; }
-.cark-wheel-wrapper { position: relative; filter: drop-shadow(0 0 30px rgba(255,215,0,0.2)); }
+.cark-wheel-section::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(var(--cark-primary-rgb), 0.35) 1px, transparent 1px); background-size: 26px 26px; opacity: 0.15; pointer-events: none; }
+.cark-wheel-wrapper { position: relative; filter: drop-shadow(0 0 30px rgba(var(--cark-primary-rgb), 0.2)); }
+.cark-wheel-wrapper.cark-spinning .cark-canvas { animation-play-state: paused; }
 .cark-wheel-wrapper.cark-winner-pulse { animation: carkWheelPop 0.9s ease; }
-.cark-canvas { max-width: 100%; height: auto; display: block; }
-.cark-pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid var(--cark-primary); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); z-index: 10; animation: carkPulse 2s infinite ease-in-out; transition: transform 0.09s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.cark-canvas { max-width: 100%; height: auto; display: block; animation: carkIdleWobble 3.2s ease-in-out infinite; }
+.cark-pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid var(--cark-pointer-color); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); z-index: 10; animation: carkPulse 2s infinite ease-in-out; transition: transform 0.09s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .cark-pointer.flick { transform: translateX(-50%) rotate(-30deg); }
 .cark-form-section { flex: 1; padding: 40px; display: flex; flex-direction: column; justify-content: center; position: relative; }
-.cark-eyebrow { display: inline-block; font-family: var(--cark-font-display); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--cark-primary); background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 999px; padding: 6px 14px; margin-bottom: 16px; }
-.cark-title { font-family: var(--cark-font-display); font-size: 32px; line-height: 1.2; margin-bottom: 12px; background: linear-gradient(135deg, var(--cark-primary), var(--cark-primary-dark), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(255,215,0,0.2); }
+.cark-eyebrow { display: inline-block; font-family: var(--cark-font-display); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--cark-primary); background: rgba(var(--cark-primary-rgb), 0.1); border: 1px solid rgba(var(--cark-primary-rgb), 0.3); border-radius: 999px; padding: 6px 14px; margin-bottom: 16px; }
+.cark-title { font-family: var(--cark-font-display); font-size: 32px; line-height: 1.2; margin-bottom: 12px; background: linear-gradient(135deg, var(--cark-primary), var(--cark-primary-dark), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(var(--cark-primary-rgb), 0.2); }
 .cark-subtitle { font-size: 15px; color: var(--cark-text-muted); margin-bottom: 30px; }
 .cark-input-group { position: relative; margin-bottom: 16px; }
-.cark-input { width: 100%; padding: 16px 16px 16px 48px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,215,0,0.15); border-radius: 16px; color: white; font-size: 15px; font-weight: 500; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+.cark-input { width: 100%; padding: 16px 16px 16px 48px; background: rgba(0,0,0,0.3); border: 1px solid rgba(var(--cark-primary-rgb), 0.15); border-radius: 16px; color: white; font-size: 15px; font-weight: 500; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
 .cark-input::placeholder { color: rgba(255,255,255,0.3); }
-.cark-input:focus { background: rgba(0,0,0,0.5); border-color: var(--cark-primary); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 0 15px rgba(255,215,0,0.15), 0 0 0 3px rgba(255,215,0,0.1); outline: none; transform: translateY(-1px); }
+.cark-input:focus { background: rgba(0,0,0,0.5); border-color: var(--cark-primary); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 0 15px rgba(var(--cark-primary-rgb), 0.15), 0 0 0 3px rgba(var(--cark-primary-rgb), 0.1); outline: none; transform: translateY(-1px); }
 .cark-input.error { border-color: var(--cark-error); box-shadow: 0 0 0 3px rgba(255,71,87,0.15); }
 .cark-input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 20px; opacity: 0.8; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
 .cark-kvkk-group { margin-bottom: 24px; }
@@ -66,25 +70,25 @@ const WIDGET_CSS = `
 .cark-checkbox input { display: none; }
 .cark-checkmark { width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); background: rgba(0,0,0,0.3); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
 .cark-checkmark svg { width: 16px; height: 16px; opacity: 0; transform: scale(0.5); transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275); }
-.cark-checkbox input:checked + .cark-checkmark { background: linear-gradient(135deg, var(--cark-primary), var(--cark-primary-dark)); border-color: transparent; box-shadow: 0 4px 10px rgba(255,215,0,0.3); }
+.cark-checkbox input:checked + .cark-checkmark { background: linear-gradient(135deg, var(--cark-primary), var(--cark-primary-dark)); border-color: transparent; box-shadow: 0 4px 10px rgba(var(--cark-primary-rgb), 0.3); }
 .cark-checkbox input:checked + .cark-checkmark svg { opacity: 1; transform: scale(1); color: #1a1a2e; }
 .cark-checkbox-text { font-size: 11.5px; line-height: 1.5; color: var(--cark-text-muted); }
 .cark-error { color: var(--cark-error); font-size: 13px; min-height: 20px; margin-bottom: 10px; font-weight: 500; }
 .cark-submit-btn, .cark-cta-btn {
-  width: 100%; padding: 18px; background: linear-gradient(135deg, #FFD700 0%, #FFA502 50%, #FF8C00 100%); color: #1a1a2e;
+  width: 100%; padding: 18px; background: linear-gradient(135deg, var(--cark-primary) 0%, var(--cark-primary-dark) 60%, color-mix(in srgb, var(--cark-primary-dark) 70%, black) 100%); color: #1a1a2e;
   font-family: var(--cark-font-display); font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
   border: none; border-radius: 16px; cursor: pointer; transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
-  box-shadow: 0 8px 25px rgba(255,215,0,0.3), inset 0 -3px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.4);
+  box-shadow: 0 8px 25px rgba(var(--cark-primary-rgb), 0.3), inset 0 -3px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.4);
   position: relative; overflow: hidden;
 }
-.cark-submit-btn:hover:not(:disabled), .cark-cta-btn:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(255,215,0,0.5), inset 0 -3px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.5); filter: brightness(1.1); }
+.cark-submit-btn:hover:not(:disabled), .cark-cta-btn:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(var(--cark-primary-rgb), 0.5), inset 0 -3px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.5); filter: brightness(1.1); }
 .cark-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; filter: grayscale(0.5); }
 .cark-submit-btn::after, .cark-cta-btn::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%); transform: rotate(45deg); animation: carkShimmer 2.5s infinite linear; }
 .cark-result-view { text-align: center; }
 .cark-result-icon { font-size: 72px; margin-bottom: 16px; animation: carkBounceIn 0.8s cubic-bezier(0.175,0.885,0.32,1.275); }
-.cark-result-title { font-family: var(--cark-font-display); font-size: 40px; background: linear-gradient(135deg, #FFD700 0%, #FFA502 50%, #FF8C00 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px; filter: drop-shadow(0 2px 10px rgba(255,215,0,0.3)); }
+.cark-result-title { font-family: var(--cark-font-display); font-size: 40px; background: linear-gradient(135deg, var(--cark-primary) 0%, var(--cark-primary-dark) 60%, color-mix(in srgb, var(--cark-primary-dark) 70%, black) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px; filter: drop-shadow(0 2px 10px rgba(var(--cark-primary-rgb), 0.3)); }
 .cark-result-prize { font-size: 22px; color: white; font-weight: 600; margin-bottom: 24px; }
-.cark-coupon-box { position: relative; background: linear-gradient(145deg, rgba(255,215,0,0.08), rgba(0,0,0,0.35)); border: 2px dashed var(--cark-primary); border-radius: 16px; padding: 20px; margin-bottom: 30px; box-shadow: inset 0 0 30px rgba(255,215,0,0.06); }
+.cark-coupon-box { position: relative; background: linear-gradient(145deg, rgba(var(--cark-primary-rgb), 0.08), rgba(0,0,0,0.35)); border: 2px dashed var(--cark-primary); border-radius: 16px; padding: 20px; margin-bottom: 30px; box-shadow: inset 0 0 30px rgba(var(--cark-primary-rgb), 0.06); }
 .cark-coupon-box::before, .cark-coupon-box::after { content: ''; position: absolute; top: 50%; width: 22px; height: 22px; background: var(--cark-bg-mid); border-radius: 50%; transform: translateY(-50%); }
 .cark-coupon-box::before { left: -13px; }
 .cark-coupon-box::after { right: -13px; }
@@ -94,6 +98,7 @@ const WIDGET_CSS = `
 .cark-copy-btn { background: var(--cark-glass); border: 1px solid var(--cark-glass-border); border-radius: 8px; width: 40px; height: 40px; font-size: 20px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; color: white; }
 .cark-copy-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.1); }
 @keyframes carkPulse { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-5px); } }
+@keyframes carkIdleWobble { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
 @keyframes carkWheelPop { 0% { transform: scale(1); } 30% { transform: scale(1.06); } 55% { transform: scale(0.98); } 100% { transform: scale(1); } }
 @keyframes carkShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 @keyframes carkBounceIn { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
@@ -102,7 +107,7 @@ const WIDGET_CSS = `
   .cark-modal { width: 95%; max-height: 90vh; overflow-y: auto; }
   .cark-content { flex-direction: column; }
   .cark-wheel-section { padding: 30px 20px; border-right: none; border-bottom: 1px solid var(--cark-glass-border); }
-  .cark-canvas { max-width: 300px; max-height: 300px; }
+  .cark-canvas { max-width: 225px; max-height: 225px; }
   .cark-form-section { padding: 30px 20px; }
   .cark-title { font-size: 26px; text-align: center; }
   .cark-subtitle { text-align: center; }
@@ -132,6 +137,7 @@ class CarkApp {
     this.injectStyles();
     this.modalMgr = new ModalManager(this.config);
     const els = this.modalMgr.buildDOM();
+    applyWidgetTheme(document.getElementById('cark-widget-root'), this.config.theme || {});
 
     this.wheel = new WheelEngine(els.canvas, this.config);
     this.confetti = new Confetti(els.modal);

@@ -43,6 +43,7 @@ widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
       triggerScrollPercent: config.settings.triggerScrollPercent,
     },
     kvkk: config.kvkk,
+    theme: config.theme || {},
   });
 }));
 

@@ -3,7 +3,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 1,
       label: '%5 İNDİRİM',
-      color: '#1E3A8A', // Sapphire
+      color: '#2563EB', // Royal Blue
       textColor: '#FFFFFF',
       probability: 20,
       couponCode: null,
@@ -14,7 +14,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 2,
       label: '%10 İNDİRİM',
-      color: '#9F1239', // Ruby
+      color: '#DC2626', // Kırmızı
       textColor: '#FFFFFF',
       probability: 15,
       couponCode: null,
@@ -25,7 +25,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 3,
       label: '75₺',
-      color: '#065F46', // Emerald
+      color: '#059669', // Zümrüt Yeşili
       textColor: '#FFFFFF',
       probability: 15,
       couponCode: null,
@@ -36,7 +36,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 4,
       label: 'Kargo Bedava',
-      color: '#B8860B', // Dark Gold
+      color: '#F59E0B', // Amber
       textColor: '#1A1A2E',
       probability: 10,
       couponCode: null,
@@ -47,7 +47,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 5,
       label: '200₺',
-      color: '#6B21A8', // Amethyst
+      color: '#7C3AED', // Menekşe
       textColor: '#FFFFFF',
       probability: 5,
       couponCode: null,
@@ -58,7 +58,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 6,
       label: '%15 İNDİRİM',
-      color: '#92400E', // Bronze
+      color: '#EA580C', // Turuncu
       textColor: '#FFFFFF',
       probability: 10,
       couponCode: null,
@@ -69,7 +69,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 7,
       label: 'Pas',
-      color: '#27272A', // Onyx
+      color: '#4B5563', // Antrasit Gri
       textColor: '#FFFFFF',
       probability: 15,
       couponCode: null,
@@ -80,7 +80,7 @@ export const DEFAULT_CONFIG = {
     {
       id: 8,
       label: '%20 İNDİRİM',
-      color: '#831843', // Burgundy
+      color: '#DB2777', // Pembe/Fuşya
       textColor: '#FFFFFF',
       probability: 10,
       couponCode: null,
@@ -103,6 +103,17 @@ export const DEFAULT_CONFIG = {
       "Tanıtım, pazarlama, reklam ve benzeri amaçlarla tarafıma ticari elektronik ileti gönderilmesine izin veriyorum. Elektronik Ticari İleti Aydınlatma Metni'ni okudum onay veriyorum.",
     kvkkText:
       'Paylaştığım bilgilerin KVKK kapsamında tarafınızca korunmasını, sms ve WhatsApp üzerinden bilgilendirmeleri almayı kabul ediyorum.',
+  },
+  theme: {
+    wheelSize: 330,
+    spinDurationMs: 7000,
+    autoSiteTheme: true,
+    primaryColor: '#FFD700',
+    primaryColorDark: '#FFA502',
+    pointerColor: '#FF4757',
+    bgDark: '#0F0C29',
+    bgMid: '#302B63',
+    bgLight: '#24243E',
   },
 };
 
@@ -144,6 +155,7 @@ export function getLocalConfig() {
         ...parsed,
         settings: { ...DEFAULT_CONFIG.settings, ...(parsed.settings || {}) },
         kvkk: { ...DEFAULT_CONFIG.kvkk, ...(parsed.kvkk || {}) },
+        theme: { ...DEFAULT_CONFIG.theme, ...(parsed.theme || {}) },
         segments: parsed.segments || DEFAULT_CONFIG.segments.map((s) => ({ ...s })),
       };
     }

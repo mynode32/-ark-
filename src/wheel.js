@@ -9,6 +9,7 @@ export class WheelEngine {
     this.ctx = canvasElement.getContext('2d');
     this.config = config;
     this.segments = config.segments || [];
+    this.theme = config.theme || {};
     this.rotation = 0;
     this.isSpinning = false;
     this.audioCtx = null;
@@ -19,8 +20,8 @@ export class WheelEngine {
 
   _setupCanvas() {
     const dpr = window.devicePixelRatio || 1;
-    const cssWidth = 440;
-    const cssHeight = 440;
+    const cssWidth = this.theme.wheelSize || 330;
+    const cssHeight = cssWidth;
     this.canvas.width = cssWidth * dpr;
     this.canvas.height = cssHeight * dpr;
     this.canvas.style.width = cssWidth + 'px';
@@ -34,6 +35,8 @@ export class WheelEngine {
   updateConfig(config) {
     this.config = config;
     this.segments = config.segments || [];
+    this.theme = config.theme || {};
+    this._setupCanvas();
     this.render();
   }
 
@@ -82,11 +85,12 @@ export class WheelEngine {
       
       const grad = ctx.createLinearGradient(cx, cy, edgeX, edgeY);
       
-      // Create a luxury metallic/velvet effect based on the segment's base color
-      grad.addColorStop(0, this._lightenColor(seg.color, 30));
-      grad.addColorStop(0.4, seg.color);
-      grad.addColorStop(0.7, this._darkenColor(seg.color, 40));
-      grad.addColorStop(1, '#000000');
+      // Subtle shading based on the segment's own color — keeps the hue
+      // visible all the way to the rim instead of fading to black, which
+      // made every slice look muddy/indistinguishable near the edge.
+      grad.addColorStop(0, this._lightenColor(seg.color, 35));
+      grad.addColorStop(0.45, seg.color);
+      grad.addColorStop(1, this._darkenColor(seg.color, 30));
       
       ctx.fillStyle = grad;
       ctx.fill();
@@ -177,20 +181,21 @@ export class WheelEngine {
     const topAngle = -Math.PI / 2;
     const gx = cx + Math.cos(topAngle) * r * 0.7;
     const gy = cy + Math.sin(topAngle) * r * 0.7;
+    const [pr, pg, pb] = this._hexToRgb(this.theme.primaryColor || '#FFD700');
 
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(1, intensity));
     const glow = ctx.createRadialGradient(gx, gy, 0, cx, cy, r * 1.05);
     glow.addColorStop(0, 'rgba(255,255,255,0.85)');
-    glow.addColorStop(0.25, 'rgba(255,215,0,0.5)');
-    glow.addColorStop(1, 'rgba(255,215,0,0)');
+    glow.addColorStop(0.25, `rgba(${pr},${pg},${pb},0.5)`);
+    glow.addColorStop(1, `rgba(${pr},${pg},${pb},0)`);
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
 
     // Expanding ring
-    ctx.strokeStyle = `rgba(255,215,0,${0.6 * intensity})`;
+    ctx.strokeStyle = `rgba(${pr},${pg},${pb},${0.6 * intensity})`;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(cx, cy, r * (0.7 + 0.3 * intensity), 0, Math.PI * 2);
@@ -199,15 +204,16 @@ export class WheelEngine {
   }
 
   _drawOuterRing(ctx, cx, cy, r) {
-    // Outer metallic ring
+    // Outer metallic ring — tones derived from the configured accent color
+    const primary = this.theme.primaryColor || '#FFD700';
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     const ringGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
-    ringGrad.addColorStop(0, '#B8860B'); // Dark Gold
-    ringGrad.addColorStop(0.3, '#FFD700'); // Gold
-    ringGrad.addColorStop(0.5, '#FFF8DC'); // Light Gold
-    ringGrad.addColorStop(0.7, '#FFD700'); 
-    ringGrad.addColorStop(1, '#8B6508');
+    ringGrad.addColorStop(0, this._darkenColor(primary, 45)); // Koyu ton
+    ringGrad.addColorStop(0.3, primary); // Ana renk
+    ringGrad.addColorStop(0.5, this._lightenColor(primary, 55)); // Açık ton
+    ringGrad.addColorStop(0.7, primary);
+    ringGrad.addColorStop(1, this._darkenColor(primary, 75));
     ctx.fillStyle = ringGrad;
     ctx.fill();
     
@@ -228,7 +234,7 @@ export class WheelEngine {
         ctx.beginPath();
         ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
         ctx.fillStyle = '#FFFFFF';
-        ctx.shadowColor = '#FFD700';
+        ctx.shadowColor = primary;
         ctx.shadowBlur = 10;
         ctx.fill();
         ctx.shadowBlur = 0; // reset
@@ -240,6 +246,7 @@ export class WheelEngine {
 
   _drawCenter(ctx, cx, cy) {
     // Center circle background with metallic gradient
+    const primary = this.theme.primaryColor || '#FFD700';
     const centerR = this.radius * 0.18;
 
     // Shadow
@@ -261,8 +268,8 @@ export class WheelEngine {
     ctx.fillStyle = centerGrad;
     ctx.fill();
 
-    // Gold Border
-    ctx.strokeStyle = '#FFD700';
+    // Accent border
+    ctx.strokeStyle = primary;
     ctx.lineWidth = 4;
     ctx.stroke();
 
@@ -278,10 +285,10 @@ export class WheelEngine {
     const nameSize = name.length > 8 ? 10 : 13;
     ctx.font = `800 ${nameSize}px 'Outfit', sans-serif`;
     
-    // Gold text gradient
+    // Accent text gradient
     const textGrad = ctx.createLinearGradient(cx, cy - 10, cx, cy + 10);
-    textGrad.addColorStop(0, '#FFF8DC');
-    textGrad.addColorStop(1, '#FFD700');
+    textGrad.addColorStop(0, this._lightenColor(primary, 50));
+    textGrad.addColorStop(1, primary);
     
     ctx.fillStyle = textGrad;
     ctx.textAlign = 'center';
@@ -295,6 +302,11 @@ export class WheelEngine {
     const g = Math.min(255, ((num >> 8) & 0x00ff) + percent);
     const b = Math.min(255, (num & 0x0000ff) + percent);
     return `rgb(${r},${g},${b})`;
+  }
+
+  _hexToRgb(hex) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    return [(num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff];
   }
 
   _darkenColor(hex, percent) {
@@ -430,6 +442,8 @@ export class WheelEngine {
     this.isSpinning = true;
     this.winnerGlow = 0;
     this._setPointerSpinning(true);
+    const wrapper = this.canvas.parentElement;
+    if (wrapper) wrapper.classList.add('cark-spinning');
 
     const winner = preDeterminedWinner || this._pickWinner();
     let winnerIndex = -1;
@@ -473,6 +487,7 @@ export class WheelEngine {
       .then(() => {
         this.isSpinning = false;
         this._setPointerSpinning(false);
+        if (wrapper) wrapper.classList.remove('cark-spinning');
         return winner;
       });
   }
@@ -507,7 +522,8 @@ export class WheelEngine {
   _animateMainSpin(distance, totalProb) {
     return new Promise((resolve) => {
       const startRotation = this.rotation;
-      const duration = 6500 + Math.random() * 1500; // 6.5 - 8 seconds
+      const baseDuration = Math.max(1500, this.theme.spinDurationMs || 7000);
+      const duration = baseDuration + (Math.random() * 500 - 250); // hafif doğal varyasyon
       const startTime = performance.now();
       let lastSegmentIndex = -1;
 

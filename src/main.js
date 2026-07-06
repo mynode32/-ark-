@@ -4,6 +4,7 @@ import { Confetti } from './confetti.js';
 import { FormManager } from './form.js';
 import { ModalManager } from './modal.js';
 import { fetchConfig, spin, canSpin, markSpun } from './storage.js';
+import { applyWidgetTheme } from './siteTheme.js';
 
 class CarkApp {
   constructor() {
@@ -29,6 +30,7 @@ class CarkApp {
 
     this.modalMgr = new ModalManager(this.config);
     const els = this.modalMgr.buildDOM();
+    applyWidgetTheme(document.getElementById('cark-widget-root'), this.config.theme || {});
 
     this.wheel = new WheelEngine(els.canvas, this.config);
     this.confetti = new Confetti(els.modal);

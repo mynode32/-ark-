@@ -28,6 +28,17 @@ const GENERIC_DEFAULT_CONFIG = {
   embed: {
     cdnUrl: '',
   },
+  theme: {
+    wheelSize: 330,
+    spinDurationMs: 7000,
+    autoSiteTheme: true,
+    primaryColor: '#FFD700',
+    primaryColorDark: '#FFA502',
+    pointerColor: '#FF4757',
+    bgDark: '#0F0C29',
+    bgMid: '#302B63',
+    bgLight: '#24243E',
+  },
 };
 
 export function defaultConfigFor(storeName) {
@@ -107,6 +118,9 @@ export async function saveWidgetConfig(storeId, data) {
   }
   if (data.embed) {
     config.embed = { ...config.embed, ...data.embed };
+  }
+  if (data.theme) {
+    config.theme = { ...config.theme, ...data.theme };
   }
   await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
   return config;
