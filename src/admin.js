@@ -1054,11 +1054,25 @@ class AdminPanel {
       ikasFields.style.display = select.value === 'ikas' ? 'block' : 'none';
     });
 
+    const saveBtn = document.getElementById('savePlatformBtn');
+    saveBtn.disabled = true;
     this.loadPlatformCredentials();
 
-    document.getElementById('savePlatformBtn').addEventListener('click', async () => {
+    saveBtn.addEventListener('click', async () => {
+      if (!this.platformCredsLoaded) {
+        this.showToast('Mevcut ayarlar henüz yüklenmedi, lütfen bekleyin veya sayfayı yenileyin');
+        return;
+      }
       const base = getApiBase();
       const platform = select.value;
+      if (platform !== 'ikas' && this.lastLoadedPlatform === 'ikas') {
+        const confirmed = window.confirm(
+          'İkas bağlantısını kaldırmak üzeresiniz. Kayıtlı İkas kimlik bilgileri silinecek. Emin misiniz?',
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
       const body = {
         platform,
         ikasStoreId: document.getElementById('platform-ikasStoreId').value.trim(),
@@ -1087,12 +1101,13 @@ class AdminPanel {
   async loadPlatformCredentials() {
     const base = getApiBase();
     const statusEl = document.getElementById('platformStatus');
+    const saveBtn = document.getElementById('savePlatformBtn');
     try {
       const res = await fetch(`${base}/api/admin/platform-credentials`, {
         headers: { Authorization: `Bearer ${authToken()}` },
       });
       if (!res.ok) {
-        return;
+        throw new Error('load failed');
       }
       const creds = await res.json();
       const select = document.getElementById('platform-select');
@@ -1110,8 +1125,17 @@ class AdminPanel {
             ? `✅ İkas'a bağlı${creds.hasSecret ? '' : ' (client secret eksik!)'}`
             : '⚪ Bağlı değil — manuel mod aktif';
       }
+      this.platformCredsLoaded = true;
+      this.lastLoadedPlatform = creds.platform || 'none';
+      if (saveBtn) {
+        saveBtn.disabled = false;
+      }
     } catch {
-      /* ignore */
+      this.platformCredsLoaded = false;
+      if (statusEl) {
+        statusEl.textContent = '⚠️ Mevcut ayarlar yüklenemedi — kaydetmeden önce sayfayı yenileyin!';
+      }
+      this.showToast('Platform ayarları yüklenemedi, sayfayı yenileyin');
     }
   }
 

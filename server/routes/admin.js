@@ -150,6 +150,16 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'İkas client id ve mağaza id zorunludur' });
   }
 
+  // Guard against a stale/broken frontend sending platform:'none' alongside
+  // populated ikas fields (e.g. the credentials-load request failed and the
+  // platform dropdown silently reverted to its default) — that combination
+  // would otherwise wipe out real credentials the user just typed in.
+  if (platform !== 'ikas' && (ikasClientId || ikasClientSecret || ikasStoreId)) {
+    return res.status(400).json({
+      error: 'Tutarsız istek: platform İkas olarak seçili değilken İkas bilgileri gönderildi. Sayfayı yenileyip tekrar deneyin.',
+    });
+  }
+
   const existing = await getPlatformCredentials(req.storeId);
   const secretEnc = ikasClientSecret ? encryptSecret(ikasClientSecret) : existing.ikasClientSecretEnc;
 
