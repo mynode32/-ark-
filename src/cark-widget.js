@@ -268,16 +268,28 @@ class CarkApp {
 
 const app = new CarkApp();
 
+function whenBodyReady(cb) {
+  if (document.body) {
+    cb();
+  } else {
+    document.addEventListener('DOMContentLoaded', cb, { once: true });
+  }
+}
+
 window.CarkWidget = {
-  init: async (options = {}) => {
-    if (options.apiBaseUrl) {
-      window.CARK_API_URL = options.apiBaseUrl;
-    }
-    if (options.storeSlug) {
-      window.CARK_STORE_SLUG = options.storeSlug;
-    }
-    await app.init(options);
-  },
+  init: (options = {}) =>
+    new Promise((resolve) => {
+      if (options.apiBaseUrl) {
+        window.CARK_API_URL = options.apiBaseUrl;
+      }
+      if (options.storeSlug) {
+        window.CARK_STORE_SLUG = options.storeSlug;
+      }
+      whenBodyReady(async () => {
+        await app.init(options);
+        resolve();
+      });
+    }),
   open: () => app.open(),
   close: () => app.close(),
 };
