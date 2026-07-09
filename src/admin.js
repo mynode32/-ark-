@@ -233,7 +233,7 @@ class AdminPanel {
               <div class="segment-list" id="segmentList">
                 ${this.config.segments
                   .map(
-                    (seg) => `
+                    (seg, idx) => `
                   <div class="segment-item" data-id="${seg.id}">
                     <div class="segment-color" style="background:${seg.color}"></div>
                     <div class="segment-info">
@@ -241,6 +241,8 @@ class AdminPanel {
                       <div class="segment-meta">Kazanma Şansı: %${seg.probability} ${seg.couponCode ? `• Kod: ${seg.couponCode}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
                     </div>
                     <div class="segment-actions">
+                      <button class="move-btn" data-dir="up" data-id="${seg.id}" title="Yukarı taşı" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
+                      <button class="move-btn" data-dir="down" data-id="${seg.id}" title="Aşağı taşı" ${idx === this.config.segments.length - 1 ? 'disabled' : ''}>⬇️</button>
                       <button class="edit-btn" data-id="${seg.id}" title="Düzenle">✏️</button>
                       <button class="delete-btn" data-id="${seg.id}" title="Sil">🗑️</button>
                     </div>
@@ -356,11 +358,21 @@ class AdminPanel {
     document.getElementById('segmentList').addEventListener('click', (e) => {
       const editBtn = e.target.closest('.edit-btn');
       const delBtn = e.target.closest('.delete-btn');
+      const moveBtn = e.target.closest('.move-btn');
       if (editBtn) {
         this.openSegmentModal(editBtn.dataset.id);
       } else if (delBtn) {
         if (confirm('Bu dilimi silmek istediğinize emin misiniz?')) {
           this.config.segments = this.config.segments.filter((s) => String(s.id) !== String(delBtn.dataset.id));
+          this.saveAndRender({ segments: this.config.segments });
+        }
+      } else if (moveBtn && !moveBtn.disabled) {
+        const idx = this.config.segments.findIndex((s) => String(s.id) === String(moveBtn.dataset.id));
+        const swapWith = moveBtn.dataset.dir === 'up' ? idx - 1 : idx + 1;
+        if (idx >= 0 && swapWith >= 0 && swapWith < this.config.segments.length) {
+          const segments = [...this.config.segments];
+          [segments[idx], segments[swapWith]] = [segments[swapWith], segments[idx]];
+          this.config.segments = segments;
           this.saveAndRender({ segments: this.config.segments });
         }
       }
@@ -852,6 +864,7 @@ class AdminPanel {
           <div class="stat-card"><div class="stat-value" id="stat-total">-</div><div class="stat-label">Toplam Katılım</div></div>
           <div class="stat-card"><div class="stat-value" id="stat-today">-</div><div class="stat-label">Bugünkü Katılım</div></div>
           <div class="stat-card"><div class="stat-value" id="stat-mostwon" style="font-size:24px;line-height:1.5;">-</div><div class="stat-label">En Çok Kazanılan</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-broken" style="color:#ff4757;">-</div><div class="stat-label" title="Bu kadar müşteriye verilen kupon kodu İkas'a kaydedilemedi, ödeme sayfasında çalışmaz">⚠️ İkas'a İşlenmeyen Kupon</div></div>
         </div>
         <div class="admin-card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -944,6 +957,7 @@ class AdminPanel {
     document.getElementById('stat-total').textContent = stats.total;
     document.getElementById('stat-today').textContent = stats.today;
     document.getElementById('stat-mostwon').textContent = stats.mostWon;
+    document.getElementById('stat-broken').textContent = stats.brokenCoupons ?? '-';
 
     if (entries.length === 0) {
       container.innerHTML = '<div class="empty-state">Henüz kimse çarkı çevirmedi.</div>';
@@ -960,6 +974,7 @@ class AdminPanel {
             <th>E-posta</th>
             <th>Ödül</th>
             <th>Kupon</th>
+            <th>Durum</th>
           </tr>
         </thead>
         <tbody>
@@ -973,6 +988,13 @@ class AdminPanel {
               <td>${e.email || '-'}</td>
               <td style="font-weight:600;color:#FFD700;">${e.prize || '-'}</td>
               <td>${e.couponCode ? `<code>${e.couponCode}</code>` : '-'}</td>
+              <td>${
+                !e.couponCode || typeof e.isLocalCoupon !== 'boolean'
+                  ? '-'
+                  : e.isLocalCoupon
+                    ? '<span title="Bu kod İkas\'a kaydedilemedi, ödeme sayfasında çalışmaz. Müşteriyle manuel ilgilenin." style="color:#ff4757;font-weight:600;cursor:help;">⚠️ İkas\'a işlenmedi</span>'
+                    : '<span style="color:#2ed573;">✓ İkas\'ta kayıtlı</span>'
+              }</td>
             </tr>
           `,
             )

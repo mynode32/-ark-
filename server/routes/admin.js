@@ -90,13 +90,21 @@ adminRouter.delete('/entries', asyncHandler(async (req, res) => {
 adminRouter.get('/entries/export', asyncHandler(async (req, res) => {
   const entries = await getEntries(req.storeId);
   const BOM = '\uFEFF';
-  const headers = ['Tarih', 'Ad Soyad', 'Telefon', 'E-posta', 'Kazanılan Ödül', 'Kupon Kodu'];
+  const headers = ['Tarih', 'Ad Soyad', 'Telefon', 'E-posta', 'Kazanılan Ödül', 'Kupon Kodu', 'Kupon Durumu'];
   const csv =
     BOM +
     [
       headers,
       ...entries.map((e) =>
-        [e.timestamp || '', e.name || '', e.phone || '', e.email || '', e.prize || '', e.couponCode || '']
+        [
+          e.timestamp || '',
+          e.name || '',
+          e.phone || '',
+          e.email || '',
+          e.prize || '',
+          e.couponCode || '',
+          !e.couponCode ? '' : e.isLocalCoupon ? 'İkas\'a işlenmedi' : 'İkas\'ta kayıtlı',
+        ]
           .map((c) => `"${String(c).replace(/"/g, '""')}"`)
           .join(';'),
       ),
@@ -190,6 +198,7 @@ adminRouter.get('/stats', asyncHandler(async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const todayEntries = entries.filter((e) => e.timestamp?.startsWith(today)).length;
   const prizes = entries.map((e) => e.prize).filter(Boolean);
+  const brokenCoupons = entries.filter((e) => e.couponCode && e.isLocalCoupon).length;
 
   let mostWon = null;
   if (prizes.length > 0) {
@@ -204,5 +213,6 @@ adminRouter.get('/stats', asyncHandler(async (req, res) => {
     total: entries.length,
     today: todayEntries,
     mostWon,
+    brokenCoupons,
   });
 }));

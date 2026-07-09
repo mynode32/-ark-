@@ -115,6 +115,7 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
       couponCode,
       discountType: winner.discountType,
       discountValue: winner.discountValue,
+      isLocalCoupon,
     });
 
     console.log(`[Spin] ${name} -> ${winner.label} ${couponCode ? `(${couponCode})` : '(kupon yok)'}`);

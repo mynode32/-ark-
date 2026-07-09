@@ -64,9 +64,15 @@ export async function ensureSchema() {
       prize TEXT,
       coupon_code TEXT,
       discount_type TEXT,
-      discount_value NUMERIC
+      discount_value NUMERIC,
+      is_local_coupon BOOLEAN NOT NULL DEFAULT false
     )
   `);
+
+  // Table pre-dates this column — add it for databases provisioned before
+  // local-coupon tracking existed (CREATE TABLE IF NOT EXISTS above is a
+  // no-op once the table already exists).
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS is_local_coupon BOOLEAN NOT NULL DEFAULT false');
 
   await query('CREATE INDEX IF NOT EXISTS entries_store_id_idx ON entries(store_id)');
   await query('CREATE INDEX IF NOT EXISTS entries_store_phone_idx ON entries(store_id, phone)');

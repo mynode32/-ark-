@@ -140,6 +140,7 @@ function rowToEntry(row) {
     couponCode: row.coupon_code,
     discountType: row.discount_type,
     discountValue: row.discount_value === null ? null : Number(row.discount_value),
+    isLocalCoupon: Boolean(row.is_local_coupon),
   };
 }
 
@@ -166,8 +167,8 @@ export async function findLastEntryByPhone(storeId, phone) {
 
 export async function addEntry(storeId, entry) {
   const res = await query(
-    `INSERT INTO entries (store_id, "timestamp", name, phone, email, prize, coupon_code, discount_type, discount_value)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO entries (store_id, "timestamp", name, phone, email, prize, coupon_code, discount_type, discount_value, is_local_coupon)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       storeId,
@@ -179,6 +180,7 @@ export async function addEntry(storeId, entry) {
       entry.couponCode,
       entry.discountType,
       entry.discountValue,
+      Boolean(entry.isLocalCoupon),
     ],
   );
   return rowToEntry(res.rows[0]);
