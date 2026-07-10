@@ -538,6 +538,7 @@ class AdminPanel {
     const wheelSizeInput = document.getElementById('theme-wheelSize');
     wheelSizeInput.addEventListener('input', (e) => {
       document.getElementById('theme-wheelSize-val').textContent = `${e.target.value}px`;
+      this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm());
     });
 
     const spinDurationInput = document.getElementById('theme-spinDuration');
@@ -813,6 +814,17 @@ class AdminPanel {
       return;
     }
     const theme = { ...DEFAULT_CONFIG.theme, ...(this.config.theme || {}), ...(themeOverride || {}) };
+
+    // Mirror the real widget's actual size — the container's own
+    // max-height:340px (see admin.css) scales it down proportionally if
+    // it's too big to fit, so this always draws at the true size the
+    // customer would actually see, not an arbitrarily capped preview.
+    const displaySize = theme.wheelSize || 330;
+    if (canvas.width !== displaySize || canvas.height !== displaySize) {
+      canvas.width = displaySize;
+      canvas.height = displaySize;
+    }
+
     const ctx = canvas.getContext('2d');
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
@@ -822,9 +834,13 @@ class AdminPanel {
       return;
     }
 
-    const totalProb = this.config.segments.reduce((s, seg) => s + seg.probability, 0) || 1;
+    // Equal-width slices — matches the real wheel (src/wheel.js), which no
+    // longer sizes wedges by probability. `probability` still shown below
+    // as the actual win-odds weight, it just isn't the wedge width anymore.
+    const sliceAngle = (2 * Math.PI) / this.config.segments.length;
     let startAngle = -Math.PI / 2;
 
+    const totalProb = this.config.segments.reduce((s, seg) => s + seg.probability, 0) || 1;
     const statsEl = document.getElementById('previewStats');
     if (statsEl) {
       statsEl.innerHTML = `Toplam Ağırlık: <span>${totalProb}</span>`;
@@ -839,7 +855,6 @@ class AdminPanel {
     ctx.stroke();
 
     for (const seg of this.config.segments) {
-      const sliceAngle = (seg.probability / totalProb) * 2 * Math.PI;
       const endAngle = startAngle + sliceAngle;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
