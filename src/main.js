@@ -13,6 +13,18 @@ function formatCooldown(ms) {
   return `${Math.max(1, minutes)} dakika`;
 }
 
+function showLoadingIndicator() {
+  if (document.getElementById('cark-loading-indicator')) return;
+  const el = document.createElement('div');
+  el.id = 'cark-loading-indicator';
+  el.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(el);
+}
+
+function hideLoadingIndicator() {
+  document.getElementById('cark-loading-indicator')?.remove();
+}
+
 class CarkApp {
   constructor() {
     this.config = null;
@@ -20,8 +32,14 @@ class CarkApp {
   }
 
   async init(embedOptions = {}) {
-    // Fetch config from backend or localStorage
+    // Fetch config from backend or localStorage. On a cold Render instance
+    // this can take several seconds with nothing on screen to show for it —
+    // a small indicator after a short grace period beats the widget
+    // appearing to simply not exist.
+    const loadingTimer = setTimeout(() => showLoadingIndicator(), 1200);
     this.config = await fetchConfig();
+    clearTimeout(loadingTimer);
+    hideLoadingIndicator();
     this.embedOptions = embedOptions;
 
     // Merge embed options into config

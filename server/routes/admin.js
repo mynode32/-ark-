@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { adminAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
@@ -6,9 +7,11 @@ import {
   saveWidgetConfig,
   getEntries,
   getEntriesPage,
+  getEntryStats,
   clearEntries,
   getPlatformCredentials,
   savePlatformCredentials,
+  getConfigHistory,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
@@ -18,6 +21,10 @@ export const adminRouter = Router();
 
 // All admin routes require auth; adminAuth sets req.storeId from the JWT
 adminRouter.use(adminAuth);
+
+// Each test-coupon call can create a real İkas coupon — throttled to blunt
+// accidental spam-clicking, not abuse (this route is already auth-only).
+const testCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
 
 /**
  * GET /api/admin/auth-check
@@ -42,6 +49,15 @@ adminRouter.get('/config', asyncHandler(async (req, res) => {
 adminRouter.put('/config', asyncHandler(async (req, res) => {
   const updated = await saveWidgetConfig(req.storeId, req.body);
   res.json(updated);
+}));
+
+/**
+ * GET /api/admin/history
+ * Change log — what section was edited and when (no per-field diff, no
+ * per-user attribution since accounts are single-user today).
+ */
+adminRouter.get('/history', asyncHandler(async (req, res) => {
+  res.json({ changes: await getConfigHistory(req.storeId) });
 }));
 
 /**
@@ -74,7 +90,7 @@ adminRouter.delete('/entries', asyncHandler(async (req, res) => {
  * Export entries as CSV
  */
 // Excel/Sheets treats a cell starting with =, +, - or @ as a formula even
-// inside quotes \u2014 prefixing with an apostrophe forces it to be read as
+// inside quotes — prefixing with an apostrophe forces it to be read as
 // plain text, closing the classic CSV-injection vector for shopper-supplied
 // names/emails.
 function csvCell(value) {
@@ -84,34 +100,34 @@ function csvCell(value) {
 }
 
 adminRouter.get('/entries/export', asyncHandler(async (req, res) => {
+  // Export is inherently a full read — you can't aggregate away individual
+  // rows in a per-participant CSV. What we can avoid is building one giant
+  // string in memory before sending anything: stream each row out as it's
+  // formatted instead of joining the whole file first.
   const entries = await getEntries(req.storeId);
-  const BOM = '\uFEFF';
-  const headers = ['Tarih', 'Ad Soyad', 'Telefon', 'E-posta', 'Kazanılan Ödül', 'Kupon Kodu', 'Kupon Durumu'];
-  const csv =
-    BOM +
-    [
-      headers,
-      ...entries.map((e) =>
-        [
-          e.timestamp || '',
-          e.name || '',
-          e.phone || '',
-          e.email || '',
-          e.prize || '',
-          e.couponCode || '',
-          !e.couponCode ? '' : e.isLocalCoupon ? 'İkas\'a işlenmedi' : 'İkas\'ta kayıtlı',
-        ]
-          .map(csvCell)
-          .join(';'),
-      ),
-    ].join('\n');
 
   res.setHeader('Content-Type', 'text/csv;charset=utf-8');
   res.setHeader(
     'Content-Disposition',
     `attachment; filename="cark-katilimcilar-${new Date().toISOString().split('T')[0]}.csv"`,
   );
-  res.send(csv);
+
+  const BOM = '﻿';
+  const headers = ['Tarih', 'Ad Soyad', 'Telefon', 'E-posta', 'Kazanılan Ödül', 'Kupon Kodu', 'Kupon Durumu'];
+  res.write(BOM + headers.map(csvCell).join(';') + '\n');
+  for (const e of entries) {
+    const row = [
+      e.timestamp || '',
+      e.name || '',
+      e.phone || '',
+      e.email || '',
+      e.prize || '',
+      e.couponCode || '',
+      !e.couponCode ? '' : e.isLocalCoupon ? 'İkas\'a işlenmedi' : 'İkas\'ta kayıtlı',
+    ];
+    res.write(row.map(csvCell).join(';') + '\n');
+  }
+  res.end();
 }));
 
 /**
@@ -128,6 +144,42 @@ adminRouter.get('/ikas/campaigns', asyncHandler(async (req, res) => {
   // new code on every spin, which is exactly the failure-prone path we're
   // steering store owners away from (see isLocalCoupon).
   res.json({ campaigns: campaigns.filter((c) => c.hasCoupon) });
+}));
+
+/**
+ * POST /api/admin/segments/:segmentId/test-coupon
+ * Runs the exact same coupon-creation path a real spin would (fixed code,
+ * addCouponToCampaign, or createCoupon) for one segment, without saving an
+ * entry or affecting anyone's ability to spin — lets a store owner verify a
+ * segment actually produces a working İkas coupon before it goes live,
+ * instead of finding out from a real customer's failed checkout.
+ */
+adminRouter.post('/segments/:segmentId/test-coupon', testCouponLimiter, asyncHandler(async (req, res) => {
+  const config = await getWidgetConfig(req.storeId);
+  const segment = config.segments.find((s) => String(s.id) === String(req.params.segmentId));
+  if (!segment) {
+    return res.status(404).json({ error: 'Dilim bulunamadı' });
+  }
+  if (segment.discountType === 'noLuck') {
+    return res.json({ tested: false, reason: 'Bu dilim kupon üretmiyor (Boş/Pas)' });
+  }
+
+  let couponCode = segment.couponCode || null;
+  let isLocalCoupon = false;
+  if (!couponCode) {
+    const adapter = await getPlatformAdapter(req.storeId);
+    const coupon = segment.ikasCampaignId
+      ? await adapter.addCouponToCampaign({ campaignId: segment.ikasCampaignId, label: segment.label })
+      : await adapter.createCoupon({
+          label: segment.label,
+          discountType: segment.discountType,
+          discountValue: segment.discountValue,
+        });
+    couponCode = coupon.code;
+    isLocalCoupon = coupon.isLocal;
+  }
+
+  res.json({ tested: true, couponCode, isLocalCoupon });
 }));
 
 /**
@@ -220,25 +272,5 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
  * GET /api/admin/stats
  */
 adminRouter.get('/stats', asyncHandler(async (req, res) => {
-  const entries = await getEntries(req.storeId);
-  const today = new Date().toISOString().split('T')[0];
-  const todayEntries = entries.filter((e) => e.timestamp?.startsWith(today)).length;
-  const prizes = entries.map((e) => e.prize).filter(Boolean);
-  const brokenCoupons = entries.filter((e) => e.couponCode && e.isLocalCoupon).length;
-
-  let mostWon = null;
-  if (prizes.length > 0) {
-    const counts = prizes.reduce((acc, p) => {
-      acc[p] = (acc[p] || 0) + 1;
-      return acc;
-    }, {});
-    mostWon = Object.keys(counts).reduce((a, b) => (counts[a] > counts[b] ? a : b));
-  }
-
-  res.json({
-    total: entries.length,
-    today: todayEntries,
-    mostWon,
-    brokenCoupons,
-  });
+  res.json(await getEntryStats(req.storeId));
 }));

@@ -115,5 +115,20 @@ export async function ensureSchema() {
   await query('CREATE INDEX IF NOT EXISTS entries_store_email_idx ON entries(store_id, email)');
   await query('CREATE INDEX IF NOT EXISTS entries_store_timestamp_idx ON entries(store_id, "timestamp")');
 
+  // Lightweight change log — records *what section* changed and *when*
+  // (no per-field diff, no user attribution since accounts are single-user
+  // today) so a store owner can at least see a timeline of edits instead of
+  // configuration changes leaving no trace at all.
+  await query(`
+    CREATE TABLE IF NOT EXISTS config_changes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      changed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      section TEXT NOT NULL,
+      summary TEXT
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS config_changes_store_id_idx ON config_changes(store_id, changed_at DESC)');
+
   console.log('[DB] Şema hazır.');
 }

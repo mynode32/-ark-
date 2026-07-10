@@ -214,6 +214,7 @@ class AdminPanel {
       main.innerHTML = this.renderSettingsTab();
       this.setupSettingsListeners();
       this.drawPreviewWheel('previewCanvas');
+      this.loadHistory();
     } else if (this.currentTab === 'appearance') {
       main.innerHTML = this.renderAppearanceTab();
       this.setupAppearanceListeners();
@@ -249,6 +250,11 @@ class AdminPanel {
                     <div class="segment-actions">
                       <button class="move-btn" data-dir="up" data-id="${seg.id}" title="Yukarı taşı" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
                       <button class="move-btn" data-dir="down" data-id="${seg.id}" title="Aşağı taşı" ${idx === this.config.segments.length - 1 ? 'disabled' : ''}>⬇️</button>
+                      ${
+                        seg.discountType !== 'noLuck'
+                          ? `<button class="test-coupon-btn" data-id="${seg.id}" title="Bu dilim gerçek bir müşteri kazanmadan İkas'ta kupon üretebiliyor mu test et">🧪</button>`
+                          : ''
+                      }
                       <button class="edit-btn" data-id="${seg.id}" title="Düzenle">✏️</button>
                       <button class="delete-btn" data-id="${seg.id}" title="Çark tam olarak 6 dilimden oluşur, silinemez" disabled>🗑️</button>
                     </div>
@@ -319,13 +325,93 @@ class AdminPanel {
                 <textarea class="form-input" id="setting-kvkkFullText" style="min-height:220px;">${this.config.kvkk.kvkkFullText || ''}</textarea>
               </div>
               <div class="btn-group" style="justify-content: flex-end;">
+                <button class="btn btn-secondary" id="previewKvkkBtn">👁️ Müşteri Gözünden Önizle</button>
                 <button class="btn btn-primary" id="saveKvkkBtn">KVKK Metinlerini Kaydet</button>
               </div>
+            </div>
+
+            <div class="admin-card">
+              <h3>📜 Değişiklik Geçmişi</h3>
+              <div id="historyContainer" style="font-size:13px;color:var(--text-muted,#888);">Yükleniyor...</div>
             </div>
           </div>
         </div>
       </div>
     `;
+  }
+
+  async loadHistory() {
+    const container = document.getElementById('historyContainer');
+    if (!container) {
+      return;
+    }
+    const base = getApiBase();
+    if (!authToken() || !base) {
+      container.textContent = 'Sadece kayıtlı hesaplarda görünür.';
+      return;
+    }
+    try {
+      const res = await fetch(`${base}/api/admin/history`, {
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      if (!res.ok) {
+        throw new Error('failed');
+      }
+      const { changes } = await res.json();
+      if (!changes.length) {
+        container.textContent = 'Henüz bir değişiklik kaydı yok.';
+        return;
+      }
+      container.innerHTML = changes
+        .map(
+          (c) => `
+        <div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <span>${escapeHtml(c.summary)}</span>
+          <span style="white-space:nowrap;">${new Date(c.changedAt).toLocaleString('tr-TR')}</span>
+        </div>
+      `,
+        )
+        .join('');
+    } catch {
+      container.textContent = 'Geçmiş yüklenemedi.';
+    }
+  }
+
+  /**
+   * Runs the real coupon-creation call for one segment (no fake, no local
+   * fallback shortcut) without saving a customer entry, so a store owner can
+   * catch a broken segment before a real customer does.
+   */
+  async testSegmentCoupon(btn) {
+    const base = getApiBase();
+    if (!authToken() || !base) {
+      this.showToast('Deneme çevirme sadece kayıtlı hesaplarda çalışır');
+      return;
+    }
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+      const res = await fetch(`${base}/api/admin/segments/${encodeURIComponent(btn.dataset.id)}/test-coupon`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        this.showToast(data.error || 'Test başarısız oldu');
+      } else if (!data.tested) {
+        this.showToast(data.reason || 'Bu dilim test edilemez');
+      } else if (data.isLocalCoupon) {
+        this.showToast(`⚠️ İkas'a kaydedilemedi — bu dilim müşteride reddedilecek kod üretir (${data.couponCode})`);
+      } else {
+        this.showToast(`✓ Kupon başarıyla oluşturuldu: ${data.couponCode}`);
+      }
+    } catch {
+      this.showToast('Backend bağlantı hatası');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 
   updateTriggerValueInput() {
@@ -361,9 +447,10 @@ class AdminPanel {
   }
 
   setupSettingsListeners() {
-    document.getElementById('segmentList').addEventListener('click', (e) => {
+    document.getElementById('segmentList').addEventListener('click', async (e) => {
       const editBtn = e.target.closest('.edit-btn');
       const moveBtn = e.target.closest('.move-btn');
+      const testBtn = e.target.closest('.test-coupon-btn');
       if (editBtn) {
         this.openSegmentModal(editBtn.dataset.id);
       } else if (moveBtn && !moveBtn.disabled) {
@@ -375,6 +462,8 @@ class AdminPanel {
           this.config.segments = segments;
           this.saveAndRender({ segments: this.config.segments });
         }
+      } else if (testBtn) {
+        await this.testSegmentCoupon(testBtn);
       }
     });
 
@@ -411,6 +500,19 @@ class AdminPanel {
       };
       await this.saveAndRender({ kvkk });
     });
+
+    document.getElementById('previewKvkkBtn').addEventListener('click', () => {
+      // Reads straight from the textarea (not this.config) so unsaved edits
+      // show up in the preview too — no need to save first just to check.
+      const text = document.getElementById('setting-kvkkFullText').value.trim();
+      const previewEl = document.getElementById('kvkkPreviewText');
+      previewEl.textContent = text || 'Bu alan boş bırakılırsa "Aydınlatma Metnini Oku" linki müşteriye hiç gösterilmez.';
+      document.getElementById('kvkkPreviewModal').classList.add('active');
+    });
+
+    document
+      .getElementById('closeKvkkPreviewBtn')
+      .addEventListener('click', () => document.getElementById('kvkkPreviewModal').classList.remove('active'));
 
     document
       .getElementById('closeModalBtn')

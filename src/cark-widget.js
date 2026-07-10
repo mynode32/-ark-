@@ -137,7 +137,14 @@ class CarkApp {
   }
 
   async init(embedOptions = {}) {
+    // Config fetch can take several seconds on a cold backend, with nothing
+    // on screen to show for it — a small indicator after a short grace
+    // period beats the widget appearing to simply not exist. Styled inline
+    // since the widget's own stylesheet isn't injected until after this.
+    const loadingTimer = setTimeout(() => this.showLoadingIndicator(), 1200);
     this.config = await fetchConfig();
+    clearTimeout(loadingTimer);
+    this.hideLoadingIndicator();
     this.embedOptions = embedOptions;
 
     if (embedOptions.segments) {
@@ -189,6 +196,28 @@ class CarkApp {
     style.id = 'cark-widget-styles';
     style.textContent = WIDGET_CSS;
     document.head.appendChild(style);
+  }
+
+  showLoadingIndicator() {
+    if (document.getElementById('cark-loading-indicator')) return;
+    const el = document.createElement('div');
+    el.id = 'cark-loading-indicator';
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText =
+      'position:fixed;bottom:20px;right:20px;width:14px;height:14px;border-radius:50%;' +
+      'background:#FF1E1E;z-index:999998;pointer-events:none;animation:carkLoadingPulse 1.4s ease-out infinite;';
+    if (!document.getElementById('cark-loading-indicator-keyframes')) {
+      const kf = document.createElement('style');
+      kf.id = 'cark-loading-indicator-keyframes';
+      kf.textContent =
+        '@keyframes carkLoadingPulse{0%{box-shadow:0 0 0 0 rgba(255,30,30,0.6);}70%{box-shadow:0 0 0 14px rgba(255,30,30,0);}100%{box-shadow:0 0 0 0 rgba(255,30,30,0);}}';
+      document.head.appendChild(kf);
+    }
+    document.body.appendChild(el);
+  }
+
+  hideLoadingIndicator() {
+    document.getElementById('cark-loading-indicator')?.remove();
   }
 
   setupTriggers() {

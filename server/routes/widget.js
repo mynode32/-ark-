@@ -18,6 +18,26 @@ const checkSpinLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeade
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^0?5\d{9}$/;
 
+/**
+ * createCustomer() swallows its own errors and returns null on failure
+ * (see services/platforms/ikas.js) rather than throwing, so a transient
+ * network blip or a moment of İkas rate-limiting previously meant the
+ * customer sync silently never happened, with no chance to recover. This
+ * retries a couple of times with backoff before giving up for good.
+ */
+async function createCustomerWithRetries(adapter, payload, { attempts = 3, delayMs = 1000 } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    const result = await adapter.createCustomer(payload).catch(() => null);
+    if (result) {
+      return result;
+    }
+    if (i < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
+    }
+  }
+  return null;
+}
+
 function validateEntryFields(name, phone, email) {
   if (!name || !phone || !email) {
     return 'Ad, telefon ve e-posta zorunludur';
@@ -140,10 +160,13 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
       isLocalCoupon = coupon.isLocal;
     }
 
-    // Optional: create customer on the connected platform (no-op in manual mode)
-    if (winner.discountType !== 'noLuck') {
-      adapter.createCustomer({ name, phone, email }).catch((err) => {
-        console.error(`[${req.store.slug}] Müşteri oluşturulamadı (${email}):`, err.message);
+    // Optional: create customer on the connected platform (no-op in manual mode,
+    // so only worth retrying when there's an actual İkas call behind it)
+    if (winner.discountType !== 'noLuck' && adapter.platform === 'ikas') {
+      createCustomerWithRetries(adapter, { name, phone, email }).then((result) => {
+        if (!result) {
+          console.error(`[${req.store.slug}] Müşteri oluşturulamadı (${email}) — 3 denemeden sonra vazgeçildi`);
+        }
       });
     }
 

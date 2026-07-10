@@ -135,6 +135,35 @@ export function validateSegments(segments) {
   return null;
 }
 
+const SECTION_LABELS = {
+  segments: (data) => `${data.segments.length} dilim güncellendi`,
+  settings: () => 'Genel ayarlar güncellendi',
+  kvkk: () => 'KVKK/sözleşme metinleri güncellendi',
+  embed: () => 'Embed ayarları güncellendi',
+  theme: () => 'Görünüm/tema güncellendi',
+};
+
+/** Records a one-line change-log entry — best-effort, never blocks the actual save. */
+export async function logConfigChange(storeId, section, summary) {
+  await query('INSERT INTO config_changes (store_id, section, summary) VALUES ($1, $2, $3)', [
+    storeId,
+    section,
+    summary,
+  ]).catch((err) => console.error('[Geçmiş] Kaydedilemedi:', err.message));
+}
+
+export async function getConfigHistory(storeId, limit = 30) {
+  const res = await query(
+    'SELECT changed_at, section, summary FROM config_changes WHERE store_id = $1 ORDER BY changed_at DESC LIMIT $2',
+    [storeId, limit],
+  );
+  return res.rows.map((r) => ({
+    changedAt: r.changed_at instanceof Date ? r.changed_at.toISOString() : r.changed_at,
+    section: r.section,
+    summary: r.summary,
+  }));
+}
+
 export async function saveWidgetConfig(storeId, data) {
   const store = await findStoreById(storeId);
   if (!store) {
@@ -161,6 +190,13 @@ export async function saveWidgetConfig(storeId, data) {
     config.theme = { ...config.theme, ...data.theme };
   }
   await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
+
+  for (const section of Object.keys(SECTION_LABELS)) {
+    if (data[section]) {
+      await logConfigChange(storeId, section, SECTION_LABELS[section](data));
+    }
+  }
+
   return config;
 }
 
@@ -201,6 +237,42 @@ export async function getEntriesPage(storeId, { page = 1, limit = 50, search = '
   );
   const total = res.rows[0] ? Number(res.rows[0].total_count) : 0;
   return { entries: res.rows.map(rowToEntry), total };
+}
+
+/**
+ * Dashboard stats computed entirely in SQL (two small aggregate queries)
+ * instead of pulling every entry into Node and reducing in JS — this used
+ * to mean the admin panel's stat cards re-scanned a store's full history
+ * on every load.
+ */
+export async function getEntryStats(storeId) {
+  const totals = await query(
+    `SELECT
+       COUNT(*) AS total,
+       COUNT(*) FILTER (
+         WHERE to_char("timestamp" AT TIME ZONE 'UTC', 'YYYY-MM-DD') = to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+       ) AS today,
+       COUNT(*) FILTER (WHERE coupon_code IS NOT NULL AND is_local_coupon = true) AS broken_coupons
+     FROM entries
+     WHERE store_id = $1`,
+    [storeId],
+  );
+
+  const mostWonRes = await query(
+    `SELECT prize FROM entries
+     WHERE store_id = $1 AND prize IS NOT NULL
+     GROUP BY prize
+     ORDER BY COUNT(*) DESC
+     LIMIT 1`,
+    [storeId],
+  );
+
+  return {
+    total: Number(totals.rows[0]?.total || 0),
+    today: Number(totals.rows[0]?.today || 0),
+    brokenCoupons: Number(totals.rows[0]?.broken_coupons || 0),
+    mostWon: mostWonRes.rows[0]?.prize || null,
+  };
 }
 
 export async function getEntries(storeId) {
@@ -290,6 +362,11 @@ export async function savePlatformCredentials(storeId, { platform, ikasClientId,
        ikas_token_enc = NULL,
        ikas_token_expires_at = NULL`,
     [storeId, platform, ikasClientId || null, ikasClientSecretEnc || null, ikasStoreId || null],
+  );
+  await logConfigChange(
+    storeId,
+    'platform-credentials',
+    platform === 'ikas' ? 'İkas bağlantısı güncellendi' : 'Platform bağlantısı kaldırıldı (manuel moda geçildi)',
   );
   return getPlatformCredentials(storeId);
 }

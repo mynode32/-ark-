@@ -665,6 +665,20 @@ select.form-input option {
   color: #fff;
 }
 
+/* KVKK preview — approximates the customer-facing policy popup so the
+   store owner can check formatting/length before saving. */
+.kvkk-preview-modal {
+  max-width: 640px;
+}
+.kvkk-preview-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: pre-wrap;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .admin-grid {
