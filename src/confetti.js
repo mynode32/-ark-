@@ -9,7 +9,7 @@ export class Confetti {
     this.canvas = document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d');
     this.particles = [];
-    this.colors = ['#FFD700', '#FFA502', '#FFF8DC', '#B8860B', '#F5E6C8'];
+    this.colors = ['#FF1E1E', '#B00000', '#FFFFFF', '#C0C0C0', '#1C1C1E'];
     this.isActive = false;
     this.animationId = null;
 

@@ -50,8 +50,13 @@ export class WheelEngine {
 
     if (this.segments.length === 0) return;
 
-    const totalProb = this.segments.reduce((s, seg) => s + (seg.probability || 0), 0) || 1;
+    // The wheel is a fixed 6-slice product — every slice is exactly
+    // 360°/segments.length wide regardless of win probability, so there's
+    // never a visual gap, overlap, or lopsided slice. `probability` still
+    // controls actual odds server-side; it just no longer sizes the wedge.
+    const sliceAngle = (2 * Math.PI) / this.segments.length;
     let startAngle = this.rotation - Math.PI / 2; // Start from top
+    const [accentR, accentG, accentB] = this._hexToRgb(this.theme.primaryColor || '#FF1E1E');
 
     // Draw outer glow/shadow
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -67,7 +72,6 @@ export class WheelEngine {
     // Draw segments
     for (let i = 0; i < this.segments.length; i++) {
       const seg = this.segments[i];
-      const sliceAngle = (seg.probability / totalProb) * 2 * Math.PI;
       const endAngle = startAngle + sliceAngle;
 
       // Draw slice
@@ -96,18 +100,18 @@ export class WheelEngine {
       ctx.fill();
 
       // Inner shadow/border for slice
-      ctx.strokeStyle = 'rgba(255,215,0,0.15)';
+      ctx.strokeStyle = `rgba(${accentR},${accentG},${accentB},0.15)`;
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Separator line with gold accent
+      // Separator line with accent color
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(
         cx + Math.cos(startAngle) * (r - 16),
         cy + Math.sin(startAngle) * (r - 16)
       );
-      ctx.strokeStyle = 'rgba(255,215,0,0.5)';
+      ctx.strokeStyle = `rgba(${accentR},${accentG},${accentB},0.5)`;
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -181,7 +185,7 @@ export class WheelEngine {
     const topAngle = -Math.PI / 2;
     const gx = cx + Math.cos(topAngle) * r * 0.7;
     const gy = cy + Math.sin(topAngle) * r * 0.7;
-    const [pr, pg, pb] = this._hexToRgb(this.theme.primaryColor || '#FFD700');
+    const [pr, pg, pb] = this._hexToRgb(this.theme.primaryColor || '#FF1E1E');
 
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(1, intensity));
@@ -205,7 +209,7 @@ export class WheelEngine {
 
   _drawOuterRing(ctx, cx, cy, r) {
     // Outer metallic ring — tones derived from the configured accent color
-    const primary = this.theme.primaryColor || '#FFD700';
+    const primary = this.theme.primaryColor || '#FF1E1E';
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     const ringGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
@@ -223,9 +227,9 @@ export class WheelEngine {
     ctx.fillStyle = '#111';
     ctx.fill();
 
-    // LED glow dots
+    // LED glow dots — one per slice boundary, evenly spaced
     if (this.segments.length > 0) {
-      const totalProb = this.segments.reduce((s, seg) => s + (seg.probability || 0), 0) || 1;
+      const sliceAngle = (2 * Math.PI) / this.segments.length;
       let angle = this.rotation - Math.PI / 2;
       for (let i = 0; i < this.segments.length; i++) {
         const dotX = cx + Math.cos(angle) * (r - 12);
@@ -239,15 +243,28 @@ export class WheelEngine {
         ctx.fill();
         ctx.shadowBlur = 0; // reset
 
-        angle += (this.segments[i].probability / totalProb) * 2 * Math.PI;
+        angle += sliceAngle;
       }
     }
   }
 
   _drawCenter(ctx, cx, cy) {
-    // Center circle background with metallic gradient
-    const primary = this.theme.primaryColor || '#FFD700';
+    // Center hub — brushed-gunmetal base with an accent-color halo, styled
+    // as the wheel's trigger point rather than a plain flat disc.
+    const primary = this.theme.primaryColor || '#FF1E1E';
+    const [ar, ag, ab] = this._hexToRgb(primary);
     const centerR = this.radius * 0.18;
+
+    // Soft accent halo behind the hub
+    ctx.save();
+    const halo = ctx.createRadialGradient(cx, cy, centerR * 0.7, cx, cy, centerR * 1.6);
+    halo.addColorStop(0, `rgba(${ar},${ag},${ab},0.35)`);
+    halo.addColorStop(1, `rgba(${ar},${ag},${ab},0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     // Shadow
     ctx.beginPath();
@@ -259,10 +276,11 @@ export class WheelEngine {
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
 
-    // Main circle base
-    const centerGrad = ctx.createRadialGradient(cx - 5, cy - 5, 0, cx, cy, centerR);
-    centerGrad.addColorStop(0, '#4a4a4a');
-    centerGrad.addColorStop(1, '#111111');
+    // Main circle base — gunmetal/carbon, not flat gray
+    const centerGrad = ctx.createRadialGradient(cx - 6, cy - 6, 0, cx, cy, centerR);
+    centerGrad.addColorStop(0, '#5a5a5e');
+    centerGrad.addColorStop(0.55, '#2c2c2e');
+    centerGrad.addColorStop(1, '#0a0a0a');
     ctx.beginPath();
     ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
     ctx.fillStyle = centerGrad;
@@ -468,19 +486,12 @@ export class WheelEngine {
       winnerIndex = Math.floor(Math.random() * this.segments.length);
     }
 
-    const actualWinner = this.segments[winnerIndex]; // guarantee we have the segment with probability
-
-    // Calculate target angle
-    const totalProb = this.segments.reduce((s, seg) => s + (seg.probability || 0), 0) || 1;
-    let targetAngle = 0;
-    for (let i = 0; i < winnerIndex; i++) {
-      targetAngle += (this.segments[i].probability / totalProb) * 2 * Math.PI;
-    }
-    // Center of winning segment
-    targetAngle += (actualWinner.probability / totalProb) * Math.PI;
-    // Add random offset within segment (±30% of segment width)
-    const segWidth = (actualWinner.probability / totalProb) * Math.PI;
-    targetAngle += (Math.random() - 0.5) * segWidth * 0.6;
+    // Target angle: dead center of the winning slice (each exactly
+    // 360°/segments.length wide), plus a small random offset so it doesn't
+    // land in the exact same spot every time.
+    const sliceAngle = (2 * Math.PI) / this.segments.length;
+    let targetAngle = winnerIndex * sliceAngle + sliceAngle / 2;
+    targetAngle += (Math.random() - 0.5) * sliceAngle * 0.6;
 
     // Ensure we do 8-10 full rotations for maximum drama
     const fullRotations = (8 + Math.floor(Math.random() * 3)) * 2 * Math.PI;
@@ -489,7 +500,7 @@ export class WheelEngine {
     const pullback = 0.12; // radians pulled back before release, like a slingshot
 
     return this._animateAnticipation(pullback)
-      .then(() => this._animateMainSpin(targetRotation + pullback, totalProb))
+      .then(() => this._animateMainSpin(targetRotation + pullback))
       .then(() => this._animateSettle())
       .then(() => this._animateWinnerGlow())
       .then(() => {
@@ -527,13 +538,14 @@ export class WheelEngine {
   }
 
   /** Main spin: covers `distance` radians from the current rotation */
-  _animateMainSpin(distance, totalProb) {
+  _animateMainSpin(distance) {
     return new Promise((resolve) => {
       const startRotation = this.rotation;
       const baseDuration = Math.max(1500, this.theme.spinDurationMs || 7000);
       const duration = baseDuration + (Math.random() * 500 - 250); // hafif doğal varyasyon
       const startTime = performance.now();
       let lastSegmentIndex = -1;
+      const sliceAngle = (2 * Math.PI) / Math.max(1, this.segments.length);
 
       const animate = (currentTime) => {
         const elapsed = currentTime - startTime;
@@ -548,17 +560,8 @@ export class WheelEngine {
         // Top is -Math.PI / 2. Since rotation goes clockwise, the top relative to wheel is:
         const currentTopAngle = (Math.PI * 2 - (this.rotation % (Math.PI * 2))) % (Math.PI * 2);
 
-        // Find which segment is currently under the pointer
-        let tempAngle = 0;
-        let currentSegIndex = -1;
-        for (let i = 0; i < this.segments.length; i++) {
-          const sWidth = (this.segments[i].probability / totalProb) * 2 * Math.PI;
-          if (currentTopAngle >= tempAngle && currentTopAngle < tempAngle + sWidth) {
-            currentSegIndex = i;
-            break;
-          }
-          tempAngle += sWidth;
-        }
+        // Every slice is the same width, so the current one is a direct division
+        const currentSegIndex = this.segments.length > 0 ? Math.floor(currentTopAngle / sliceAngle) : -1;
 
         // Play tick sound when entering a new segment
         if (currentSegIndex !== lastSegmentIndex && lastSegmentIndex !== -1 && this.segments.length > 0) {

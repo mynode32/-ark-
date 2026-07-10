@@ -1,92 +1,72 @@
+// Fixed at exactly 6 equal 60° slices (see wheel.js) — colors alternate
+// through the Ferrari-red / matte-black / carbon-gray palette.
 export const DEFAULT_CONFIG = {
   segments: [
     {
       id: 1,
-      label: '%5 İNDİRİM',
-      color: '#2563EB', // Royal Blue
-      textColor: '#FFFFFF',
-      probability: 20,
-      couponCode: null,
-      discountType: 'percentage',
-      discountValue: 5,
-      icon: '🏷️',
-    },
-    {
-      id: 2,
       label: '%10 İNDİRİM',
-      color: '#DC2626', // Kırmızı
+      color: '#D2001F',
       textColor: '#FFFFFF',
-      probability: 15,
+      probability: 25,
       couponCode: null,
       discountType: 'percentage',
       discountValue: 10,
       icon: '🎁',
     },
     {
-      id: 3,
-      label: '75₺',
-      color: '#059669', // Zümrüt Yeşili
-      textColor: '#FFFFFF',
-      probability: 15,
-      couponCode: null,
-      discountType: 'fixed',
-      discountValue: 75,
-      icon: '💰',
-    },
-    {
-      id: 4,
+      id: 2,
       label: 'Kargo Bedava',
-      color: '#F59E0B', // Amber
-      textColor: '#1A1A2E',
-      probability: 10,
+      color: '#1C1C1E',
+      textColor: '#FFFFFF',
+      probability: 20,
       couponCode: null,
       discountType: 'freeShipping',
       discountValue: 0,
       icon: '🚚',
     },
     {
-      id: 5,
-      label: '200₺',
-      color: '#7C3AED', // Menekşe
-      textColor: '#FFFFFF',
-      probability: 5,
-      couponCode: null,
-      discountType: 'fixed',
-      discountValue: 200,
-      icon: '💎',
-    },
-    {
-      id: 6,
+      id: 3,
       label: '%15 İNDİRİM',
-      color: '#EA580C', // Turuncu
+      color: '#48484A',
       textColor: '#FFFFFF',
-      probability: 10,
+      probability: 15,
       couponCode: null,
       discountType: 'percentage',
       discountValue: 15,
       icon: '⭐',
     },
     {
-      id: 7,
-      label: 'Pas',
-      color: '#4B5563', // Antrasit Gri
+      id: 4,
+      label: '50₺ İNDİRİM',
+      color: '#8B0000',
       textColor: '#FFFFFF',
       probability: 15,
       couponCode: null,
-      discountType: 'noLuck',
-      discountValue: 0,
-      icon: '🍀',
+      discountType: 'fixed',
+      discountValue: 50,
+      icon: '💰',
     },
     {
-      id: 8,
+      id: 5,
       label: '%20 İNDİRİM',
-      color: '#DB2777', // Pembe/Fuşya
+      color: '#0A0A0A',
       textColor: '#FFFFFF',
       probability: 10,
       couponCode: null,
       discountType: 'percentage',
       discountValue: 20,
       icon: '🔥',
+    },
+    {
+      id: 6,
+      label: 'Bir Dahaki Sefere',
+      color: '#6E6E73',
+      textColor: '#FFFFFF',
+      probability: 15,
+      couponCode: null,
+      discountType: 'noLuck',
+      discountValue: 0,
+      icon: '🔄',
     },
   ],
   settings: {
@@ -108,13 +88,15 @@ export const DEFAULT_CONFIG = {
   theme: {
     wheelSize: 330,
     spinDurationMs: 7000,
-    autoSiteTheme: true,
-    primaryColor: '#FFD700',
-    primaryColorDark: '#FFA502',
-    pointerColor: '#FF4757',
-    bgDark: '#0F0C29',
-    bgMid: '#302B63',
-    bgLight: '#24243E',
+    // Off by default — the premium black/red identity is a deliberate brand
+    // choice and shouldn't be diluted by adapting to the host site's colors.
+    autoSiteTheme: false,
+    primaryColor: '#FF1E1E',
+    primaryColorDark: '#B00000',
+    pointerColor: '#FF1E1E',
+    bgDark: '#0A0A0A',
+    bgMid: '#1C1C1E',
+    bgLight: '#2C2C2E',
   },
 };
 

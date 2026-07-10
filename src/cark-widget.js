@@ -15,13 +15,14 @@ function formatCooldown(ms) {
 const WIDGET_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap');
 :root {
-  --cark-primary: #FFD700;
-  --cark-primary-rgb: 255, 215, 0;
-  --cark-primary-dark: #FFA502;
-  --cark-pointer-color: #FF4757;
-  --cark-bg-dark: #0F0C29;
-  --cark-bg-mid: #302B63;
-  --cark-bg-light: #24243E;
+  /* Apple/Ferrari-inspired default: matte black, carbon gray, dynamic red */
+  --cark-primary: #FF1E1E;
+  --cark-primary-rgb: 255, 30, 30;
+  --cark-primary-dark: #B00000;
+  --cark-pointer-color: #FF1E1E;
+  --cark-bg-dark: #0A0A0A;
+  --cark-bg-mid: #1C1C1E;
+  --cark-bg-light: #2C2C2E;
   --cark-glass: rgba(255, 255, 255, 0.06);
   --cark-glass-border: rgba(255, 255, 255, 0.12);
   --cark-text: #FFFFFF;
@@ -39,7 +40,7 @@ const WIDGET_CSS = `
   position: relative; width: 90%; max-width: 920px;
   background:
     radial-gradient(circle at 15% -10%, rgba(var(--cark-primary-rgb), 0.1), transparent 45%),
-    radial-gradient(circle at 100% 110%, rgba(255, 165, 2, 0.08), transparent 45%),
+    radial-gradient(circle at 100% 110%, rgba(176, 0, 0, 0.1), transparent 45%),
     linear-gradient(145deg, color-mix(in srgb, var(--cark-bg-dark) 95%, transparent), color-mix(in srgb, var(--cark-bg-mid) 95%, transparent), color-mix(in srgb, var(--cark-bg-light) 95%, transparent));
   border: 1px solid rgba(var(--cark-primary-rgb), 0.25); border-radius: 28px;
   box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 0 40px rgba(var(--cark-primary-rgb), 0.05), 0 0 20px rgba(var(--cark-primary-rgb), 0.1);
@@ -60,8 +61,10 @@ const WIDGET_CSS = `
 .cark-wheel-wrapper.cark-spinning .cark-canvas { animation-play-state: paused; }
 .cark-wheel-wrapper.cark-winner-pulse { animation: carkWheelPop 0.9s ease; }
 .cark-canvas { max-width: 100%; height: auto; display: block; animation: carkIdleWobble 3.2s ease-in-out infinite; }
-.cark-pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid var(--cark-pointer-color); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); z-index: 10; animation: carkPulse 2s infinite ease-in-out; transition: transform 0.09s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.cark-pointer.flick { transform: translateX(-50%) rotate(-30deg); }
+.cark-pointer { position: absolute; top: -22px; left: 50%; width: 20px; height: 34px; transform: translateX(-50%); transform-origin: 50% 6px; z-index: 10; animation: carkPulse 2s infinite ease-in-out; transition: transform 0.09s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6)); }
+.cark-pointer::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 13px; height: 26px; clip-path: polygon(50% 100%, 0% 22%, 22% 0%, 78% 0%, 100% 22%); background: linear-gradient(180deg, color-mix(in srgb, var(--cark-pointer-color) 70%, white) 0%, var(--cark-pointer-color) 45%, color-mix(in srgb, var(--cark-pointer-color) 65%, black) 100%); }
+.cark-pointer::after { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #f2f2f2, #9a9a9a 55%, #2c2c2e 100%); border: 1px solid rgba(0,0,0,0.5); box-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+.cark-pointer.flick { transform: translateX(-50%) rotate(-24deg); }
 .cark-form-section { flex: 1; padding: 40px; display: flex; flex-direction: column; justify-content: center; position: relative; }
 .cark-eyebrow { display: inline-block; font-family: var(--cark-font-display); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--cark-primary); background: rgba(var(--cark-primary-rgb), 0.1); border: 1px solid rgba(var(--cark-primary-rgb), 0.3); border-radius: 999px; padding: 6px 14px; margin-bottom: 16px; }
 .cark-title { font-family: var(--cark-font-display); font-size: 32px; line-height: 1.2; margin-bottom: 12px; background: linear-gradient(135deg, var(--cark-primary), var(--cark-primary-dark), #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(var(--cark-primary-rgb), 0.2); }

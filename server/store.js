@@ -1,15 +1,16 @@
 import { query, withTransaction } from './db.js';
 
+// The wheel is fixed at exactly 6 equal 60° slices (see validateSegments
+// and src/wheel.js) — colors alternate through the Ferrari-red / matte-black
+// / carbon-gray palette so adjacent slices stay readable at a glance.
 const GENERIC_DEFAULT_CONFIG = {
   segments: [
-    { id: 1, label: '%5 İNDİRİM', color: '#1E3A8A', textColor: '#FFFFFF', probability: 20, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 5, icon: '🏷️' },
-    { id: 2, label: '%10 İNDİRİM', color: '#9F1239', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 10, icon: '🎁' },
-    { id: 3, label: '75₺', color: '#065F46', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'fixed', discountValue: 75, icon: '💰' },
-    { id: 4, label: 'Kargo Bedava', color: '#B8860B', textColor: '#1A1A2E', probability: 10, couponCode: null, ikasCampaignId: null, discountType: 'freeShipping', discountValue: 0, icon: '🚚' },
-    { id: 5, label: '200₺', color: '#6B21A8', textColor: '#FFFFFF', probability: 5, couponCode: null, ikasCampaignId: null, discountType: 'fixed', discountValue: 200, icon: '💎' },
-    { id: 6, label: '%15 İNDİRİM', color: '#92400E', textColor: '#FFFFFF', probability: 10, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 15, icon: '⭐' },
-    { id: 7, label: 'Pas', color: '#27272A', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'noLuck', discountValue: 0, icon: '🍀' },
-    { id: 8, label: '%20 İNDİRİM', color: '#831843', textColor: '#FFFFFF', probability: 10, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 20, icon: '🔥' },
+    { id: 1, label: '%10 İNDİRİM', color: '#D2001F', textColor: '#FFFFFF', probability: 25, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 10, icon: '🎁' },
+    { id: 2, label: 'Kargo Bedava', color: '#1C1C1E', textColor: '#FFFFFF', probability: 20, couponCode: null, ikasCampaignId: null, discountType: 'freeShipping', discountValue: 0, icon: '🚚' },
+    { id: 3, label: '%15 İNDİRİM', color: '#48484A', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 15, icon: '⭐' },
+    { id: 4, label: '50₺ İNDİRİM', color: '#8B0000', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'fixed', discountValue: 50, icon: '💰' },
+    { id: 5, label: '%20 İNDİRİM', color: '#0A0A0A', textColor: '#FFFFFF', probability: 10, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 20, icon: '🔥' },
+    { id: 6, label: 'Bir Dahaki Sefere', color: '#6E6E73', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'noLuck', discountValue: 0, icon: '🔄' },
   ],
   settings: {
     storeName: 'Mağaza',
@@ -102,16 +103,15 @@ export async function getWidgetConfig(storeId) {
   return store ? store.widgetConfig : null;
 }
 
-const MAX_SEGMENTS = 16;
+// The wheel is a fixed 6-slice product (360° / 6 = 60° per slice, see
+// src/wheel.js) — segment count is locked, not configurable per store.
+export const REQUIRED_SEGMENT_COUNT = 6;
 const MAX_DISCOUNT_VALUE = { percentage: 100, fixed: 100000, freeShipping: 100000, noLuck: 0 };
 
 /** Returns an error message, or null if `segments` is safe to persist. */
 export function validateSegments(segments) {
-  if (!Array.isArray(segments) || segments.length === 0) {
-    return 'En az bir dilim olmalı';
-  }
-  if (segments.length > MAX_SEGMENTS) {
-    return `En fazla ${MAX_SEGMENTS} dilim olabilir`;
+  if (!Array.isArray(segments) || segments.length !== REQUIRED_SEGMENT_COUNT) {
+    return `Çark tam olarak ${REQUIRED_SEGMENT_COUNT} dilimden oluşmalı`;
   }
   const seenIds = new Set();
   for (const seg of segments) {

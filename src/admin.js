@@ -250,14 +250,16 @@ class AdminPanel {
                       <button class="move-btn" data-dir="up" data-id="${seg.id}" title="Yukarı taşı" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
                       <button class="move-btn" data-dir="down" data-id="${seg.id}" title="Aşağı taşı" ${idx === this.config.segments.length - 1 ? 'disabled' : ''}>⬇️</button>
                       <button class="edit-btn" data-id="${seg.id}" title="Düzenle">✏️</button>
-                      <button class="delete-btn" data-id="${seg.id}" title="Sil">🗑️</button>
+                      <button class="delete-btn" data-id="${seg.id}" title="Çark tam olarak 6 dilimden oluşur, silinemez" disabled>🗑️</button>
                     </div>
                   </div>
                 `,
                   )
                   .join('')}
               </div>
-              <button class="add-segment-btn" id="addSegmentBtn">+ Yeni Dilim Ekle</button>
+              <p style="font-size:12px;color:var(--text-muted,#888);margin:10px 0 0;">
+                Çark tam olarak 6 dilimden oluşacak şekilde sabitlenmiştir — dilim eklenemez veya silinemez, yalnızca içerikleri (başlık, renk, indirim, kupon) düzenlenebilir.
+              </p>
             </div>
           </div>
 
@@ -359,19 +361,11 @@ class AdminPanel {
   }
 
   setupSettingsListeners() {
-    document.getElementById('addSegmentBtn').addEventListener('click', () => this.openSegmentModal(null));
-
     document.getElementById('segmentList').addEventListener('click', (e) => {
       const editBtn = e.target.closest('.edit-btn');
-      const delBtn = e.target.closest('.delete-btn');
       const moveBtn = e.target.closest('.move-btn');
       if (editBtn) {
         this.openSegmentModal(editBtn.dataset.id);
-      } else if (delBtn) {
-        if (confirm('Bu dilimi silmek istediğinize emin misiniz?')) {
-          this.config.segments = this.config.segments.filter((s) => String(s.id) !== String(delBtn.dataset.id));
-          this.saveAndRender({ segments: this.config.segments });
-        }
       } else if (moveBtn && !moveBtn.disabled) {
         const idx = this.config.segments.findIndex((s) => String(s.id) === String(moveBtn.dataset.id));
         const swapWith = moveBtn.dataset.dir === 'up' ? idx - 1 : idx + 1;
