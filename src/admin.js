@@ -632,17 +632,25 @@ class AdminPanel {
           <input type="number" class="form-input" id="seg-value" value="${seg.discountValue}">
         </div>
         <div class="form-group" id="seg-coupon-group" style="display:${seg.discountType === 'noLuck' ? 'none' : 'block'}">
-          <label>Sabit Kupon Kodu</label>
-          <input type="text" class="form-input" id="seg-coupon" value="${seg.couponCode || ''}" placeholder="Boş bırakılırsa aşağıdaki İkas kampanyası kullanılır">
+          <label>✅ Sabit Kupon Kodu (Garantili)</label>
+          <input type="text" class="form-input" id="seg-coupon" value="${seg.couponCode || ''}" placeholder="Örn: YH30 — İkas'ta zaten oluşturduğunuz bir kod">
         </div>
       </div>
+      <div style="font-size:12px;color:var(--text-muted,#888);margin:-8px 0 16px;">
+        İkas'ta kendiniz oluşturup test ettiğiniz bir kodu buraya yazarsanız (örn. <code>YH30</code>), her kazanan aynı kodu görür ve
+        kod hiçbir zaman "sahte/kayıtsız" olmaz — çünkü hiçbir yeni kupon oluşturma denemesi yapılmaz, İkas'a hiç istek atılmaz.
+      </div>
       <div class="form-group" id="seg-ikas-campaign-group" style="display:${seg.discountType === 'noLuck' ? 'none' : 'block'}">
-        <label>İkas Kampanyası (opsiyonel)</label>
+        <label>⚠️ İkas Kampanyasından Otomatik Oluştur (opsiyonel, sadece yukarısı boşsa kullanılır)</label>
         <select class="form-input" id="seg-ikas-campaign">
-          <option value="">Yok — lokal/otomatik kupon</option>
+          <option value="">Yok</option>
         </select>
         <div id="seg-ikas-campaign-hint" style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">
-          Kazanan bu dilime denk geldiğinde, İkas Builder'da oluşturduğunuz bu kampanyaya otomatik yeni bir tek kullanımlık kupon kodu eklenir.
+          Kazanan bu dilime denk geldiğinde, bu kampanyaya otomatik yeni bir tek kullanımlık kupon kodu eklenir. Sadece
+          İkas'ta zaten kuponu olan kampanyalar listelenir. <strong>Dikkat:</strong> kampanyanın İkas'taki "hangi ürünlerde geçerli"
+          ayarı kısıtlıysa (örn. sadece belirli bir koleksiyon), oluşan kod İkas'a başarıyla kaydedilse bile o kısıtlama dışındaki
+          ürünlerde ödeme sayfasında reddedilir — bu, İkas kampanya ayarından kaynaklanır, buradan düzeltilemez. Garantili sonuç
+          için yukarıdaki sabit kod alanını kullanmanızı öneririz.
         </div>
       </div>
       <div class="form-group">
@@ -761,9 +769,10 @@ class AdminPanel {
     if (campaigns.length === 0) {
       if (hint) {
         hint.innerHTML =
-          'İkas kampanyası bulunamadı. Backend az önce uyandıysa (Render ücretsiz plan) birkaç saniye sürebilir — ' +
+          'Kuponu olan bir İkas kampanyası bulunamadı (kuponsuz kampanyalar burada listelenmez). Backend az önce uyandıysa ' +
+          '(Render ücretsiz plan) birkaç saniye sürebilir — ' +
           '<a href="#" id="retryIkasCampaigns" style="color:var(--cark-primary,#ffd700);text-decoration:underline;">tekrar dene</a>. ' +
-          'Yoksa İkas Builder\'dan bir kampanya oluşturup buradan seçebilir, ya da yukarıya sabit bir kupon kodu girebilirsiniz.';
+          'Yoksa İkas Builder\'da kampanyanıza bir kupon kodu ekleyip buradan seçebilir, ya da (önerilen) yukarıya sabit bir kupon kodu girebilirsiniz.';
         const retryLink = document.getElementById('retryIkasCampaigns');
         if (retryLink) {
           retryLink.addEventListener('click', (e) => {
@@ -779,7 +788,7 @@ class AdminPanel {
     campaigns.forEach((c) => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.title + (c.hasCoupon ? '' : ' (kuponsuz kampanya — önce İkas\'ta kupon özelliğini açın)');
+      opt.textContent = c.title;
       if (String(c.id) === String(selectedId)) {
         opt.selected = true;
       }

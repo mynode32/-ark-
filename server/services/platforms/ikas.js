@@ -86,10 +86,13 @@ export async function createCoupon({ label, discountType, discountValue }, creds
       return { code: generateCouponCode(label), isLocal: true };
     }
 
-    return {
-      code: data.data?.createCoupon?.coupon?.code || generateCouponCode(label),
-      isLocal: false,
-    };
+    const createdCode = data.data?.createCoupon?.coupon?.code;
+    if (!createdCode) {
+      console.error('[İkas] Beklenmeyen yanıt (kupon kodu dönmedi):', JSON.stringify(data));
+      return { code: generateCouponCode(label), isLocal: true };
+    }
+
+    return { code: createdCode, isLocal: false };
   } catch (err) {
     console.error('[İkas] Bağlantı hatası:', err.message);
     return { code: generateCouponCode(label), isLocal: true };
@@ -197,7 +200,12 @@ export async function addCouponToCampaign({ campaignId, label }, creds, storeId)
       return { code, isLocal: true };
     }
 
-    const savedCode = data.data?.campaignAddCoupons?.[0]?.code || code;
+    const savedCode = data.data?.campaignAddCoupons?.[0]?.code;
+    if (!savedCode) {
+      console.error('[İkas] Beklenmeyen yanıt (kampanyaya kupon eklenemedi):', JSON.stringify(data));
+      return { code, isLocal: true };
+    }
+
     return { code: savedCode, isLocal: false };
   } catch (err) {
     console.error('[İkas] Kupon ekleme bağlantı hatası:', err.message);

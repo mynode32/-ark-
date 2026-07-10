@@ -82,7 +82,11 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
     }
 
     let couponCode = winner.couponCode || null;
-    let isLocalCoupon = true;
+    // A fixed code (couponCode already set) is one the store owner typed in
+    // after verifying it themselves in İkas — treat it as real, not a
+    // fallback. Only the auto-create-in-İkas path below can produce a local
+    // (unregistered) fake code.
+    let isLocalCoupon = false;
     const adapter = await getPlatformAdapter(storeId);
 
     // Create/attach a coupon if winner has a discount type and no fixed code was set
