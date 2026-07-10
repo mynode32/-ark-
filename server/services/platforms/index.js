@@ -22,6 +22,7 @@ export async function getPlatformAdapter(storeId) {
       listCampaigns: () => ikasPlatform.listCampaigns(resolved, storeId),
       addCouponToCampaign: (args) => ikasPlatform.addCouponToCampaign(args, resolved, storeId),
       createCustomer: (args) => ikasPlatform.createCustomer(args, resolved, storeId),
+      testConnection: () => ikasPlatform.testConnection(resolved, storeId),
     };
   }
 

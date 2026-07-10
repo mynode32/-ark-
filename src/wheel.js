@@ -50,7 +50,7 @@ export class WheelEngine {
 
     if (this.segments.length === 0) return;
 
-    const totalProb = this.segments.reduce((s, seg) => s + seg.probability, 0) || 1;
+    const totalProb = this.segments.reduce((s, seg) => s + (seg.probability || 0), 0) || 1;
     let startAngle = this.rotation - Math.PI / 2; // Start from top
 
     // Draw outer glow/shadow
@@ -225,7 +225,7 @@ export class WheelEngine {
 
     // LED glow dots
     if (this.segments.length > 0) {
-      const totalProb = this.segments.reduce((s, seg) => s + seg.probability, 0) || 1;
+      const totalProb = this.segments.reduce((s, seg) => s + (seg.probability || 0), 0) || 1;
       let angle = this.rotation - Math.PI / 2;
       for (let i = 0; i < this.segments.length; i++) {
         const dotX = cx + Math.cos(angle) * (r - 12);
@@ -450,20 +450,28 @@ export class WheelEngine {
     if (preDeterminedWinner) {
       winnerIndex = this.segments.findIndex(s => String(s.id) === String(preDeterminedWinner.id));
       if (winnerIndex === -1) winnerIndex = this.segments.findIndex(s => s.label === preDeterminedWinner.label);
+      // Segments may have been edited in the admin panel between page load
+      // and spin (id/label both changed) — try matching by prize shape
+      // before giving up, so the wheel doesn't land on a visibly wrong prize.
+      if (winnerIndex === -1) {
+        winnerIndex = this.segments.findIndex(
+          (s) => s.discountType === preDeterminedWinner.discountType && s.discountValue === preDeterminedWinner.discountValue,
+        );
+      }
     }
     if (winnerIndex === -1) {
       winnerIndex = this.segments.indexOf(winner);
     }
 
-    // Fallback to first segment if absolutely not found
     if (winnerIndex === -1) {
-      winnerIndex = 0;
+      console.warn('[Çark] Kazanan dilim eşleşmedi, rastgele bir dilimde durulacak:', preDeterminedWinner);
+      winnerIndex = Math.floor(Math.random() * this.segments.length);
     }
 
     const actualWinner = this.segments[winnerIndex]; // guarantee we have the segment with probability
 
     // Calculate target angle
-    const totalProb = this.segments.reduce((s, seg) => s + seg.probability, 0) || 1;
+    const totalProb = this.segments.reduce((s, seg) => s + (seg.probability || 0), 0) || 1;
     let targetAngle = 0;
     for (let i = 0; i < winnerIndex; i++) {
       targetAngle += (this.segments[i].probability / totalProb) * 2 * Math.PI;

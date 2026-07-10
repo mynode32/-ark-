@@ -20,7 +20,7 @@ export class ModalManager {
     wrapper.innerHTML = `
       <div class="cark-overlay">
         <div class="cark-modal">
-          <button class="cark-close-btn" aria-label="Kapat">&times;</button>
+          <button class="cark-close-btn" aria-label="Kapat" title="Kapatırsanız 1 saat boyunca tekrar açılmaz">&times;</button>
           
           <div class="cark-content">
             <!-- Çark Section -->

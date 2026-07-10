@@ -63,6 +63,9 @@ authRouter.post('/register', registerLimiter, async (req, res) => {
     if (!storeName || !email || !password) {
       return res.status(400).json({ error: 'Mağaza adı, e-posta ve şifre zorunludur' });
     }
+    if (typeof storeName !== 'string' || storeName.trim().length < 2 || storeName.length > 80) {
+      return res.status(400).json({ error: 'Mağaza adı 2-80 karakter arasında olmalıdır' });
+    }
     if (!EMAIL_RE.test(email)) {
       return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz (Türkçe karakter içermemeli)' });
     }

@@ -1,13 +1,18 @@
 import { config } from '../../config.js';
 import { generateCouponCode } from './couponCode.js';
+import { getCachedIkasToken, saveCachedIkasToken } from '../../store.js';
+import { encryptSecret, decryptSecret } from '../crypto.js';
 
-// storeId -> { token, expiresAt } — per-tenant token cache since one process
-// now serves many stores' Ikas credentials.
+// storeId -> { token, expiresAt } — fast in-process cache, backed by an
+// encrypted copy in Postgres (see getCachedIkasToken/saveCachedIkasToken) so
+// a Render redeploy doesn't force every connected store to re-authenticate
+// with İkas at once just because the in-memory Map was wiped.
 const tokenCache = new Map();
 
 // Must be called whenever a store's Ikas credentials change — otherwise a
 // stale token for the *previous* credentials keeps being reused until it
-// naturally expires, silently talking to the wrong Ikas account.
+// naturally expires, silently talking to the wrong Ikas account. The DB-side
+// copy is cleared by savePlatformCredentials() itself.
 export function clearTokenCache(storeId) {
   tokenCache.delete(storeId);
 }
@@ -19,6 +24,13 @@ async function getAccessToken(creds, storeId) {
   const cached = tokenCache.get(storeId);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.token;
+  }
+
+  const dbCached = await getCachedIkasToken(storeId).catch(() => null);
+  if (dbCached && Date.now() < dbCached.expiresAt) {
+    const token = decryptSecret(dbCached.tokenEnc);
+    tokenCache.set(storeId, { token, expiresAt: dbCached.expiresAt });
+    return token;
   }
 
   const authUrl = `https://${creds.storeId}.myikas.com/api/admin/oauth/token`;
@@ -34,12 +46,24 @@ async function getAccessToken(creds, storeId) {
   });
 
   const data = await response.json();
-  if (data.access_token) {
-    tokenCache.set(storeId, { token: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 - 60000 });
+  if (data.access_token && Number.isFinite(data.expires_in)) {
+    const expiresAt = Date.now() + data.expires_in * 1000 - 60000;
+    tokenCache.set(storeId, { token: data.access_token, expiresAt });
+    await saveCachedIkasToken(storeId, encryptSecret(data.access_token), expiresAt).catch((err) => {
+      console.error('[İkas] Token DB önbelleğine yazılamadı:', err.message);
+    });
     return data.access_token;
   }
 
   throw new Error('Ikas Auth failed: ' + JSON.stringify(data));
+}
+
+/** Confirms credentials actually authenticate — throws with İkas's own error detail on failure. */
+export async function testConnection(creds, storeId) {
+  const token = await getAccessToken(creds, storeId);
+  if (!token) {
+    throw new Error('İkas kimlik bilgileri eksik veya geçersiz');
+  }
 }
 
 export async function createCoupon({ label, discountType, discountValue }, creds, storeId) {

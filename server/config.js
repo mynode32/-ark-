@@ -32,6 +32,16 @@ if (!jwtSecret) {
   throw new Error('JWT_SECRET ortam değişkeni tanımlı değil. server/.env dosyasına JWT_SECRET=... ekleyin.');
 }
 
+// Required for AES-256-GCM (32-byte key, hex-encoded = 64 chars). Failing
+// fast here beats the previous behavior, where a missing/malformed key only
+// surfaced later as an opaque 500 the first time a store tried to save
+// İkas credentials.
+if (!encryptionKey || !/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
+  throw new Error(
+    'ENCRYPTION_KEY ortam değişkeni tanımlı değil veya geçersiz (32 byte, 64 hex karakter olmalı). server/.env dosyasına ekleyin.',
+  );
+}
+
 export const config = {
   port: parseInt(env.PORT || process.env.PORT || '3001'),
   databaseUrl,

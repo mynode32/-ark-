@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getWidgetConfig, addEntry, findStoreBySlug, findEntryByEmailOrPhone, findLastEntryByPhone } from '../store.js';
+import { getWidgetConfig, claimEntry, finalizeEntry, findStoreBySlug, findLastEntryByPhone } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
@@ -9,6 +9,31 @@ export const widgetRouter = Router();
 // Each spin can trigger a real coupon-creation call to the connected
 // platform, so this is throttled per IP to blunt spin-spam/abuse.
 const spinLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false });
+
+// check-spin has no side effects but is unauthenticated and takes a raw
+// phone number — without a limiter it's an open door for probing which
+// phone numbers have already participated.
+const checkSpinLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^0?5\d{9}$/;
+
+function validateEntryFields(name, phone, email) {
+  if (!name || !phone || !email) {
+    return 'Ad, telefon ve e-posta zorunludur';
+  }
+  if (typeof name !== 'string' || name.trim().length < 2 || name.length > 100) {
+    return 'Geçerli bir ad girin';
+  }
+  if (typeof email !== 'string' || email.length > 200 || !EMAIL_RE.test(email)) {
+    return 'Geçerli bir e-posta adresi girin';
+  }
+  const digitsOnlyPhone = typeof phone === 'string' ? phone.replace(/\s/g, '') : '';
+  if (!PHONE_RE.test(digitsOnlyPhone)) {
+    return 'Geçerli bir telefon numarası girin';
+  }
+  return null;
+}
 
 /**
  * Resolves :storeSlug to a store row for every route below; 404s cleanly if
@@ -54,20 +79,33 @@ widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
  */
 widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
   try {
-    const { name, phone, email, segments } = req.body;
+    const { name, phone, email } = req.body;
 
-    if (!name || !phone || !email) {
-      return res.status(400).json({ error: 'Ad, telefon ve e-posta zorunludur' });
+    const validationError = validateEntryFields(name, phone, email);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
 
     const storeId = req.store.id;
-    if (await findEntryByEmailOrPhone(storeId, email, phone)) {
-      return res.status(400).json({ error: 'Bu bilgilerle daha önce katılım sağlanmış.' });
+
+    // Winner odds always come from the store's own saved config — a client
+    // could otherwise send its own `segments` array and force the server to
+    // mint an arbitrary (e.g. 100%-off) real coupon regardless of what the
+    // store owner actually configured.
+    const config = await getWidgetConfig(storeId);
+    const activeSegments = config.segments;
+    if (!Array.isArray(activeSegments) || activeSegments.length === 0) {
+      console.error(`[Spin] [${req.store.slug}] Mağazanın hiç dilimi yok`);
+      return res.status(400).json({ error: 'Bu mağaza için çark henüz yapılandırılmamış.' });
     }
 
-    const config = await getWidgetConfig(storeId);
-    const configSegments = config.segments;
-    const activeSegments = (segments && segments.length > 0) ? segments : configSegments;
+    // Atomically check-and-reserve the "one spin per phone/email" rule so
+    // concurrent requests can't both slip past the check before either has
+    // written its row.
+    const claimed = await claimEntry(storeId, { name, phone, email });
+    if (!claimed) {
+      return res.status(400).json({ error: 'Bu bilgilerle daha önce katılım sağlanmış.' });
+    }
 
     // Pick winner server-side (weighted random)
     const totalProb = activeSegments.reduce((s, seg) => s + (seg.probability || 0), 0);
@@ -109,12 +147,7 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
       });
     }
 
-    // Save entry
-    const entry = await addEntry(storeId, {
-      timestamp: new Date().toISOString(),
-      name,
-      phone,
-      email,
+    const entry = await finalizeEntry(claimed.id, {
       prize: winner.label,
       couponCode,
       discountType: winner.discountType,
@@ -148,7 +181,7 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
  * POST /api/widget/:storeSlug/check-spin
  * Check if user can spin (server-side cooldown via phone)
  */
-widgetRouter.post('/:storeSlug/check-spin', asyncHandler(async (req, res) => {
+widgetRouter.post('/:storeSlug/check-spin', checkSpinLimiter, asyncHandler(async (req, res) => {
   const { phone } = req.body;
   if (!phone) {
     return res.json({ canSpin: true });

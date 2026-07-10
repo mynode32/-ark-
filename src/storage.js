@@ -229,6 +229,15 @@ export async function spin(userData, segments = null) {
 
 // --- Cooldown (cookie + server) ---
 
+// Set by the last canSpin() call that got a server answer, so callers can
+// show the shopper how long they actually have left instead of a generic
+// "try again later" with no timeframe.
+let lastKnownRemainingMs = null;
+
+export function getLastKnownCooldownMs() {
+  return lastKnownRemainingMs;
+}
+
 export async function canSpin() {
   const base = getApiBase();
   const slug = getStoreSlug();
@@ -243,6 +252,7 @@ export async function canSpin() {
         });
         if (res.ok) {
           const data = await res.json();
+          lastKnownRemainingMs = data.canSpin ? null : (data.remainingMs ?? null);
           return data.canSpin;
         }
       }
@@ -261,10 +271,13 @@ export async function canSpin() {
   }
   const cooldownHours = parseInt(localStorage.getItem('carkCooldown') || '24');
   const elapsed = Date.now() - parseInt(lastSpin, 10);
-  const expired = elapsed >= cooldownHours * 60 * 60 * 1000;
+  const totalMs = cooldownHours * 60 * 60 * 1000;
+  const expired = elapsed >= totalMs;
   if (expired) {
     document.cookie = 'cark_last_spin=;max-age=0;path=/';
     localStorage.removeItem('carkCooldown');
+  } else {
+    lastKnownRemainingMs = totalMs - elapsed;
   }
   return expired;
 }
@@ -299,6 +312,16 @@ export function clearLocalEntries() {
   localStorage.removeItem('carkEntries');
 }
 
+// Excel/Sheets treats a cell starting with =, +, - or @ as a formula even
+// inside quotes \u2014 prefixing with an apostrophe forces it to be read as
+// plain text, closing the classic CSV-injection vector for shopper-supplied
+// names/emails.
+function csvCell(value) {
+  const str = String(value ?? '');
+  const safe = /^[=+\-@]/.test(str) ? `'${str}` : str;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
 export function exportLocalCSV() {
   const entries = getLocalEntries();
   if (!entries.length) {
@@ -312,7 +335,7 @@ export function exportLocalCSV() {
       headers,
       ...entries.map((e) =>
         [e.timestamp || '', e.name || '', e.phone || '', e.email || '', e.prize || '', e.couponCode || '']
-          .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+          .map(csvCell)
           .join(';'),
       ),
     ].join('\n');

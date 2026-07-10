@@ -2,8 +2,15 @@ import { WheelEngine } from './wheel.js';
 import { Confetti } from './confetti.js';
 import { FormManager } from './form.js';
 import { ModalManager } from './modal.js';
-import { fetchConfig, spin, canSpin, markSpun } from './storage.js';
+import { fetchConfig, spin, canSpin, markSpun, getLastKnownCooldownMs } from './storage.js';
 import { applyWidgetTheme } from './siteTheme.js';
+
+function formatCooldown(ms) {
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours > 0) return `${hours} saat ${minutes} dakika`;
+  return `${Math.max(1, minutes)} dakika`;
+}
 
 const WIDGET_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap');
@@ -215,7 +222,12 @@ class CarkApp {
 
   async handleSpin(userData) {
     if (!(await canSpin())) {
-      this.formMgr.showError('Şu anda çarkı çeviremezsiniz. Lütfen daha sonra tekrar deneyin.');
+      const remaining = getLastKnownCooldownMs();
+      this.formMgr.showError(
+        remaining
+          ? `Tekrar çevirmek için ${formatCooldown(remaining)} beklemelisiniz.`
+          : 'Şu anda çarkı çeviremezsiniz. Lütfen daha sonra tekrar deneyin.',
+      );
       return;
     }
 
@@ -228,14 +240,16 @@ class CarkApp {
         name: userData.name,
         phone: userData.phone,
         email: userData.email,
-      }, this.segments);
+      });
 
       const winner = result.winner;
 
       // Animate the wheel
       await this.wheel.spin(winner);
 
-      markSpun(this.config.settings.cooldownHours || 24);
+      if (winner.discountType !== 'noLuck') {
+        markSpun(this.config.settings.cooldownHours || 24);
+      }
 
       setTimeout(() => {
         if (winner.discountType !== 'noLuck') {

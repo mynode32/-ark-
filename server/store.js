@@ -1,4 +1,4 @@
-import { query } from './db.js';
+import { query, withTransaction } from './db.js';
 
 const GENERIC_DEFAULT_CONFIG = {
   segments: [
@@ -102,6 +102,39 @@ export async function getWidgetConfig(storeId) {
   return store ? store.widgetConfig : null;
 }
 
+const MAX_SEGMENTS = 16;
+const MAX_DISCOUNT_VALUE = { percentage: 100, fixed: 100000, freeShipping: 100000, noLuck: 0 };
+
+/** Returns an error message, or null if `segments` is safe to persist. */
+export function validateSegments(segments) {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return 'En az bir dilim olmalı';
+  }
+  if (segments.length > MAX_SEGMENTS) {
+    return `En fazla ${MAX_SEGMENTS} dilim olabilir`;
+  }
+  const seenIds = new Set();
+  for (const seg of segments) {
+    if (!seg || typeof seg.label !== 'string' || !seg.label.trim() || seg.label.length > 100) {
+      return 'Her dilimin geçerli bir başlığı olmalı';
+    }
+    if (seg.id === undefined || seg.id === null || seenIds.has(String(seg.id))) {
+      return 'Dilim kimlikleri (id) benzersiz olmalı';
+    }
+    seenIds.add(String(seg.id));
+    if (typeof seg.probability !== 'number' || !Number.isFinite(seg.probability) || seg.probability < 0) {
+      return `"${seg.label}" için kazanma olasılığı geçersiz`;
+    }
+    const cap = MAX_DISCOUNT_VALUE[seg.discountType];
+    if (cap !== undefined && seg.discountType !== 'noLuck') {
+      if (typeof seg.discountValue !== 'number' || !Number.isFinite(seg.discountValue) || seg.discountValue < 0 || seg.discountValue > cap) {
+        return `"${seg.label}" için indirim değeri geçersiz (0-${cap} arası olmalı)`;
+      }
+    }
+  }
+  return null;
+}
+
 export async function saveWidgetConfig(storeId, data) {
   const store = await findStoreById(storeId);
   if (!store) {
@@ -109,6 +142,10 @@ export async function saveWidgetConfig(storeId, data) {
   }
   const config = store.widgetConfig;
   if (data.segments) {
+    const error = validateSegments(data.segments);
+    if (error) {
+      throw Object.assign(new Error(error), { status: 400 });
+    }
     config.segments = data.segments;
   }
   if (data.settings) {
@@ -144,17 +181,31 @@ function rowToEntry(row) {
   };
 }
 
+/**
+ * Paginated + optionally search-filtered, entirely in SQL (LIMIT/OFFSET +
+ * a window COUNT) — unlike getEntries() below, this never pulls a store's
+ * full history into Node just to slice it, which used to make every admin
+ * panel page load scale with total lifetime entries instead of page size.
+ */
+export async function getEntriesPage(storeId, { page = 1, limit = 50, search = '' } = {}) {
+  const offset = (page - 1) * limit;
+  const q = search ? `%${search}%` : null;
+  const res = await query(
+    `SELECT *, COUNT(*) OVER() AS total_count
+     FROM entries
+     WHERE store_id = $1
+       AND ($2::text IS NULL OR name ILIKE $2 OR email ILIKE $2 OR phone ILIKE $2)
+     ORDER BY "timestamp" DESC
+     LIMIT $3 OFFSET $4`,
+    [storeId, q, limit, offset],
+  );
+  const total = res.rows[0] ? Number(res.rows[0].total_count) : 0;
+  return { entries: res.rows.map(rowToEntry), total };
+}
+
 export async function getEntries(storeId) {
   const res = await query('SELECT * FROM entries WHERE store_id = $1 ORDER BY "timestamp" ASC', [storeId]);
   return res.rows.map(rowToEntry);
-}
-
-export async function findEntryByEmailOrPhone(storeId, email, phone) {
-  const res = await query(
-    'SELECT 1 FROM entries WHERE store_id = $1 AND (email = $2 OR phone = $3) LIMIT 1',
-    [storeId, email, phone],
-  );
-  return res.rowCount > 0;
 }
 
 export async function findLastEntryByPhone(storeId, phone) {
@@ -165,29 +216,50 @@ export async function findLastEntryByPhone(storeId, phone) {
   return res.rows[0] ? rowToEntry(res.rows[0]) : null;
 }
 
-export async function addEntry(storeId, entry) {
-  const res = await query(
-    `INSERT INTO entries (store_id, "timestamp", name, phone, email, prize, coupon_code, discount_type, discount_value, is_local_coupon)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     RETURNING *`,
-    [
-      storeId,
-      entry.timestamp || new Date().toISOString(),
-      entry.name,
-      entry.phone,
-      entry.email,
-      entry.prize,
-      entry.couponCode,
-      entry.discountType,
-      entry.discountValue,
-      Boolean(entry.isLocalCoupon),
-    ],
-  );
-  return rowToEntry(res.rows[0]);
-}
-
 export async function clearEntries(storeId) {
   await query('DELETE FROM entries WHERE store_id = $1', [storeId]);
+}
+
+/**
+ * Atomically checks the duplicate-participation rule and reserves an entry
+ * row in one transaction (serialized per store via an advisory lock), so
+ * concurrent /spin requests with the same phone/email can't both pass the
+ * check before either has inserted — a separate check-then-insert pair
+ * (two independent pool queries) would be vulnerable to exactly that race.
+ * Returns null if the caller already has an entry (duplicate), otherwise
+ * the newly reserved row (prize/coupon fields still empty — filled in by
+ * finalizeEntry once the winner/coupon are determined).
+ */
+export async function claimEntry(storeId, { name, phone, email }) {
+  return withTransaction(async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [String(storeId)]);
+    const dup = await client.query(
+      'SELECT 1 FROM entries WHERE store_id = $1 AND (email = $2 OR phone = $3) LIMIT 1',
+      [storeId, email, phone],
+    );
+    if (dup.rowCount > 0) {
+      return null;
+    }
+    const res = await client.query(
+      `INSERT INTO entries (store_id, "timestamp", name, phone, email)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [storeId, new Date().toISOString(), name, phone, email],
+    );
+    return rowToEntry(res.rows[0]);
+  });
+}
+
+/** Fills in the prize/coupon fields on a row reserved by claimEntry(). */
+export async function finalizeEntry(entryId, { prize, couponCode, discountType, discountValue, isLocalCoupon }) {
+  const res = await query(
+    `UPDATE entries
+     SET prize = $2, coupon_code = $3, discount_type = $4, discount_value = $5, is_local_coupon = $6
+     WHERE id = $1
+     RETURNING *`,
+    [entryId, prize, couponCode, discountType, discountValue, Boolean(isLocalCoupon)],
+  );
+  return rowToEntry(res.rows[0]);
 }
 
 // --- Platform credentials ---
@@ -208,14 +280,41 @@ export async function getPlatformCredentials(storeId) {
 
 export async function savePlatformCredentials(storeId, { platform, ikasClientId, ikasClientSecretEnc, ikasStoreId }) {
   await query(
-    `INSERT INTO store_platform_credentials (store_id, platform, ikas_client_id, ikas_client_secret_enc, ikas_store_id)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO store_platform_credentials (store_id, platform, ikas_client_id, ikas_client_secret_enc, ikas_store_id, ikas_token_enc, ikas_token_expires_at)
+     VALUES ($1, $2, $3, $4, $5, NULL, NULL)
      ON CONFLICT (store_id) DO UPDATE SET
        platform = EXCLUDED.platform,
        ikas_client_id = EXCLUDED.ikas_client_id,
        ikas_client_secret_enc = EXCLUDED.ikas_client_secret_enc,
-       ikas_store_id = EXCLUDED.ikas_store_id`,
+       ikas_store_id = EXCLUDED.ikas_store_id,
+       ikas_token_enc = NULL,
+       ikas_token_expires_at = NULL`,
     [storeId, platform, ikasClientId || null, ikasClientSecretEnc || null, ikasStoreId || null],
   );
   return getPlatformCredentials(storeId);
+}
+
+/**
+ * Persists the İkas access token (encrypted) so it survives a process
+ * restart — Render redeploys frequently on the free tier, and without this
+ * every connected store re-authenticates with İkas simultaneously right
+ * after each deploy instead of only when the token actually expires.
+ */
+export async function getCachedIkasToken(storeId) {
+  const res = await query(
+    'SELECT ikas_token_enc, ikas_token_expires_at FROM store_platform_credentials WHERE store_id = $1',
+    [storeId],
+  );
+  const row = res.rows[0];
+  if (!row || !row.ikas_token_enc || !row.ikas_token_expires_at) {
+    return null;
+  }
+  return { tokenEnc: row.ikas_token_enc, expiresAt: new Date(row.ikas_token_expires_at).getTime() };
+}
+
+export async function saveCachedIkasToken(storeId, tokenEnc, expiresAt) {
+  await query(
+    'UPDATE store_platform_credentials SET ikas_token_enc = $2, ikas_token_expires_at = $3 WHERE store_id = $1',
+    [storeId, tokenEnc, new Date(expiresAt).toISOString()],
+  );
 }

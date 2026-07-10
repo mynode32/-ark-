@@ -3,8 +3,15 @@ import { WheelEngine } from './wheel.js';
 import { Confetti } from './confetti.js';
 import { FormManager } from './form.js';
 import { ModalManager } from './modal.js';
-import { fetchConfig, spin, canSpin, markSpun } from './storage.js';
+import { fetchConfig, spin, canSpin, markSpun, getLastKnownCooldownMs } from './storage.js';
 import { applyWidgetTheme } from './siteTheme.js';
+
+function formatCooldown(ms) {
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours > 0) return `${hours} saat ${minutes} dakika`;
+  return `${Math.max(1, minutes)} dakika`;
+}
 
 class CarkApp {
   constructor() {
@@ -94,7 +101,12 @@ class CarkApp {
 
   async handleSpin(userData) {
     if (!this.isForced && !(await canSpin())) {
-      this.formMgr.showError('Şu anda çarkı çeviremezsiniz. Lütfen daha sonra tekrar deneyin.');
+      const remaining = getLastKnownCooldownMs();
+      this.formMgr.showError(
+        remaining
+          ? `Tekrar çevirmek için ${formatCooldown(remaining)} beklemelisiniz.`
+          : 'Şu anda çarkı çeviremezsiniz. Lütfen daha sonra tekrar deneyin.',
+      );
       return;
     }
 

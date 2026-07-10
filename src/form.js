@@ -75,10 +75,11 @@ export class FormManager {
       }
     });
 
-    // Name: min 2 chars, should have a space (Ad Soyad)
+    // Name: min 2 chars, must contain at least one letter — no longer
+    // requires a space, since that rejected real single-word/mononym names.
     const nameVal = this.inputs.name.value.trim();
-    if (nameVal.length < 3 || !nameVal.includes(' ')) {
-      errors.push('Lütfen adınızı ve soyadınızı giriniz.');
+    if (nameVal.length < 2 || nameVal.length > 100 || !/\p{L}/u.test(nameVal)) {
+      errors.push('Lütfen adınızı giriniz.');
       this.inputs.name.classList.add('error');
     }
 

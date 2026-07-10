@@ -5,6 +5,7 @@ import {
   getWidgetConfig,
   saveWidgetConfig,
   getEntries,
+  getEntriesPage,
   clearEntries,
   getPlatformCredentials,
   savePlatformCredentials,
@@ -48,30 +49,15 @@ adminRouter.put('/config', asyncHandler(async (req, res) => {
  * List all entries
  */
 adminRouter.get('/entries', asyncHandler(async (req, res) => {
-  const entries = await getEntries(req.storeId);
-  const { page = 1, limit = 50, search } = req.query;
+  // Clamp instead of trusting the raw query string — page=0/negative would
+  // otherwise make Array.slice's negative-start behavior return entries
+  // from the end of the list instead of erroring or paginating correctly.
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const search = typeof req.query.search === 'string' ? req.query.search : '';
 
-  let filtered = entries;
-  if (search) {
-    const q = search.toLowerCase();
-    filtered = entries.filter(
-      (e) =>
-        (e.name || '').toLowerCase().includes(q) ||
-        (e.email || '').toLowerCase().includes(q) ||
-        (e.phone || '').includes(q),
-    );
-  }
-
-  const total = filtered.length;
-  const start = (page - 1) * limit;
-  const paginated = filtered.reverse().slice(start, start + parseInt(limit));
-
-  res.json({
-    entries: paginated,
-    total,
-    page: parseInt(page),
-    limit: parseInt(limit),
-  });
+  const { entries, total } = await getEntriesPage(req.storeId, { page, limit, search });
+  res.json({ entries, total, page, limit });
 }));
 
 /**
@@ -87,6 +73,16 @@ adminRouter.delete('/entries', asyncHandler(async (req, res) => {
  * GET /api/admin/entries/export
  * Export entries as CSV
  */
+// Excel/Sheets treats a cell starting with =, +, - or @ as a formula even
+// inside quotes \u2014 prefixing with an apostrophe forces it to be read as
+// plain text, closing the classic CSV-injection vector for shopper-supplied
+// names/emails.
+function csvCell(value) {
+  const str = String(value ?? '');
+  const safe = /^[=+\-@]/.test(str) ? `'${str}` : str;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
 adminRouter.get('/entries/export', asyncHandler(async (req, res) => {
   const entries = await getEntries(req.storeId);
   const BOM = '\uFEFF';
@@ -105,7 +101,7 @@ adminRouter.get('/entries/export', asyncHandler(async (req, res) => {
           e.couponCode || '',
           !e.couponCode ? '' : e.isLocalCoupon ? 'İkas\'a işlenmedi' : 'İkas\'ta kayıtlı',
         ]
-          .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+          .map(csvCell)
           .join(';'),
       ),
     ].join('\n');
@@ -162,6 +158,17 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'İkas client id ve mağaza id zorunludur' });
   }
 
+  // ikasStoreId becomes the subdomain of the İkas auth URL
+  // (https://<ikasStoreId>.myikas.com/...) — catching an obvious typo/paste
+  // error here beats it silently saving and only surfacing as an opaque
+  // failure the next time a coupon is created.
+  if (platform === 'ikas' && !/^[a-zA-Z0-9-]{1,63}$/.test(ikasStoreId)) {
+    return res.status(400).json({ error: 'İkas mağaza id geçersiz — sadece harf, rakam ve tire içerebilir' });
+  }
+  if (platform === 'ikas' && !/^[a-zA-Z0-9-]{8,64}$/.test(ikasClientId)) {
+    return res.status(400).json({ error: 'İkas client id geçersiz' });
+  }
+
   // Guard against a stale/broken frontend sending platform:'none' alongside
   // populated ikas fields (e.g. the credentials-load request failed and the
   // platform dropdown silently reverted to its default) — that combination
@@ -186,11 +193,26 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
   // old ones and would otherwise keep authenticating as the wrong account.
   clearTokenCache(req.storeId);
 
+  // A typo'd secret/id otherwise saves silently and only surfaces the next
+  // time a customer wins a prize — test the connection immediately instead
+  // and tell the store owner right away.
+  let connectionTest = null;
+  if (updated.platform === 'ikas') {
+    try {
+      const adapter = await getPlatformAdapter(req.storeId);
+      await adapter.testConnection();
+      connectionTest = { ok: true };
+    } catch (err) {
+      connectionTest = { ok: false, error: err.message };
+    }
+  }
+
   res.json({
     platform: updated.platform,
     ikasClientId: updated.ikasClientId,
     ikasStoreId: updated.ikasStoreId,
     hasSecret: Boolean(updated.ikasClientSecretEnc),
+    connectionTest,
   });
 }));
 

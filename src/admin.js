@@ -17,6 +17,12 @@ function authToken() {
   return localStorage.getItem('cark_admin_token') || '';
 }
 
+const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+/** Escapes user-supplied text before it's interpolated into innerHTML templates. */
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ESCAPE_MAP[c]);
+}
+
 function hexToRgba(hex, alpha) {
   const num = parseInt(hex.replace('#', ''), 16);
   const r = (num >> 16) & 0xff;
@@ -237,8 +243,8 @@ class AdminPanel {
                   <div class="segment-item" data-id="${seg.id}">
                     <div class="segment-color" style="background:${seg.color}"></div>
                     <div class="segment-info">
-                      <div class="segment-label" style="color:${seg.textColor || '#fff'}">${seg.icon || ''} ${seg.label}</div>
-                      <div class="segment-meta">Kazanma Şansı: %${seg.probability} ${seg.couponCode ? `• Kod: ${seg.couponCode}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
+                      <div class="segment-label" style="color:${seg.textColor || '#fff'}">${escapeHtml(seg.icon)} ${escapeHtml(seg.label)}</div>
+                      <div class="segment-meta">Kazanma Şansı: %${seg.probability} ${seg.couponCode ? `• Kod: ${escapeHtml(seg.couponCode)}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
                     </div>
                     <div class="segment-actions">
                       <button class="move-btn" data-dir="up" data-id="${seg.id}" title="Yukarı taşı" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
@@ -593,12 +599,12 @@ class AdminPanel {
     document.getElementById('editModalContent').innerHTML = `
       <div class="form-group">
         <label>Dilim Metni</label>
-        <input type="text" class="form-input" id="seg-label" value="${seg.label}">
+        <input type="text" class="form-input" id="seg-label" value="${escapeHtml(seg.label)}">
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>İkon (Emoji)</label>
-          <input type="text" class="form-input" id="seg-icon" value="${seg.icon || ''}" maxlength="2">
+          <input type="text" class="form-input" id="seg-icon" value="${escapeHtml(seg.icon)}" maxlength="2">
         </div>
         <div class="form-group">
           <label>Arkaplan Rengi</label>
@@ -633,7 +639,7 @@ class AdminPanel {
         </div>
         <div class="form-group" id="seg-coupon-group" style="display:${seg.discountType === 'noLuck' ? 'none' : 'block'}">
           <label>✅ Sabit Kupon Kodu (Garantili)</label>
-          <input type="text" class="form-input" id="seg-coupon" value="${seg.couponCode || ''}" placeholder="Örn: YH30 — İkas'ta zaten oluşturduğunuz bir kod">
+          <input type="text" class="form-input" id="seg-coupon" value="${escapeHtml(seg.couponCode)}" placeholder="Örn: YH30 — İkas'ta zaten oluşturduğunuz bir kod">
         </div>
       </div>
       <div style="font-size:12px;color:var(--text-muted,#888);margin:-8px 0 16px;">
@@ -752,7 +758,7 @@ class AdminPanel {
     return [];
   }
 
-  async populateIkasCampaignSelect(selectedId) {
+  async populateIkasCampaignSelect(selectedId, isRetry = false) {
     const select = document.getElementById('seg-ikas-campaign');
     const hint = document.getElementById('seg-ikas-campaign-hint');
     if (!select) {
@@ -767,10 +773,18 @@ class AdminPanel {
     }
 
     if (campaigns.length === 0) {
+      // First attempt at an empty list is often just Render's free-tier
+      // backend still waking up — retry once automatically before asking
+      // the store owner to do it by hand.
+      if (!isRetry) {
+        if (hint) hint.textContent = 'Yükleniyor... (backend uyanıyor olabilir)';
+        this._ikasCampaigns = null;
+        setTimeout(() => this.populateIkasCampaignSelect(selectedId, true), 4000);
+        return;
+      }
       if (hint) {
         hint.innerHTML =
-          'Kuponu olan bir İkas kampanyası bulunamadı (kuponsuz kampanyalar burada listelenmez). Backend az önce uyandıysa ' +
-          '(Render ücretsiz plan) birkaç saniye sürebilir — ' +
+          'Kuponu olan bir İkas kampanyası bulunamadı (kuponsuz kampanyalar burada listelenmez). ' +
           '<a href="#" id="retryIkasCampaigns" style="color:var(--cark-primary,#ffd700);text-decoration:underline;">tekrar dene</a>. ' +
           'Yoksa İkas Builder\'da kampanyanıza bir kupon kodu ekleyip buradan seçebilir, ya da (önerilen) yukarıya sabit bir kupon kodu girebilirsiniz.';
         const retryLink = document.getElementById('retryIkasCampaigns');
@@ -778,7 +792,8 @@ class AdminPanel {
           retryLink.addEventListener('click', (e) => {
             e.preventDefault();
             hint.textContent = 'Yükleniyor...';
-            this.populateIkasCampaignSelect(selectedId);
+            this._ikasCampaigns = null;
+            this.populateIkasCampaignSelect(selectedId, true);
           });
         }
       }
@@ -896,10 +911,24 @@ class AdminPanel {
   setupEntriesListeners() {
     this.loadEntries();
 
-    document.getElementById('exportBtn')?.addEventListener('click', () => {
+    document.getElementById('exportBtn')?.addEventListener('click', async () => {
       const base = getApiBase();
       if (authToken()) {
-        window.open(`${base}/api/admin/entries/export?token=${authToken()}`, '_blank');
+        // Fetch with the token in a header (not a URL query string) so it
+        // never ends up in server access logs, browser history, or a
+        // Referer header — a bearer token is valid for 30 days.
+        const res = await fetch(`${base}/api/admin/entries/export`, {
+          headers: { Authorization: `Bearer ${authToken()}` },
+        });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cark-katilimcilar-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       } else {
         exportLocalCSV();
       }
@@ -919,6 +948,7 @@ class AdminPanel {
       } else {
         clearLocalEntries();
       }
+      this.entriesPage = 1;
       this.loadEntries();
       this.showToast('Veriler silindi');
     });
@@ -927,20 +957,26 @@ class AdminPanel {
   async loadEntries() {
     const container = document.getElementById('entriesContainer');
     const base = getApiBase();
+    const pageSize = 50;
+    this.entriesPage = this.entriesPage || 1;
 
     let entries = [];
     let stats = { total: 0, today: 0, mostWon: '-' };
+    let entriesTotal = 0;
 
     if (authToken()) {
       try {
         const token = authToken();
         const [entriesRes, statsRes] = await Promise.all([
-          fetch(`${base}/api/admin/entries?limit=500`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/admin/entries?page=${this.entriesPage}&limit=${pageSize}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           fetch(`${base}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         if (entriesRes.ok) {
           const data = await entriesRes.json();
           entries = data.entries || [];
+          entriesTotal = data.total || 0;
         }
         if (statsRes.ok) {
           stats = await statsRes.json();
@@ -968,7 +1004,8 @@ class AdminPanel {
     document.getElementById('stat-mostwon').textContent = stats.mostWon;
     document.getElementById('stat-broken').textContent = stats.brokenCoupons ?? '-';
 
-    if (entries.length === 0) {
+    const isEmpty = authToken() ? entriesTotal === 0 : entries.length === 0;
+    if (isEmpty) {
       container.innerHTML = '<div class="empty-state">Henüz kimse çarkı çevirmedi.</div>';
       return;
     }
@@ -992,11 +1029,11 @@ class AdminPanel {
               (e) => `
             <tr>
               <td>${e.timestamp ? new Date(e.timestamp).toLocaleString('tr-TR') : '-'}</td>
-              <td>${e.name || '-'}</td>
-              <td>${e.phone || '-'}</td>
-              <td>${e.email || '-'}</td>
-              <td style="font-weight:600;color:#FFD700;">${e.prize || '-'}</td>
-              <td>${e.couponCode ? `<code>${e.couponCode}</code>` : '-'}</td>
+              <td>${escapeHtml(e.name) || '-'}</td>
+              <td>${escapeHtml(e.phone) || '-'}</td>
+              <td>${escapeHtml(e.email) || '-'}</td>
+              <td style="font-weight:600;color:#FFD700;">${escapeHtml(e.prize) || '-'}</td>
+              <td>${e.couponCode ? `<code>${escapeHtml(e.couponCode)}</code>` : '-'}</td>
               <td>${
                 !e.couponCode || typeof e.isLocalCoupon !== 'boolean'
                   ? '-'
@@ -1010,7 +1047,29 @@ class AdminPanel {
             .join('')}
         </tbody>
       </table>
+      ${
+        authToken() && entriesTotal > pageSize
+          ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+          <button class="btn btn-secondary" id="entriesPrevBtn" ${this.entriesPage <= 1 ? 'disabled' : ''}>← Önceki</button>
+          <span style="color:var(--text-muted,#888);font-size:13px;">
+            Sayfa ${this.entriesPage} / ${Math.max(1, Math.ceil(entriesTotal / pageSize))} — toplam ${entriesTotal} katılım
+          </span>
+          <button class="btn btn-secondary" id="entriesNextBtn" ${this.entriesPage >= Math.ceil(entriesTotal / pageSize) ? 'disabled' : ''}>Sonraki →</button>
+        </div>
+      `
+          : ''
+      }
     `;
+
+    document.getElementById('entriesPrevBtn')?.addEventListener('click', () => {
+      this.entriesPage = Math.max(1, this.entriesPage - 1);
+      this.loadEntries();
+    });
+    document.getElementById('entriesNextBtn')?.addEventListener('click', () => {
+      this.entriesPage += 1;
+      this.loadEntries();
+    });
   }
 
   // --- Integration Tab ---
@@ -1117,7 +1176,16 @@ class AdminPanel {
           body: JSON.stringify(body),
         });
         if (res.ok) {
-          this.showToast('Platform ayarları kaydedildi');
+          const data = await res.json().catch(() => ({}));
+          if (data.connectionTest) {
+            this.showToast(
+              data.connectionTest.ok
+                ? 'Kaydedildi — İkas bağlantısı doğrulandı ✓'
+                : `Kaydedildi ama İkas bağlantı testi başarısız oldu: ${data.connectionTest.error || 'bilinmeyen hata'}. Bilgileri kontrol edin.`,
+            );
+          } else {
+            this.showToast('Platform ayarları kaydedildi');
+          }
           this.loadPlatformCredentials();
         } else {
           const data = await res.json().catch(() => ({}));

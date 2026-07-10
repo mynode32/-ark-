@@ -3,7 +3,7 @@ import cors from 'cors';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { ensureSchema } from './db.js';
+import { ensureSchema, pool } from './db.js';
 import { widgetRouter } from './routes/widget.js';
 import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
@@ -12,7 +12,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.use(cors({ origin: config.corsOrigin }));
-app.use(express.json());
+// KVKK full-text and similar admin fields are the largest legitimate
+// payloads (a few KB); this caps abuse without constraining real usage.
+app.use(express.json({ limit: '256kb' }));
 
 // Serves the built embeddable widget bundle (cark-widget.js) so İkas (or any
 // other store) can load it via a plain <script src="..."> tag from this backend.
@@ -29,9 +31,18 @@ app.use('/api/auth', authRouter);
 app.use('/api/widget', widgetRouter);
 app.use('/api/admin', adminRouter);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+// Health check — actually pings the DB so a broken connection shows up here
+// instead of every tenant's requests failing with no external signal.
+app.get('/api/health', async (req, res) => {
+  if (!pool) {
+    return res.status(503).json({ status: 'error', reason: 'DATABASE_URL tanımlı değil' });
+  }
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', time: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'error', reason: err.message });
+  }
 });
 
 // Final safety net — one tenant's bad request must never crash the shared
@@ -41,13 +52,15 @@ app.use((err, req, res, next) => {
   if (res.headersSent) {
     return next(err);
   }
-  res.status(500).json({ error: 'Sunucu hatası' });
+  res.status(err.status || 500).json({ error: err.status ? err.message : 'Sunucu hatası' });
 });
+
+let server;
 
 ensureSchema()
   .catch((err) => console.error('[DB] Şema oluşturulamadı:', err.message))
   .finally(() => {
-    app.listen(config.port, () => {
+    server = app.listen(config.port, () => {
       console.log(`🎡 Çark Backend running on http://localhost:${config.port}`);
       console.log(`   Auth API:    http://localhost:${config.port}/api/auth/login`);
       console.log(`   Widget API:  http://localhost:${config.port}/api/widget/:storeSlug/config`);
@@ -55,3 +68,20 @@ ensureSchema()
       console.log(`   DB:          ${config.databaseUrl ? 'CONFIGURED' : 'NOT CONFIGURED'}`);
     });
   });
+
+// On redeploy/restart, let in-flight requests finish instead of dropping
+// them mid-response — a bare process exit on SIGTERM cuts every open
+// connection immediately.
+function gracefulShutdown() {
+  console.log('[Server] Kapatma sinyali alındı, mevcut istekler bitiriliyor...');
+  if (!server) {
+    process.exit(0);
+  }
+  server.close(() => {
+    pool?.end().finally(() => process.exit(0));
+  });
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
