@@ -431,14 +431,19 @@ export class WheelEngine {
    */
   _drawCenterPointerPetal(ctx, cx, cy, centerR) {
     const color = this.theme.pointerColor || '#FF4757';
-    const petalW = centerR * 0.45;
-    const petalH = centerR * 0.9;
+    const petalW = centerR * 0.5;
+    const petalH = centerR * 0.55;
     const baseY = cy - centerR + 6;
+    const tipY = baseY - petalH;
+    const tipR = petalW * 0.42;
 
+    // Rounded dome cap at the tip (not a sharp point) — the base stays
+    // narrow but is hidden under the hub drawn on top, so only the soft
+    // rounded part is ever visible.
     ctx.beginPath();
-    ctx.moveTo(cx, baseY - petalH);
-    ctx.quadraticCurveTo(cx + petalW, baseY - petalH * 0.4, cx, baseY);
-    ctx.quadraticCurveTo(cx - petalW, baseY - petalH * 0.4, cx, baseY - petalH);
+    ctx.arc(cx, tipY + tipR, tipR, Math.PI, 0);
+    ctx.quadraticCurveTo(cx + petalW, baseY - petalH * 0.35, cx, baseY);
+    ctx.quadraticCurveTo(cx - petalW, baseY - petalH * 0.35, cx - tipR, tipY + tipR);
     ctx.closePath();
     ctx.fillStyle = color;
     ctx.fill();
