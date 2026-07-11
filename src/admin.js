@@ -559,6 +559,20 @@ class AdminPanel {
             </div>
 
             <div class="admin-card" style="margin-bottom: 24px;">
+              <h3>📍 Ok Konumu</h3>
+              <div class="wheel-style-options" id="pointerStyleOptions">
+                <div class="wheel-style-option ${theme.pointerStyle !== 'center' ? 'active' : ''}" data-pointer-style="top">
+                  <div class="wheel-style-title">⬆️ Üstte</div>
+                  <div class="wheel-style-desc">Ok, çarkın üst kenarında sabit durur</div>
+                </div>
+                <div class="wheel-style-option ${theme.pointerStyle === 'center' ? 'active' : ''}" data-pointer-style="center">
+                  <div class="wheel-style-title">🎯 Ortada</div>
+                  <div class="wheel-style-desc">Ok, çarkın merkezindeki göbeğe bitişik durur</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-card" style="margin-bottom: 24px;">
               <h3>🎨 Renkler</h3>
               <div class="form-group">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
@@ -655,7 +669,15 @@ class AdminPanel {
     document.getElementById('wheelStyleOptions').addEventListener('click', (e) => {
       const option = e.target.closest('.wheel-style-option');
       if (!option) return;
-      document.querySelectorAll('.wheel-style-option').forEach((el) => el.classList.remove('active'));
+      document.querySelectorAll('#wheelStyleOptions .wheel-style-option').forEach((el) => el.classList.remove('active'));
+      option.classList.add('active');
+      this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm());
+    });
+
+    document.getElementById('pointerStyleOptions').addEventListener('click', (e) => {
+      const option = e.target.closest('.wheel-style-option');
+      if (!option) return;
+      document.querySelectorAll('#pointerStyleOptions .wheel-style-option').forEach((el) => el.classList.remove('active'));
       option.classList.add('active');
       this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm());
     });
@@ -690,7 +712,8 @@ class AdminPanel {
 
   readAppearanceForm() {
     return {
-      wheelStyle: document.querySelector('.wheel-style-option.active')?.dataset.style || 'premium',
+      wheelStyle: document.querySelector('#wheelStyleOptions .wheel-style-option.active')?.dataset.style || 'premium',
+      pointerStyle: document.querySelector('#pointerStyleOptions .wheel-style-option.active')?.dataset.pointerStyle || 'top',
       autoSiteTheme: document.getElementById('theme-autoSiteTheme').checked,
       primaryColor: document.getElementById('theme-primaryColor').value,
       primaryColorDark: document.getElementById('theme-primaryColorDark').value,
@@ -1030,8 +1053,24 @@ class AdminPanel {
       startAngle = endAngle;
     }
 
+    const centerR = r * 0.2;
+    if (theme.pointerStyle === 'center') {
+      // Mirrors WheelEngine._drawCenterPointerPetal — drawn first so the hub
+      // circle below cleanly masks its base.
+      const petalW = centerR * 0.45;
+      const petalH = centerR * 0.9;
+      const baseY = cy - centerR + 4;
+      ctx.beginPath();
+      ctx.moveTo(cx, baseY - petalH);
+      ctx.quadraticCurveTo(cx + petalW, baseY - petalH * 0.4, cx, baseY);
+      ctx.quadraticCurveTo(cx - petalW, baseY - petalH * 0.4, cx, baseY - petalH);
+      ctx.closePath();
+      ctx.fillStyle = theme.pointerColor || '#FF4757';
+      ctx.fill();
+    }
+
     ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.2, 0, Math.PI * 2);
+    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
     ctx.fillStyle = wheelStyle === 'standard' ? '#FFFFFF' : theme.bgDark;
     ctx.fill();
     ctx.strokeStyle = theme.primaryColor;

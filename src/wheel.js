@@ -335,6 +335,14 @@ export class WheelEngine {
     ctx.fill();
     ctx.restore();
 
+    // Center-mounted pointer (thelood.com.tr-style) is independent of
+    // premium/standard — drawn after the halo (so it isn't dulled by the
+    // semi-transparent glow) but before the hub fill below, which cleanly
+    // masks its base.
+    if (this.theme.pointerStyle === 'center') {
+      this._drawCenterPointerPetal(ctx, cx, cy, centerR);
+    }
+
     // Shadow
     ctx.beginPath();
     ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
@@ -385,6 +393,10 @@ export class WheelEngine {
 
   /** Flat white hub with a thin accent border and plain dark store-name text */
   _drawCenterStandard(ctx, cx, cy, centerR, primary) {
+    if (this.theme.pointerStyle === 'center') {
+      this._drawCenterPointerPetal(ctx, cx, cy, centerR);
+    }
+
     // Soft shadow to lift the hub slightly off the wheel face
     ctx.beginPath();
     ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
@@ -409,6 +421,27 @@ export class WheelEngine {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(name.toUpperCase(), cx, cy);
+  }
+
+  /**
+   * Center-mounted pointer petal (thelood.com.tr-style) — a fixed reference
+   * point at the hub instead of floating above the rim. Drawn before the hub
+   * circle so its rounded base gets cleanly masked by the hub on top.
+   * Independent of premium/standard; toggled via theme.pointerStyle.
+   */
+  _drawCenterPointerPetal(ctx, cx, cy, centerR) {
+    const color = this.theme.pointerColor || '#FF4757';
+    const petalW = centerR * 0.45;
+    const petalH = centerR * 0.9;
+    const baseY = cy - centerR + 6;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, baseY - petalH);
+    ctx.quadraticCurveTo(cx + petalW, baseY - petalH * 0.4, cx, baseY);
+    ctx.quadraticCurveTo(cx - petalW, baseY - petalH * 0.4, cx, baseY - petalH);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
   }
 
   _lightenColor(hex, percent) {

@@ -82,6 +82,11 @@ function deriveSiteTheme() {
 export function applyWidgetTheme(rootEl, theme = {}) {
   if (!rootEl) return;
 
+  // Center-mounted pointer (thelood.com.tr-style) replaces the DOM pointer
+  // that floats above the rim — the canvas draws its own fixed petal at the
+  // hub instead (see WheelEngine._drawCenterPointerPetal).
+  rootEl.classList.toggle('cark-pointer-center', theme.pointerStyle === 'center');
+
   if (theme.primaryColor) {
     rootEl.style.setProperty('--cark-primary', theme.primaryColor);
     const num = parseInt(theme.primaryColor.replace('#', ''), 16);

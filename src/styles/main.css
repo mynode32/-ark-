@@ -216,6 +216,12 @@
   animation: carkIdleWobble 3.2s ease-in-out infinite;
 }
 
+/* Center-mounted pointer style draws its own fixed petal on the canvas hub
+   instead (see WheelEngine._drawCenterPointerPetal) */
+.cark-pointer-center .cark-pointer {
+  display: none;
+}
+
 .cark-pointer {
   position: absolute;
   top: -22px;

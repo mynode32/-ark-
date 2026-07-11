@@ -32,6 +32,7 @@ const GENERIC_DEFAULT_CONFIG = {
   },
   theme: {
     wheelStyle: 'premium', // 'premium' | 'standard' — bkz. src/wheel.js render()
+    pointerStyle: 'top', // 'top' | 'center' — bkz. src/wheel.js _drawCenterPointerPetal
     wheelSize: 330,
     spinDurationMs: 7000,
     autoSiteTheme: true,
