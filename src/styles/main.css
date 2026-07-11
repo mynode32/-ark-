@@ -729,3 +729,59 @@
     text-align: center;
   }
 }
+
+/* Admin panel live preview — the real widget markup (ModalManager), mounted
+   inline instead of as a fixed fullscreen popup, so color/theme changes show
+   up exactly as customers will see them (wheel AND form side) without a
+   second hand-maintained copy of the UI. Reuses the same stacked layout as
+   the mobile breakpoint above since the preview column is narrow. */
+.cark-preview-mode {
+  pointer-events: none;
+}
+
+.cark-preview-mode .cark-overlay {
+  position: static;
+  background: none;
+  backdrop-filter: none;
+  opacity: 1;
+  padding: 0;
+}
+
+.cark-preview-mode .cark-modal {
+  width: 100%;
+  max-width: none;
+  transform: none;
+}
+
+.cark-preview-mode .cark-close-btn {
+  display: none;
+}
+
+.cark-preview-mode .cark-content {
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cark-preview-mode .cark-wheel-section {
+  padding: 24px 20px;
+  border-right: none;
+  border-bottom: 1px solid var(--cark-glass-border);
+}
+
+.cark-preview-mode .cark-canvas {
+  max-width: 220px;
+  max-height: 220px;
+}
+
+.cark-preview-mode .cark-form-section {
+  padding: 24px 20px;
+}
+
+.cark-preview-mode .cark-title {
+  font-size: 24px;
+  text-align: center;
+}
+
+.cark-preview-mode .cark-subtitle {
+  text-align: center;
+}

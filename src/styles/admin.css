@@ -420,29 +420,20 @@ select.form-input option {
   border-radius: 6px;
 }
 
-/* Preview section */
+/* Preview section — holds the real widget markup (ModalManager), mounted
+   inline via AdminPanel.renderLivePreview(); sizing/layout for it lives in
+   main.css under .cark-preview-mode. */
 .preview-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  background: rgba(0, 0, 0, 0.3);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  position: relative;
   overflow: hidden;
-  padding: 20px;
-}
-.preview-container canvas {
-  max-width: 100%;
-  max-height: 340px;
-  margin-bottom: 20px;
+  background: rgba(0, 0, 0, 0.3);
 }
 .preview-stats {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
   text-align: center;
+  padding: 14px 0;
 }
 .preview-stats span {
   color: #ffd700;

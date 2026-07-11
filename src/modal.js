@@ -9,14 +9,29 @@ export class ModalManager {
     this.els = {};
   }
 
-  buildDOM() {
-    // Check if already exists
-    if (document.getElementById('cark-widget-root')) {
-      return this.getElements();
+  /**
+   * @param {HTMLElement|null} mountEl - when set, mounts a static always-visible
+   *   copy inside this element instead of the real fixed-overlay popup appended
+   *   to <body> — used by the admin panel's live preview so it stays pixel-for-
+   *   pixel identical to the real widget without a second hand-written copy.
+   */
+  buildDOM(mountEl = null) {
+    const existing = document.getElementById('cark-widget-root');
+    if (existing) {
+      // Preview rebuilds on every config/theme change (color pickers etc.),
+      // so always replace rather than reuse a stale instance.
+      if (mountEl) {
+        existing.remove();
+      } else {
+        return this.getElements();
+      }
     }
 
     const wrapper = document.createElement('div');
     wrapper.id = 'cark-widget-root';
+    if (mountEl) {
+      wrapper.classList.add('cark-preview-mode');
+    }
     wrapper.innerHTML = `
       <div class="cark-overlay">
         <div class="cark-modal">
@@ -107,7 +122,7 @@ export class ModalManager {
       </div>
     `;
 
-    document.body.appendChild(wrapper);
+    (mountEl || document.body).appendChild(wrapper);
     return this.getElements();
   }
 

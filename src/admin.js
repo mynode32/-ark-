@@ -8,6 +8,10 @@ import {
   DEFAULT_CONFIG,
 } from './storage.js';
 import { generateEmbedCode, generateIkasGuide } from './embed.js';
+import { ModalManager } from './modal.js';
+import { WheelEngine } from './wheel.js';
+import { applyWidgetTheme } from './siteTheme.js';
+import './styles/main.css';
 
 function getApiBase() {
   return window.CARK_API_URL || 'https://cark-backend.onrender.com';
@@ -21,14 +25,6 @@ const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'":
 /** Escapes user-supplied text before it's interpolated into innerHTML templates. */
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ESCAPE_MAP[c]);
-}
-
-function hexToRgba(hex, alpha) {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const r = (num >> 16) & 0xff;
-  const g = (num >> 8) & 0xff;
-  const b = num & 0xff;
-  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 class AdminPanel {
@@ -220,12 +216,12 @@ class AdminPanel {
     if (this.currentTab === 'settings') {
       main.innerHTML = this.renderSettingsTab();
       this.setupSettingsListeners();
-      this.drawPreviewWheel('previewCanvas');
+      this.renderLivePreview('previewContainer');
       this.loadHistory();
     } else if (this.currentTab === 'appearance') {
       main.innerHTML = this.renderAppearanceTab();
       this.setupAppearanceListeners();
-      this.drawPreviewWheel('appearancePreviewCanvas');
+      this.renderLivePreview('appearancePreviewContainer');
     } else if (this.currentTab === 'entries') {
       main.innerHTML = this.renderEntriesTab();
       this.setupEntriesListeners();
@@ -280,7 +276,7 @@ class AdminPanel {
             <div class="admin-card" style="margin-bottom: 24px;">
               <h3>👁️ Canlı Önizleme</h3>
               <div class="preview-container">
-                <canvas id="previewCanvas" width="340" height="340"></canvas>
+                <div id="previewContainer"></div>
                 <div class="preview-stats" id="previewStats"></div>
               </div>
             </div>
@@ -656,7 +652,7 @@ class AdminPanel {
             <div class="admin-card">
               <h3>👁️ Önizleme</h3>
               <div class="preview-container">
-                <canvas id="appearancePreviewCanvas" width="340" height="340"></canvas>
+                <div id="appearancePreviewContainer"></div>
               </div>
             </div>
           </div>
@@ -671,7 +667,7 @@ class AdminPanel {
       if (!option) return;
       document.querySelectorAll('#wheelStyleOptions .wheel-style-option').forEach((el) => el.classList.remove('active'));
       option.classList.add('active');
-      this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm());
+      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
     });
 
     document.getElementById('pointerStyleOptions').addEventListener('click', (e) => {
@@ -679,7 +675,7 @@ class AdminPanel {
       if (!option) return;
       document.querySelectorAll('#pointerStyleOptions .wheel-style-option').forEach((el) => el.classList.remove('active'));
       option.classList.add('active');
-      this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm());
+      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
     });
 
     const autoCheckbox = document.getElementById('theme-autoSiteTheme');
@@ -691,7 +687,7 @@ class AdminPanel {
     const wheelSizeInput = document.getElementById('theme-wheelSize');
     wheelSizeInput.addEventListener('input', (e) => {
       document.getElementById('theme-wheelSize-val').textContent = `${e.target.value}px`;
-      this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm());
+      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
     });
 
     const spinDurationInput = document.getElementById('theme-spinDuration');
@@ -701,7 +697,7 @@ class AdminPanel {
 
     // Renk seçimi anında önizlemeye yansısın
     ['theme-primaryColor', 'theme-primaryColorDark', 'theme-pointerColor'].forEach((id) => {
-      document.getElementById(id).addEventListener('input', () => this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm()));
+      document.getElementById(id).addEventListener('input', () => this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm()));
     });
 
     document.getElementById('saveAppearanceBtn').addEventListener('click', async () => {
@@ -963,120 +959,37 @@ class AdminPanel {
 
   // --- Preview ---
 
-  drawPreviewWheel(canvasId = 'previewCanvas', themeOverride = null) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) {
+  /**
+   * Mounts the real widget (ModalManager + WheelEngine), inline and
+   * non-interactive, instead of a second hand-drawn canvas — so the preview
+   * shows the form/title/button side too and is pixel-identical to what
+   * customers actually see, with zero risk of the two drifting apart.
+   */
+  renderLivePreview(containerId, themeOverride = null) {
+    const container = document.getElementById(containerId);
+    if (!container) {
       return;
     }
-    const theme = { ...DEFAULT_CONFIG.theme, ...(this.config.theme || {}), ...(themeOverride || {}) };
-    const wheelStyle = theme.wheelStyle || 'premium';
-
-    // Mirror the real widget's actual size — the container's own
-    // max-height:340px (see admin.css) scales it down proportionally if
-    // it's too big to fit, so this always draws at the true size the
-    // customer would actually see, not an arbitrarily capped preview.
-    const displaySize = theme.wheelSize || 330;
-    if (canvas.width !== displaySize || canvas.height !== displaySize) {
-      canvas.width = displaySize;
-      canvas.height = displaySize;
-    }
-
-    const ctx = canvas.getContext('2d');
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-    const r = Math.min(cx, cy) - 10;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!this.config.segments.length) {
-      return;
-    }
-
-    // Equal-width slices — matches the real wheel (src/wheel.js), which no
-    // longer sizes wedges by probability. `probability` still shown below
-    // as the actual win-odds weight, it just isn't the wedge width anymore.
-    const sliceAngle = (2 * Math.PI) / this.config.segments.length;
-    let startAngle = -Math.PI / 2;
+    container.innerHTML = '';
 
     const totalProb = this.config.segments.reduce((s, seg) => s + seg.probability, 0) || 1;
     const statsEl = document.getElementById('previewStats');
     if (statsEl) {
       statsEl.innerHTML = `Toplam Ağırlık: <span>${totalProb}</span>`;
     }
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    if (wheelStyle === 'standard') {
-      // Flat white ring with plain dots — mirrors src/wheel.js _drawOuterRingStandard
-      ctx.fillStyle = '#F5F5F0';
-      ctx.fill();
-      const dotCount = this.config.segments.length * 4;
-      const dotAngle = (2 * Math.PI) / dotCount;
-      let angle = -Math.PI / 2;
-      for (let i = 0; i < dotCount; i++) {
-        const dotX = cx + Math.cos(angle) * (r - 6);
-        const dotY = cy + Math.sin(angle) * (r - 6);
-        ctx.beginPath();
-        ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fill();
-        angle += dotAngle;
-      }
-    } else {
-      ctx.fillStyle = '#1a1a2e';
-      ctx.fill();
-      ctx.strokeStyle = hexToRgba(theme.primaryColor, 0.3);
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    if (!this.config.segments.length) {
+      return;
     }
 
-    for (const seg of this.config.segments) {
-      const endAngle = startAngle + sliceAngle;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, r - 10, startAngle, endAngle);
-      ctx.closePath();
-      ctx.fillStyle = seg.color;
-      ctx.fill();
-      ctx.strokeStyle = wheelStyle === 'standard' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = wheelStyle === 'standard' ? 2 : 1;
-      ctx.stroke();
+    const previewConfig = {
+      ...this.config,
+      theme: { ...DEFAULT_CONFIG.theme, ...(this.config.theme || {}), ...(themeOverride || {}) },
+    };
 
-      const midAngle = startAngle + sliceAngle / 2;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(midAngle);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillStyle = seg.textColor || '#FFF';
-      ctx.fillText(seg.label || '', r * 0.6, 0);
-      ctx.restore();
-      startAngle = endAngle;
-    }
-
-    const centerR = r * 0.2;
-    if (theme.pointerStyle === 'center') {
-      // Mirrors WheelEngine._drawCenterPointerPetal — drawn first so the hub
-      // circle below cleanly masks its base.
-      const petalW = centerR * 0.55;
-      const petalH = centerR * 0.7;
-      const baseY = cy - centerR + 6;
-      const tipY = baseY - petalH;
-      ctx.beginPath();
-      ctx.moveTo(cx, tipY);
-      ctx.quadraticCurveTo(cx + petalW, baseY - petalH * 0.45, cx, baseY);
-      ctx.quadraticCurveTo(cx - petalW, baseY - petalH * 0.45, cx, tipY);
-      ctx.closePath();
-      ctx.fillStyle = theme.pointerColor || '#FF4757';
-      ctx.fill();
-    }
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
-    ctx.fillStyle = wheelStyle === 'standard' ? '#FFFFFF' : theme.bgDark;
-    ctx.fill();
-    ctx.strokeStyle = theme.primaryColor;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    const modalMgr = new ModalManager(previewConfig);
+    const els = modalMgr.buildDOM(container);
+    applyWidgetTheme(document.getElementById('cark-widget-root'), previewConfig.theme);
+    new WheelEngine(els.canvas, previewConfig);
   }
 
   // --- Entries Tab ---
