@@ -538,6 +538,20 @@ class AdminPanel {
         <div class="admin-grid">
           <div>
             <div class="admin-card" style="margin-bottom: 24px;">
+              <h3>🎯 Çark Stili</h3>
+              <div class="wheel-style-options" id="wheelStyleOptions">
+                <div class="wheel-style-option ${theme.wheelStyle !== 'standard' ? 'active' : ''}" data-style="premium">
+                  <div class="wheel-style-title">✨ Premium</div>
+                  <div class="wheel-style-desc">Metalik, parlayan, ışıklı çark</div>
+                </div>
+                <div class="wheel-style-option ${theme.wheelStyle === 'standard' ? 'active' : ''}" data-style="standard">
+                  <div class="wheel-style-title">⚪ Standart</div>
+                  <div class="wheel-style-desc">Sade, düz renkli, minimalist çark</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-card" style="margin-bottom: 24px;">
               <h3>🎨 Renkler</h3>
               <div class="form-group">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
@@ -631,6 +645,14 @@ class AdminPanel {
   }
 
   setupAppearanceListeners() {
+    document.getElementById('wheelStyleOptions').addEventListener('click', (e) => {
+      const option = e.target.closest('.wheel-style-option');
+      if (!option) return;
+      document.querySelectorAll('.wheel-style-option').forEach((el) => el.classList.remove('active'));
+      option.classList.add('active');
+      this.drawPreviewWheel('appearancePreviewCanvas', this.readAppearanceForm());
+    });
+
     const autoCheckbox = document.getElementById('theme-autoSiteTheme');
     const manualBgColors = document.getElementById('manualBgColors');
     autoCheckbox.addEventListener('change', () => {
@@ -661,6 +683,7 @@ class AdminPanel {
 
   readAppearanceForm() {
     return {
+      wheelStyle: document.querySelector('.wheel-style-option.active')?.dataset.style || 'premium',
       autoSiteTheme: document.getElementById('theme-autoSiteTheme').checked,
       primaryColor: document.getElementById('theme-primaryColor').value,
       primaryColorDark: document.getElementById('theme-primaryColorDark').value,
@@ -916,6 +939,7 @@ class AdminPanel {
       return;
     }
     const theme = { ...DEFAULT_CONFIG.theme, ...(this.config.theme || {}), ...(themeOverride || {}) };
+    const wheelStyle = theme.wheelStyle || 'premium';
 
     // Mirror the real widget's actual size — the container's own
     // max-height:340px (see admin.css) scales it down proportionally if
@@ -950,11 +974,29 @@ class AdminPanel {
 
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fill();
-    ctx.strokeStyle = hexToRgba(theme.primaryColor, 0.3);
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    if (wheelStyle === 'standard') {
+      // Flat white ring with plain dots — mirrors src/wheel.js _drawOuterRingStandard
+      ctx.fillStyle = '#F5F5F0';
+      ctx.fill();
+      const dotCount = this.config.segments.length * 4;
+      const dotAngle = (2 * Math.PI) / dotCount;
+      let angle = -Math.PI / 2;
+      for (let i = 0; i < dotCount; i++) {
+        const dotX = cx + Math.cos(angle) * (r - 6);
+        const dotY = cy + Math.sin(angle) * (r - 6);
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fill();
+        angle += dotAngle;
+      }
+    } else {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(theme.primaryColor, 0.3);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     for (const seg of this.config.segments) {
       const endAngle = startAngle + sliceAngle;
@@ -964,8 +1006,8 @@ class AdminPanel {
       ctx.closePath();
       ctx.fillStyle = seg.color;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = wheelStyle === 'standard' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = wheelStyle === 'standard' ? 2 : 1;
       ctx.stroke();
 
       const midAngle = startAngle + sliceAngle / 2;
@@ -983,7 +1025,7 @@ class AdminPanel {
 
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.2, 0, Math.PI * 2);
-    ctx.fillStyle = theme.bgDark;
+    ctx.fillStyle = wheelStyle === 'standard' ? '#FFFFFF' : theme.bgDark;
     ctx.fill();
     ctx.strokeStyle = theme.primaryColor;
     ctx.lineWidth = 2;

@@ -86,6 +86,7 @@ export const DEFAULT_CONFIG = {
     kvkkFullText: '',
   },
   theme: {
+    wheelStyle: 'premium', // 'premium' | 'standard' — bkz. src/wheel.js render()
     wheelSize: 330,
     spinDurationMs: 7000,
     // Off by default — the premium black/red identity is a deliberate brand

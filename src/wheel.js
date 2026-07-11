@@ -10,6 +10,7 @@ export class WheelEngine {
     this.config = config;
     this.segments = config.segments || [];
     this.theme = config.theme || {};
+    this.style = this.theme.wheelStyle || 'premium';
     this.rotation = 0;
     this.isSpinning = false;
     this.audioCtx = null;
@@ -36,6 +37,7 @@ export class WheelEngine {
     this.config = config;
     this.segments = config.segments || [];
     this.theme = config.theme || {};
+    this.style = this.theme.wheelStyle || 'premium';
     this._setupCanvas();
     this.render();
   }
@@ -80,40 +82,57 @@ export class WheelEngine {
       ctx.arc(cx, cy, r - 16, startAngle, endAngle);
       ctx.closePath();
 
-      // Rich gradient for segment
       const midAngle = startAngle + sliceAngle / 2;
-      
-      // Calculate coordinates for gradient (from center outwards to edge)
-      const edgeX = cx + Math.cos(midAngle) * r;
-      const edgeY = cy + Math.sin(midAngle) * r;
-      
-      const grad = ctx.createLinearGradient(cx, cy, edgeX, edgeY);
-      
-      // Subtle shading based on the segment's own color — keeps the hue
-      // visible all the way to the rim instead of fading to black, which
-      // made every slice look muddy/indistinguishable near the edge.
-      grad.addColorStop(0, this._lightenColor(seg.color, 35));
-      grad.addColorStop(0.45, seg.color);
-      grad.addColorStop(1, this._darkenColor(seg.color, 30));
-      
-      ctx.fillStyle = grad;
-      ctx.fill();
 
-      // Inner shadow/border for slice
-      ctx.strokeStyle = `rgba(${accentR},${accentG},${accentB},0.15)`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      if (this.style === 'standard') {
+        // Flat, matte fill — no gradient, no accent-colored shading, just
+        // the segment's own configured color (thelood.com.tr-style wheel).
+        ctx.fillStyle = seg.color;
+        ctx.fill();
 
-      // Separator line with accent color
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(
-        cx + Math.cos(startAngle) * (r - 16),
-        cy + Math.sin(startAngle) * (r - 16)
-      );
-      ctx.strokeStyle = `rgba(${accentR},${accentG},${accentB},0.5)`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+        // Plain white separator line between slices
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(
+          cx + Math.cos(startAngle) * (r - 16),
+          cy + Math.sin(startAngle) * (r - 16)
+        );
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else {
+        // Rich gradient for segment (from center outwards to edge)
+        const edgeX = cx + Math.cos(midAngle) * r;
+        const edgeY = cy + Math.sin(midAngle) * r;
+
+        const grad = ctx.createLinearGradient(cx, cy, edgeX, edgeY);
+
+        // Subtle shading based on the segment's own color — keeps the hue
+        // visible all the way to the rim instead of fading to black, which
+        // made every slice look muddy/indistinguishable near the edge.
+        grad.addColorStop(0, this._lightenColor(seg.color, 35));
+        grad.addColorStop(0.45, seg.color);
+        grad.addColorStop(1, this._darkenColor(seg.color, 30));
+
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Inner shadow/border for slice
+        ctx.strokeStyle = `rgba(${accentR},${accentG},${accentB},0.15)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Separator line with accent color
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(
+          cx + Math.cos(startAngle) * (r - 16),
+          cy + Math.sin(startAngle) * (r - 16)
+        );
+        ctx.strokeStyle = `rgba(${accentR},${accentG},${accentB},0.5)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
 
       // Draw label
       ctx.save();
@@ -149,28 +168,33 @@ export class WheelEngine {
 
       ctx.fillStyle = seg.textColor || '#FFFFFF';
 
-      // Premium text shadow
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
+      if (this.style !== 'standard') {
+        // Premium text shadow
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+      }
       ctx.fillText(displayLabel, textCenterR, 0);
-      
+
       ctx.restore();
 
       startAngle = endAngle;
     }
 
-    // Draw glossy overlay over all segments
-    ctx.beginPath();
-    ctx.arc(cx, cy, r - 16, 0, Math.PI * 2);
-    const gloss = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
-    gloss.addColorStop(0, 'rgba(255,255,255,0.4)');
-    gloss.addColorStop(0.4, 'rgba(255,255,255,0.05)');
-    gloss.addColorStop(0.5, 'rgba(255,255,255,0)');
-    gloss.addColorStop(1, 'rgba(0,0,0,0.3)');
-    ctx.fillStyle = gloss;
-    ctx.fill();
+    if (this.style !== 'standard') {
+      // Draw glossy overlay over all segments (premium only — flat/matte
+      // "standard" style has no shine layer)
+      ctx.beginPath();
+      ctx.arc(cx, cy, r - 16, 0, Math.PI * 2);
+      const gloss = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+      gloss.addColorStop(0, 'rgba(255,255,255,0.4)');
+      gloss.addColorStop(0.4, 'rgba(255,255,255,0.05)');
+      gloss.addColorStop(0.5, 'rgba(255,255,255,0)');
+      gloss.addColorStop(1, 'rgba(0,0,0,0.3)');
+      ctx.fillStyle = gloss;
+      ctx.fill();
+    }
 
     // Draw center circle
     this._drawCenter(ctx, cx, cy);
@@ -208,8 +232,14 @@ export class WheelEngine {
   }
 
   _drawOuterRing(ctx, cx, cy, r) {
-    // Outer metallic ring — tones derived from the configured accent color
     const primary = this.theme.primaryColor || '#FF1E1E';
+
+    if (this.style === 'standard') {
+      this._drawOuterRingStandard(ctx, cx, cy, r, primary);
+      return;
+    }
+
+    // Outer metallic ring — tones derived from the configured accent color
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     const ringGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
@@ -220,7 +250,7 @@ export class WheelEngine {
     ringGrad.addColorStop(1, this._darkenColor(primary, 75));
     ctx.fillStyle = ringGrad;
     ctx.fill();
-    
+
     // Inner dark rim
     ctx.beginPath();
     ctx.arc(cx, cy, r - 8, 0, Math.PI * 2);
@@ -248,12 +278,51 @@ export class WheelEngine {
     }
   }
 
+  /** Flat white ring with plain (non-glowing) dots — thelood.com.tr-style border */
+  _drawOuterRingStandard(ctx, cx, cy, r, primary) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#F5F5F0';
+    ctx.fill();
+
+    // Inner rim — thin accent-colored line separating ring from segments
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 16, 0, Math.PI * 2);
+    ctx.strokeStyle = primary;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Evenly-spaced plain dark dots around the ring, no glow
+    if (this.segments.length > 0) {
+      const dotCount = this.segments.length * 4;
+      const dotAngle = (2 * Math.PI) / dotCount;
+      let angle = this.rotation - Math.PI / 2;
+      for (let i = 0; i < dotCount; i++) {
+        const dotX = cx + Math.cos(angle) * (r - 8);
+        const dotY = cy + Math.sin(angle) * (r - 8);
+
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fill();
+
+        angle += dotAngle;
+      }
+    }
+  }
+
   _drawCenter(ctx, cx, cy) {
+    const primary = this.theme.primaryColor || '#FF1E1E';
+    const centerR = this.radius * 0.18;
+
+    if (this.style === 'standard') {
+      this._drawCenterStandard(ctx, cx, cy, centerR, primary);
+      return;
+    }
+
     // Center hub — brushed-gunmetal base with an accent-color halo, styled
     // as the wheel's trigger point rather than a plain flat disc.
-    const primary = this.theme.primaryColor || '#FF1E1E';
     const [ar, ag, ab] = this._hexToRgb(primary);
-    const centerR = this.radius * 0.18;
 
     // Soft accent halo behind the hub
     ctx.save();
@@ -312,6 +381,34 @@ export class WheelEngine {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(name, cx, cy);
+  }
+
+  /** Flat white hub with a thin accent border and plain dark store-name text */
+  _drawCenterStandard(ctx, cx, cy, centerR, primary) {
+    // Soft shadow to lift the hub slightly off the wheel face
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Thin accent border
+    ctx.strokeStyle = primary;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Store name — plain dark text, no gradient
+    const name = this.config.settings?.storeName || 'Mağaza';
+    const nameSize = name.length > 8 ? 9 : 12;
+    ctx.font = `800 ${nameSize}px 'Outfit', sans-serif`;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name.toUpperCase(), cx, cy);
   }
 
   _lightenColor(hex, percent) {

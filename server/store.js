@@ -31,6 +31,7 @@ const GENERIC_DEFAULT_CONFIG = {
     cdnUrl: '',
   },
   theme: {
+    wheelStyle: 'premium', // 'premium' | 'standard' — bkz. src/wheel.js render()
     wheelSize: 330,
     spinDurationMs: 7000,
     autoSiteTheme: true,
