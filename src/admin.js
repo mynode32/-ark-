@@ -78,6 +78,13 @@ class AdminPanel {
     if (nameEl && this.store) {
       nameEl.textContent = `— ${this.store.name}`;
     }
+    // "Demo Sayfası" linki mağaza slug'ı olmadan gerçek kayıtlı ayarları değil,
+    // sabit örnek konfigürasyonu gösteriyordu — kendi mağazasının canlı config'ini
+    // görebilsin diye slug/apiUrl'i query string'e ekliyoruz.
+    const demoLink = document.getElementById('demoLink');
+    if (demoLink && this.store) {
+      demoLink.href = `index.html?storeSlug=${encodeURIComponent(this.store.slug)}&apiUrl=${encodeURIComponent(getApiBase())}`;
+    }
     document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
 
     this.setupTabs();
