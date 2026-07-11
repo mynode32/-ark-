@@ -1,4 +1,4 @@
-import{g as z,s as C,D as x,a as $,M as L,b as A,W as M,e as P,c as K,d as F}from"./main-Dyftitgb.js";function D(k,e,t){const i=e;return`<!-- Çark Çevir Kazan Widget -->
+import{g as z,s as C,D as x,a as $,M as L,b as A,W as M,e as P,c as K,d as F}from"./main-BJhj-P_O.js";function D(k,e,t){const i=e;return`<!-- Çark Çevir Kazan Widget -->
 <script src="${i}/dist/cark-widget.js"><\/script>
 <script>
   CarkWidget.init({

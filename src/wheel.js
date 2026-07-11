@@ -15,8 +15,49 @@ export class WheelEngine {
     this.isSpinning = false;
     this.audioCtx = null;
     this.winnerGlow = 0;
+    this._idleWobbleFrame = null;
     this._setupCanvas();
     this.render();
+    this._startIdleWobble();
+  }
+
+  /**
+   * Gentle pre-spin "come play with me" wobble. Driven through `this.rotation`
+   * (the same value the real spin animates) rather than a CSS transform on
+   * the whole canvas, because _drawCenter/_drawCenterStandard never apply
+   * `this.rotation` — so the hub + pointer stay visually fixed while only
+   * the ring/segments sway, instead of the old CSS version rocking the
+   * entire flat canvas image (hub included) as one rigid piece.
+   */
+  _startIdleWobble() {
+    this._stopIdleWobble();
+    const amplitude = (4 * Math.PI) / 180; // matches the old ±4deg CSS keyframe
+    const periodMs = 3200;
+    const baseRotation = this.rotation; // wobble around wherever we currently sit
+    const startTime = performance.now();
+
+    const loop = (time) => {
+      // The admin panel's live preview rebuilds a fresh WheelEngine on every
+      // keystroke and discards the old canvas — without this check the
+      // orphaned instance's loop would keep rendering into a detached
+      // canvas forever.
+      if (!this.canvas.isConnected) {
+        this._idleWobbleFrame = null;
+        return;
+      }
+      const t = ((time - startTime) % periodMs) / periodMs;
+      this.rotation = baseRotation + amplitude * Math.sin(2 * Math.PI * t);
+      this.render();
+      this._idleWobbleFrame = requestAnimationFrame(loop);
+    };
+    this._idleWobbleFrame = requestAnimationFrame(loop);
+  }
+
+  _stopIdleWobble() {
+    if (this._idleWobbleFrame) {
+      cancelAnimationFrame(this._idleWobbleFrame);
+      this._idleWobbleFrame = null;
+    }
   }
 
   _setupCanvas() {
@@ -593,6 +634,7 @@ export class WheelEngine {
       return Promise.reject(new Error('Zaten dönüyor'));
     }
 
+    this._stopIdleWobble();
     this.isSpinning = true;
     this.winnerGlow = 0;
     this._setPointerSpinning(true);
@@ -643,6 +685,7 @@ export class WheelEngine {
         this.isSpinning = false;
         this._setPointerSpinning(false);
         if (wrapper) wrapper.classList.remove('cark-spinning');
+        this._startIdleWobble();
         return winner;
       });
   }

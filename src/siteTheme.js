@@ -87,6 +87,10 @@ export function applyWidgetTheme(rootEl, theme = {}) {
   // hub instead (see WheelEngine._drawCenterPointerPetal).
   rootEl.classList.toggle('cark-pointer-center', theme.pointerStyle === 'center');
 
+  // Standard style now covers the whole modal (background, title, button),
+  // not just the wheel — a flat, non-glowing look to match the plain wheel.
+  rootEl.classList.toggle('cark-style-standard', theme.wheelStyle === 'standard');
+
   if (theme.primaryColor) {
     rootEl.style.setProperty('--cark-primary', theme.primaryColor);
     const num = parseInt(theme.primaryColor.replace('#', ''), 16);
