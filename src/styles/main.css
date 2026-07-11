@@ -777,7 +777,8 @@
 .cark-style-standard .cark-submit-btn:hover:not(:disabled),
 .cark-style-standard .cark-cta-btn:hover {
   transform: none;
-  filter: brightness(1.1);
+  background: var(--cark-primary-dark);
+  filter: none;
   box-shadow: none;
 }
 
@@ -825,8 +826,8 @@
 }
 
 .cark-preview-mode .cark-canvas {
-  max-width: 220px;
-  max-height: 220px;
+  max-width: 340px;
+  max-height: 340px;
 }
 
 .cark-preview-mode .cark-form-section {

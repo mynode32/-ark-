@@ -682,6 +682,7 @@ class AdminPanel {
     const manualBgColors = document.getElementById('manualBgColors');
     autoCheckbox.addEventListener('change', () => {
       manualBgColors.style.display = autoCheckbox.checked ? 'none' : 'block';
+      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
     });
 
     const wheelSizeInput = document.getElementById('theme-wheelSize');
@@ -695,8 +696,9 @@ class AdminPanel {
       document.getElementById('theme-spinDuration-val').textContent = `${(e.target.value / 1000).toFixed(1)} sn`;
     });
 
-    // Renk seçimi anında önizlemeye yansısın
-    ['theme-primaryColor', 'theme-primaryColorDark', 'theme-pointerColor'].forEach((id) => {
+    // Renk seçimi anında önizlemeye yansısın — arka plan renkleri de dahil,
+    // daha önce sadece ana renk/ikincil renk/ok rengi bağlıydı.
+    ['theme-primaryColor', 'theme-primaryColorDark', 'theme-pointerColor', 'theme-bgDark', 'theme-bgMid', 'theme-bgLight'].forEach((id) => {
       document.getElementById(id).addEventListener('input', () => this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm()));
     });
 
