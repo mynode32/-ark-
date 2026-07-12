@@ -24,6 +24,16 @@
       <input type="email" class="admin-text-input" id="authEmail" placeholder="E-posta" autocomplete="username">
       <input type="password" class="admin-text-input admin-password-input" id="authPassword" placeholder="Şifre" autocomplete="current-password">
 
+      <div id="authFieldTerms" style="display:none;margin-bottom:16px;text-align:left;">
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.5;">
+          <input type="checkbox" id="authTermsCheckbox" style="margin-top:3px;">
+          <span>
+            <a href="/terms/mesafeli-satis-sozlesmesi.html" target="_blank" rel="noopener">Mesafeli Satış Sözleşmesi</a> ve
+            <a href="/terms/kullanici-sozlesmesi.html" target="_blank" rel="noopener">Kullanıcı Sözleşmesi</a>'ni okudum, kabul ediyorum.
+          </span>
+        </label>
+      </div>
+
       <div class="admin-password-error" id="adminPasswordError"></div>
       <button class="btn btn-primary" id="authSubmitBtn" style="width:100%">Giriş Yap</button>
 

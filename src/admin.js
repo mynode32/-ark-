@@ -107,6 +107,8 @@ class AdminPanel {
     const storeNameInput = document.getElementById('authStoreName');
     const emailInput = document.getElementById('authEmail');
     const passwordInput = document.getElementById('authPassword');
+    const termsWrap = document.getElementById('authFieldTerms');
+    const termsCheckbox = document.getElementById('authTermsCheckbox');
     const error = document.getElementById('adminPasswordError');
     const btn = document.getElementById('authSubmitBtn');
     const toRegisterWrap = document.getElementById('authSwitchToRegisterWrap');
@@ -118,6 +120,10 @@ class AdminPanel {
       ? 'Kendi çark widget hesabınızı oluşturun'
       : 'Mağazanızın admin paneline giriş yapın';
     storeNameWrap.style.display = isRegister ? 'block' : 'none';
+    termsWrap.style.display = isRegister ? 'block' : 'none';
+    if (!isRegister) {
+      termsCheckbox.checked = false;
+    }
     btn.textContent = isRegister ? 'Hesap Oluştur' : 'Giriş Yap';
     toRegisterWrap.style.display = isRegister ? 'none' : 'inline';
     toLoginWrap.style.display = isRegister ? 'inline' : 'none';
@@ -147,11 +153,15 @@ class AdminPanel {
         showError('Lütfen tüm alanları doldurun');
         return;
       }
+      if (isRegister && !termsCheckbox.checked) {
+        showError('Devam etmek için sözleşmeleri onaylamalısınız');
+        return;
+      }
 
       btn.disabled = true;
       try {
         const path = isRegister ? '/api/auth/register' : '/api/auth/login';
-        const body = isRegister ? { storeName, email, password } : { email, password };
+        const body = isRegister ? { storeName, email, password, termsAccepted: true } : { email, password };
         const res = await fetch(`${base}${path}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1395,6 +1405,24 @@ class AdminPanel {
               <div class="integration-guide">${ikasGuide}</div>
             </details>
           </div>
+          <div class="admin-card">
+            <h3>🧾 Fatura Bilgileri</h3>
+            <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin-bottom:16px;">
+              Ödeme sonrası oluşturulacak faturada kullanılacak bilgileri girin.
+            </p>
+            <div class="form-group">
+              <label>Fatura Unvanı / Ad Soyad</label>
+              <input type="text" class="form-input" id="billingInvoiceTitle" maxlength="200" placeholder="Örnek Ticaret Ltd. Şti.">
+            </div>
+            <div class="form-group">
+              <label>Vergi No / T.C. Kimlik No</label>
+              <input type="text" class="form-input" id="billingTaxId" inputmode="numeric" maxlength="11" placeholder="10 veya 11 rakam">
+            </div>
+            <div id="billingInfoStatus" style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:16px;">Yükleniyor...</div>
+            <div class="btn-group" style="justify-content:flex-end;">
+              <button class="btn btn-primary" id="saveBillingInfoBtn" disabled>Fatura Bilgilerini Kaydet</button>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -1416,6 +1444,7 @@ class AdminPanel {
     const saveBtn = document.getElementById('savePlatformBtn');
     saveBtn.disabled = true;
     this.loadPlatformCredentials();
+    this.loadBillingInfo();
 
     saveBtn.addEventListener('click', async () => {
       if (!this.platformCredsLoaded) {
@@ -1465,6 +1494,49 @@ class AdminPanel {
         this.showToast('Backend bağlantı hatası', 'error');
       }
     });
+
+    document.getElementById('saveBillingInfoBtn')?.addEventListener('click', () => this.saveBillingInfo());
+  }
+
+  async loadBillingInfo() {
+    const statusEl = document.getElementById('billingInfoStatus');
+    const saveBtn = document.getElementById('saveBillingInfoBtn');
+    try {
+      const res = await fetch(`${getApiBase()}/api/admin/billing-info`, {
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Fatura bilgileri yüklenemedi');
+      document.getElementById('billingInvoiceTitle').value = data.invoiceTitle || '';
+      document.getElementById('billingTaxId').value = data.taxId || '';
+      statusEl.textContent = 'Fatura bilgileri hazır';
+      saveBtn.disabled = false;
+    } catch (err) {
+      statusEl.textContent = `⚠️ ${err.message}`;
+    }
+  }
+
+  async saveBillingInfo() {
+    const saveBtn = document.getElementById('saveBillingInfoBtn');
+    saveBtn.disabled = true;
+    try {
+      const res = await fetch(`${getApiBase()}/api/admin/billing-info`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+        body: JSON.stringify({
+          invoiceTitle: document.getElementById('billingInvoiceTitle').value.trim(),
+          taxId: document.getElementById('billingTaxId').value.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Fatura bilgileri kaydedilemedi');
+      document.getElementById('billingInfoStatus').textContent = '✅ Fatura bilgileri kaydedildi';
+      this.showToast('Fatura bilgileri kaydedildi');
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
   }
 
   async loadPlatformCredentials() {

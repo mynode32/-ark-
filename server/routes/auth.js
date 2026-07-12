@@ -71,10 +71,15 @@ function publicStore(store) {
  */
 authRouter.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { storeName, email, password } = req.body;
+    const { storeName, email, password, termsAccepted } = req.body;
 
     if (!storeName || !email || !password) {
       return res.status(400).json({ error: 'Mağaza adı, e-posta ve şifre zorunludur' });
+    }
+    if (termsAccepted !== true) {
+      return res.status(400).json({
+        error: 'Mesafeli Satış Sözleşmesi ve Kullanıcı Sözleşmesi onayı zorunludur',
+      });
     }
     if (typeof storeName !== 'string' || storeName.trim().length < 2 || storeName.length > 80) {
       return res.status(400).json({ error: 'Mağaza adı 2-80 karakter arasında olmalıdır' });

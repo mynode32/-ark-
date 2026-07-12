@@ -12,6 +12,7 @@ import {
   completeCheckoutSession,
 } from '../store.js';
 import { initializeCheckout, retrieveCheckout, PLAN_PRICING } from '../services/billing/iyzico.js';
+import { createInvoice } from '../services/invoicing/parasut.js';
 
 export const billingRouter = Router();
 
@@ -61,6 +62,11 @@ billingRouter.post('/callback', express.urlencoded({ extended: false }), asyncHa
     cardUserKey: result.cardUserKey,
     cardToken: result.cardToken,
   });
+  const store = await findStoreById(session.store_id);
+  const invoice = await createInvoice({ store, amount: result.price, planType: session.plan_type }).catch((err) => {
+    console.error('[Fatura] Paraşüt satış faturası oluşturulamadı:', err.message);
+    return { invoiceNumber: null, invoiceUrl: null };
+  });
   await recordBillingEvent({
     storeId: session.store_id,
     provider: 'iyzico',
@@ -68,6 +74,8 @@ billingRouter.post('/callback', express.urlencoded({ extended: false }), asyncHa
     amount: result.price,
     status: 'paid',
     planType: session.plan_type,
+    invoiceNumber: invoice.invoiceNumber,
+    invoiceUrl: invoice.invoiceUrl,
     // Kart tokenları billing_history.raw_payload içine düz metin yazılmaz.
     rawPayload: {
       status: result.status,

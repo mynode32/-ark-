@@ -83,12 +83,15 @@ function rowToStore(row) {
   };
 }
 
+export const CURRENT_TERMS_VERSION = '2026-07-12';
+
 export async function createStore({ slug, name, email, passwordHash, widgetConfig }) {
   const res = await query(
-    `INSERT INTO stores (slug, name, email, password_hash, widget_config)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO stores
+       (slug, name, email, password_hash, widget_config, terms_accepted_at, terms_version)
+     VALUES ($1, $2, $3, $4, $5, now(), $6)
      RETURNING *`,
-    [slug, name, email, passwordHash, JSON.stringify(widgetConfig)],
+    [slug, name, email, passwordHash, JSON.stringify(widgetConfig), CURRENT_TERMS_VERSION],
   );
   return rowToStore(res.rows[0]);
 }
@@ -562,4 +565,13 @@ export async function markPastDue(storeId) {
 
 export async function cancelSubscription(storeId) {
   await query("UPDATE stores SET subscription_status = 'canceled' WHERE id = $1", [storeId]);
+}
+
+export async function updateBillingInfo(storeId, { invoiceTitle, taxId }) {
+  const res = await query(
+    `UPDATE stores SET invoice_title = $2, tax_id = $3
+     WHERE id = $1 RETURNING invoice_title, tax_id`,
+    [storeId, invoiceTitle || null, taxId || null],
+  );
+  return { invoiceTitle: res.rows[0]?.invoice_title || '', taxId: res.rows[0]?.tax_id || '' };
 }

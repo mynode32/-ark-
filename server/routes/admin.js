@@ -16,6 +16,7 @@ import {
   validateDomains,
   updateAllowedDomains,
   setOnboarded,
+  updateBillingInfo,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
@@ -297,4 +298,21 @@ adminRouter.put('/domains', asyncHandler(async (req, res) => {
 adminRouter.post('/onboarding-complete', asyncHandler(async (req, res) => {
   await setOnboarded(req.storeId);
   res.json({ ok: true });
+}));
+
+adminRouter.get('/billing-info', asyncHandler(async (req, res) => {
+  const store = await findStoreById(req.storeId);
+  res.json({ invoiceTitle: store.invoiceTitle || '', taxId: store.taxId || '' });
+}));
+
+adminRouter.put('/billing-info', asyncHandler(async (req, res) => {
+  const invoiceTitle = typeof req.body.invoiceTitle === 'string' ? req.body.invoiceTitle.trim() : '';
+  const taxId = typeof req.body.taxId === 'string' ? req.body.taxId.trim() : '';
+  if (invoiceTitle.length > 200) {
+    return res.status(400).json({ error: 'Fatura unvanı en fazla 200 karakter olabilir' });
+  }
+  if (taxId && !/^\d{10,11}$/.test(taxId)) {
+    return res.status(400).json({ error: 'Vergi/T.C. kimlik numarası 10 veya 11 rakam olmalıdır' });
+  }
+  res.json(await updateBillingInfo(req.storeId, { invoiceTitle, taxId }));
 }));

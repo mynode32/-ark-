@@ -58,6 +58,12 @@ export const config = {
     secretKey: env.IYZICO_SECRET_KEY || process.env.IYZICO_SECRET_KEY || '',
     baseUrl: env.IYZICO_BASE_URL || process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com',
   },
+  parasut: {
+    clientId: env.PARASUT_CLIENT_ID || process.env.PARASUT_CLIENT_ID || '',
+    clientSecret: env.PARASUT_CLIENT_SECRET || process.env.PARASUT_CLIENT_SECRET || '',
+    companyId: env.PARASUT_COMPANY_ID || process.env.PARASUT_COMPANY_ID || '',
+    refreshToken: env.PARASUT_REFRESH_TOKEN || process.env.PARASUT_REFRESH_TOKEN || '',
+  },
   ikas: {
     // GraphQL host is shared across all stores; auth host/clientId/secret are
     // now per-store (see server/services/platforms/ikas.js) except for the

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-u6Ucn9Lv.js"></script>
+  <script type="module" crossorigin src="/assets/admin-DH-JTzs7.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/main-Bt4dk1WJ.js">
   <link rel="stylesheet" crossorigin href="/assets/main-BZ4KpAWm.css">
   <link rel="stylesheet" crossorigin href="/assets/admin-SkI7_HC8.css">
@@ -26,6 +26,16 @@
       </div>
       <input type="email" class="admin-text-input" id="authEmail" placeholder="E-posta" autocomplete="username">
       <input type="password" class="admin-text-input admin-password-input" id="authPassword" placeholder="Şifre" autocomplete="current-password">
+
+      <div id="authFieldTerms" style="display:none;margin-bottom:16px;text-align:left;">
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.5;">
+          <input type="checkbox" id="authTermsCheckbox" style="margin-top:3px;">
+          <span>
+            <a href="/terms/mesafeli-satis-sozlesmesi.html" target="_blank" rel="noopener">Mesafeli Satış Sözleşmesi</a> ve
+            <a href="/terms/kullanici-sozlesmesi.html" target="_blank" rel="noopener">Kullanıcı Sözleşmesi</a>'ni okudum, kabul ediyorum.
+          </span>
+        </label>
+      </div>
 
       <div class="admin-password-error" id="adminPasswordError"></div>
       <button class="btn btn-primary" id="authSubmitBtn" style="width:100%">Giriş Yap</button>
