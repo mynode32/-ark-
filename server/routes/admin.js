@@ -286,8 +286,8 @@ adminRouter.get('/domains', asyncHandler(async (req, res) => {
 }));
 
 adminRouter.put('/domains', asyncHandler(async (req, res) => {
-  const { domains } = req.body;
-  const error = validateDomains(domains || []);
+  const domains = req.body.domains || [];
+  const error = validateDomains(domains);
   if (error) return res.status(400).json({ error });
   res.json({ domains: await updateAllowedDomains(req.storeId, domains) });
 }));
