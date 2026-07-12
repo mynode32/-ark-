@@ -728,6 +728,58 @@ select.form-input option {
 .edit-modal-overlay.active .edit-modal {
   transform: translateY(0);
 }
+.onboarding-modal {
+  max-width: 520px;
+}
+.onboarding-modal p {
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.onboarding-modal label {
+  display: block;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.onboarding-progress {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.onboarding-progress span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 700;
+}
+.onboarding-progress span.active {
+  background: #ffd700;
+  color: #111;
+}
+.onboarding-colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.onboarding-colors input[type='color'] {
+  display: block;
+  width: 100%;
+  height: 52px;
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+#onboardingStep3 .btn {
+  margin-right: 8px;
+}
 .edit-modal h3 {
   font-family: 'Outfit';
   font-size: 24px;

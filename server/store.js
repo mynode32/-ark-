@@ -471,3 +471,7 @@ export async function updateStorePassword(storeId, passwordHash) {
 export async function markEmailVerified(storeId) {
   await query('UPDATE stores SET email_verified_at = now() WHERE id = $1', [storeId]);
 }
+
+export async function setOnboarded(storeId) {
+  await query('UPDATE stores SET is_onboarded = true WHERE id = $1', [storeId]);
+}

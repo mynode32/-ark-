@@ -49,8 +49,12 @@ class AdminPanel {
         if (res.ok) {
           const data = await res.json();
           this.store = data.store;
+          if (!this.store.isOnboarded) {
+            this.showOnboarding();
+            return;
+          }
           this.showContent();
-          this.loadFromBackend();
+          await this.loadFromBackend();
           return;
         }
       } catch {
@@ -160,8 +164,12 @@ class AdminPanel {
         }
         localStorage.setItem('cark_admin_token', data.token);
         this.store = data.store;
+        if (!this.store.isOnboarded) {
+          this.showOnboarding();
+          return;
+        }
         this.showContent();
-        this.loadFromBackend();
+        await this.loadFromBackend();
       } catch {
         showError('Backend bağlantı hatası');
       } finally {
@@ -183,6 +191,88 @@ class AdminPanel {
     this.store = null;
     document.getElementById('adminContent').style.display = 'none';
     this.showAuthForm('login');
+  }
+
+  async onboardingRequest(method, path, body = {}) {
+    const res = await fetch(`${getApiBase()}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'İşlem tamamlanamadı');
+    }
+    return data;
+  }
+
+  showOnboarding() {
+    document.getElementById('adminPasswordOverlay').style.display = 'none';
+    document.getElementById('adminContent').style.display = 'none';
+    const overlay = document.getElementById('onboardingOverlay');
+    const errorEl = document.getElementById('onboardingError');
+    overlay.classList.add('active');
+    overlay.querySelector('.edit-modal')?.focus();
+
+    const showError = (message = '') => {
+      errorEl.textContent = message;
+      errorEl.style.display = message ? 'block' : 'none';
+    };
+    const showStep = (step) => {
+      for (let i = 1; i <= 3; i += 1) {
+        document.getElementById(`onboardingStep${i}`).style.display = i === step ? 'block' : 'none';
+        document.querySelector(`[data-onboarding-progress="${i}"]`)?.classList.toggle('active', i <= step);
+      }
+      showError();
+    };
+    const runButtonAction = async (button, action) => {
+      button.disabled = true;
+      showError();
+      try {
+        await action();
+      } catch (err) {
+        showError(err.message || 'Backend bağlantı hatası');
+      } finally {
+        button.disabled = false;
+      }
+    };
+
+    showStep(1);
+    const step1Button = document.getElementById('onboardingStep1Next');
+    step1Button.onclick = () => runButtonAction(step1Button, async () => {
+      const domain = document.getElementById('onboardingDomain').value.trim();
+      if (!domain) throw new Error('Lütfen mağazanızın domainini girin');
+      await this.onboardingRequest('PUT', '/api/admin/domains', { domains: [domain] });
+      showStep(2);
+    });
+
+    const step2Button = document.getElementById('onboardingStep2Next');
+    step2Button.onclick = () => runButtonAction(step2Button, async () => {
+      const primaryColor = document.getElementById('onboardingPrimaryColor').value;
+      const pointerColor = document.getElementById('onboardingPointerColor').value;
+      await this.onboardingRequest('PUT', '/api/admin/config', { theme: { primaryColor, pointerColor } });
+      this.config.theme = { ...this.config.theme, primaryColor, pointerColor };
+      document.getElementById('onboardingEmbedCode').value = generateEmbedCode(this.config, getApiBase(), this.store?.slug);
+      showStep(3);
+    });
+
+    document.getElementById('onboardingCopyEmbed').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(document.getElementById('onboardingEmbedCode').value);
+        this.showToast('Embed kodu kopyalandı');
+      } catch {
+        showError('Kod kopyalanamadı; metni seçip elle kopyalayabilirsiniz');
+      }
+    };
+
+    const finishButton = document.getElementById('onboardingFinish');
+    finishButton.onclick = () => runButtonAction(finishButton, async () => {
+      await this.onboardingRequest('POST', '/api/admin/onboarding-complete');
+      this.store.isOnboarded = true;
+      overlay.classList.remove('active');
+      this.showContent();
+      await this.loadFromBackend();
+    });
   }
 
   async loadFromBackend() {

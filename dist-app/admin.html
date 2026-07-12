@@ -8,10 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-DUylcv3i.js"></script>
+  <script type="module" crossorigin src="/assets/admin-u6Ucn9Lv.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/main-Bt4dk1WJ.js">
   <link rel="stylesheet" crossorigin href="/assets/main-BZ4KpAWm.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-DjZUwvTB.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-SkI7_HC8.css">
 </head>
 <body>
   <!-- Auth -->
@@ -22,10 +22,10 @@
       <p id="authSubtitle">Mağazanızın admin paneline giriş yapın</p>
 
       <div id="authFieldStoreName" style="display:none">
-        <input type="text" class="admin-password-input" id="authStoreName" placeholder="Mağaza Adı" autocomplete="off">
+        <input type="text" class="admin-text-input" id="authStoreName" placeholder="Mağaza Adı" autocomplete="off">
       </div>
-      <input type="email" class="admin-password-input" id="authEmail" placeholder="E-posta" autocomplete="username">
-      <input type="password" class="admin-password-input" id="authPassword" placeholder="Şifre" autocomplete="current-password">
+      <input type="email" class="admin-text-input" id="authEmail" placeholder="E-posta" autocomplete="username">
+      <input type="password" class="admin-text-input admin-password-input" id="authPassword" placeholder="Şifre" autocomplete="current-password">
 
       <div class="admin-password-error" id="adminPasswordError"></div>
       <button class="btn btn-primary" id="authSubmitBtn" style="width:100%">Giriş Yap</button>
@@ -37,16 +37,48 @@
     </div>
   </div>
 
+  <div id="onboardingOverlay" class="edit-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+    <div class="edit-modal onboarding-modal" tabindex="-1">
+      <h3 id="onboardingTitle">🚀 Kurulumu Tamamla</h3>
+      <div class="onboarding-progress" aria-label="Kurulum ilerlemesi">
+        <span class="active" data-onboarding-progress="1">1</span>
+        <span data-onboarding-progress="2">2</span>
+        <span data-onboarding-progress="3">3</span>
+      </div>
+      <div id="onboardingError" class="admin-password-error" role="alert"></div>
+      <div id="onboardingStep1">
+        <p>1/3 — Çarkı hangi sitede kullanacaksınız?</p>
+        <label for="onboardingDomain">Mağaza domaini</label>
+        <input type="text" class="admin-text-input" id="onboardingDomain" placeholder="ornek.com" autocomplete="url">
+        <button class="btn btn-primary" id="onboardingStep1Next">Devam Et</button>
+      </div>
+      <div id="onboardingStep2" style="display:none">
+        <p>2/3 — Çark renklerini seçin</p>
+        <div class="onboarding-colors">
+          <label>Ana renk <input type="color" id="onboardingPrimaryColor" value="#FFD700"></label>
+          <label>İşaretçi <input type="color" id="onboardingPointerColor" value="#FF4757"></label>
+        </div>
+        <button class="btn btn-primary" id="onboardingStep2Next">Devam Et</button>
+      </div>
+      <div id="onboardingStep3" style="display:none">
+        <p>3/3 — Bu kodu sitenizde <code>&lt;/body&gt;</code> etiketinden önce ekleyin.</p>
+        <textarea id="onboardingEmbedCode" class="admin-text-input" rows="8" readonly></textarea>
+        <button class="btn btn-secondary" id="onboardingCopyEmbed">Kodu Kopyala</button>
+        <button class="btn btn-primary" id="onboardingFinish">Kurulumu Tamamla</button>
+      </div>
+    </div>
+  </div>
+
   <div class="admin-container" id="adminContent" style="display:none">
     <header class="admin-header">
       <div class="admin-logo">🎡 Çark Admin <span id="adminStoreName" style="font-size:13px;font-weight:400;opacity:0.6;"></span></div>
       <nav class="admin-nav">
-        <a class="active" data-tab="settings">⚙️ Çark Ayarları</a>
-        <a data-tab="appearance">🎨 Görünüm</a>
-        <a data-tab="entries">👥 Katılımcılar</a>
-        <a data-tab="integration">🔌 Entegrasyon</a>
+        <a href="#" class="active" data-tab="settings" aria-current="page">⚙️ Çark Ayarları</a>
+        <a href="#" data-tab="appearance">🎨 Görünüm</a>
+        <a href="#" data-tab="entries">👥 Katılımcılar</a>
+        <a href="#" data-tab="integration">🔌 Entegrasyon</a>
       </nav>
-      <button id="logoutBtn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;">Çıkış Yap</button>
+      <button id="logoutBtn" class="btn btn-ghost" style="padding:8px 16px;font-size:13px;">Çıkış Yap</button>
     </header>
     <main id="admin-main">
       <!-- Tabs will be rendered here by admin.js -->
@@ -56,9 +88,9 @@
   <div class="toast" id="toast">✅ Kaydedildi</div>
   
   <div class="edit-modal-overlay" id="editModal">
-    <div class="edit-modal">
+    <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" tabindex="-1">
       <h3>
-        <span>✏️ Dilim Düzenle</span>
+        <span id="editModalTitle">✏️ Dilim Düzenle</span>
         <button class="close-modal-btn" id="closeModalBtn">&times;</button>
       </h3>
       <div id="editModalContent"></div>
@@ -66,9 +98,9 @@
   </div>
 
   <div class="edit-modal-overlay" id="kvkkPreviewModal">
-    <div class="edit-modal kvkk-preview-modal">
+    <div class="edit-modal kvkk-preview-modal" role="dialog" aria-modal="true" aria-labelledby="kvkkPreviewModalTitle" tabindex="-1">
       <h3>
-        <span>👁️ Müşterinin Göreceği Metin</span>
+        <span id="kvkkPreviewModalTitle">👁️ Müşterinin Göreceği Metin</span>
         <button class="close-modal-btn" id="closeKvkkPreviewBtn">&times;</button>
       </h3>
       <div class="kvkk-preview-text" id="kvkkPreviewText"></div>

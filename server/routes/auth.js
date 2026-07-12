@@ -52,7 +52,16 @@ function signToken(store) {
 }
 
 function publicStore(store) {
-  return { id: store.id, slug: store.slug, name: store.name, email: store.email };
+  return {
+    id: store.id,
+    slug: store.slug,
+    name: store.name,
+    email: store.email,
+    isOnboarded: store.isOnboarded,
+    planType: store.planType,
+    subscriptionStatus: store.subscriptionStatus,
+    emailVerifiedAt: store.emailVerifiedAt,
+  };
 }
 
 /**

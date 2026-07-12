@@ -15,6 +15,7 @@ import {
   findStoreById,
   validateDomains,
   updateAllowedDomains,
+  setOnboarded,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
@@ -288,4 +289,12 @@ adminRouter.put('/domains', asyncHandler(async (req, res) => {
   const error = validateDomains(domains || []);
   if (error) return res.status(400).json({ error });
   res.json({ domains: await updateAllowedDomains(req.storeId, domains) });
+}));
+
+/**
+ * POST /api/admin/onboarding-complete
+ */
+adminRouter.post('/onboarding-complete', asyncHandler(async (req, res) => {
+  await setOnboarded(req.storeId);
+  res.json({ ok: true });
 }));
