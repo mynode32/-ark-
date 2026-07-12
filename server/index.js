@@ -23,6 +23,9 @@ app.use(express.json({ limit: '256kb' }));
 
 // MyStore satış sitesi ayrı bir statik servise/özel domaine taşınana kadar
 // aynı backend üzerinden /mystore altında canlı önizleme sunar.
+app.get(['/mystore/panel', '/mystore/panel/'], (req, res) => {
+  res.sendFile(resolve(__dirname, '..', 'dist-app', 'admin.html'));
+});
 app.use('/mystore', express.static(resolve(__dirname, '..', 'website', 'public')));
 app.use('/legal', express.static(resolve(__dirname, '..', 'website', 'public', 'legal')));
 

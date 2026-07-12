@@ -25,15 +25,15 @@
         <a href="#product">Ürün</a><a href="#how">Nasıl çalışır?</a><a href="#pricing">Planlar</a><a href="#faq">SS</a>
       </nav>
       <div class="nav-actions">
-        <a class="text-link desktop-only" data-app-link="login" href="https://cark-backend.onrender.com/admin.html">Giriş Yap</a>
-        <a class="button button-small desktop-only" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a>
+        <a class="text-link desktop-only" data-app-link="login" href="https://cark-backend.onrender.com/mystore/panel">Giriş Yap</a>
+        <a class="button button-small desktop-only" data-app-link="register" href="https://cark-backend.onrender.com/mystore/panel?mode=register">Ücretsiz Başla</a>
         <button class="menu-button" id="menuButton" type="button" aria-expanded="false" aria-controls="mobileMenu" aria-label="Menüyü aç"><span></span><span></span><span></span></button>
       </div>
     </div>
     <nav class="mobile-nav" id="mobileMenu" aria-label="Mobil menü" hidden>
       <a href="#product">Ürün</a><a href="#how">Nasıl çalışır?</a><a href="#pricing">Planlar</a><a href="#faq">SSS</a>
-      <a data-app-link="login" href="https://cark-backend.onrender.com/admin.html">Giriş Yap</a>
-      <a data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a>
+      <a data-app-link="login" href="https://cark-backend.onrender.com/mystore/panel">Giriş Yap</a>
+      <a data-app-link="register" href="https://cark-backend.onrender.com/mystore/panel?mode=register">Ücretsiz Başla</a>
     </nav>
   </header>
 
@@ -45,7 +45,7 @@
           <h1>E-ticaret sitenize dakikalar içinde kurulan, <em>markanıza özel</em> Şans Çarkı.</h1>
           <p class="hero-text">Ziyaretçilerinizi kampanyaya dahil edin, kuponlarınızı yönetin ve katılımları tek panelden takip edin.</p>
           <div class="hero-actions">
-            <a class="button" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Çarkını Oluştur</a>
+            <a class="button" data-app-link="register" href="https://cark-backend.onrender.com/mystore/panel?mode=register">Ücretsiz Çarkını Oluştur</a>
             <a class="button button-ghost" href="#how">Nasıl çalıştığını gör</a>
           </div>
           <ul class="hero-points" aria-label="Ürün avantajları"><li>Kredi kartı gerekmez</li><li>Teknik bilgi gerekmez</li><li>Her siteye eklenir</li></ul>
@@ -99,8 +99,8 @@
       <div class="container">
         <div class="section-heading"><p class="eyebrow">ŞEFFAF BAŞLANGIÇ</p><h2>Önce deneyin, ihtiyacınız artınca yükseltin</h2><p>Pro fiyatı lansman öncesi örnek değerdir ve ödeme sistemi açılmadan önce kesinleştirilecektir.</p></div>
         <div class="price-grid">
-          <article class="price-card"><p>Ücretsiz</p><h3>₺0</h3><span>Başlangıç için</span><ul><li>Aylık 100 katılım</li><li>Domain güvenliği</li><li>Katılımcı paneli</li><li>Manuel kupon kullanımı</li></ul><a class="button button-ghost" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a></article>
-          <article class="price-card featured"><div class="badge">Lansman planı</div><p>Pro</p><h3>₺799<small>/ay</small></h3><span>Aktif mağazalar için</span><ul><li>Aylık 2.000 katılım</li><li>İkas entegrasyonu</li><li>Gelişmiş tema ayarları</li><li>Öncelikli destek hedefi</li></ul><a class="button" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Deneyin</a></article>
+          <article class="price-card"><p>Ücretsiz</p><h3>₺0</h3><span>Başlangıç için</span><ul><li>Aylık 100 katılım</li><li>Domain güvenliği</li><li>Katılımcı paneli</li><li>Manuel kupon kullanımı</li></ul><a class="button button-ghost" data-app-link="register" href="https://cark-backend.onrender.com/mystore/panel?mode=register">Ücretsiz Başla</a></article>
+          <article class="price-card featured"><div class="badge">Lansman planı</div><p>Pro</p><h3>₺799<small>/ay</small></h3><span>Aktif mağazalar için</span><ul><li>Aylık 2.000 katılım</li><li>İkas entegrasyonu</li><li>Gelişmiş tema ayarları</li><li>Öncelikli destek hedefi</li></ul><a class="button" data-app-link="register" href="https://cark-backend.onrender.com/mystore/panel?mode=register">Ücretsiz Deneyin</a></article>
         </div>
       </div>
     </section>
@@ -133,7 +133,7 @@
 
   <script>
     const local = ['localhost', '127.0.0.1'].includes(location.hostname);
-    const appUrl = window.MYSTORE_APP_URL || (local ? 'http://localhost:3001/admin.html' : 'https://cark-backend.onrender.com/admin.html');
+    const appUrl = window.MYSTORE_APP_URL || (local ? 'http://localhost:3001/mystore/panel' : 'https://cark-backend.onrender.com/mystore/panel');
     const apiUrl = window.MYSTORE_API_URL || (local ? 'http://localhost:3001' : 'https://cark-backend.onrender.com');
     document.querySelectorAll('[data-app-link="login"]').forEach((a) => { a.href = appUrl; });
     document.querySelectorAll('[data-app-link="register"]').forEach((a) => { a.href = `${appUrl}?mode=register`; });

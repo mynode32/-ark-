@@ -1,128 +1,97 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Çark Widget - Admin Panel</title>
-  <meta name="description" content="Çark widget yönetim paneli - dilimleri, ayarları ve katılımcıları yönetin">
+  <title>MyStore Çark | Yönetim Paneli</title>
+  <meta name="description" content="MyStore Çark kampanyanızı, ödüllerinizi ve katılımcılarınızı yönetin.">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="/mystore/assets/logo-mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/styles/admin.css">
 </head>
 <body>
-  <!-- Auth -->
   <div class="admin-password-overlay" id="adminPasswordOverlay">
-    <div class="admin-password-box">
-      <div class="admin-password-icon">🔒</div>
-      <h2 id="authTitle">Giriş Yap</h2>
-      <p id="authSubtitle">Mağazanızın admin paneline giriş yapın</p>
-
-      <div id="authFieldStoreName" style="display:none">
-        <input type="text" class="admin-text-input" id="authStoreName" placeholder="Mağaza Adı" autocomplete="off">
+    <a class="auth-brand" href="/mystore/" aria-label="MyStore ana sayfa">
+      <img src="/mystore/assets/logo-mark.svg" alt="" width="40" height="40"><span>mystore</span><small>Çark</small>
+    </a>
+    <section class="auth-showcase" aria-hidden="true">
+      <div class="auth-showcase-content">
+        <p class="auth-eyebrow">KAMPANYA MERKEZİ</p>
+        <h1>Ziyaretçiyi müşteriye dönüştüren Çark, artık tek panelde.</h1>
+        <p>Kampanyanızı tasarlayın, kuponları yönetin ve katılımları anlık takip edin.</p>
+        <div class="auth-preview-card">
+          <div><span>Bu ay</span><strong>Canlı kampanya</strong></div>
+          <div class="auth-mini-wheel"><b>ÇEVİR</b></div>
+        </div>
       </div>
-      <input type="email" class="admin-text-input" id="authEmail" placeholder="E-posta" autocomplete="username">
-      <input type="password" class="admin-text-input admin-password-input" id="authPassword" placeholder="Şifre" autocomplete="current-password">
-
-      <div id="authFieldTerms" style="display:none;margin-bottom:16px;text-align:left;">
-        <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.5;">
-          <input type="checkbox" id="authTermsCheckbox" style="margin-top:3px;">
-          <span>
-            <a href="/terms/mesafeli-satis-sozlesmesi.html" target="_blank" rel="noopener">Mesafeli Satış Sözleşmesi</a> ve
-            <a href="/terms/kullanici-sozlesmesi.html" target="_blank" rel="noopener">Kullanıcı Sözleşmesi</a>'ni okudum, kabul ediyorum.
-          </span>
-        </label>
+    </section>
+    <section class="auth-panel">
+      <div class="admin-password-box">
+        <a class="auth-back" href="/mystore/">← MyStore’a dön</a>
+        <p class="auth-kicker">MYSTORE ÇARK</p>
+        <h2 id="authTitle">Giriş Yap</h2>
+        <p id="authSubtitle">Kampanyanızı yönetmeye devam edin.</p>
+        <div id="authFieldStoreName" style="display:none"><label class="auth-label" for="authStoreName">Mağaza adı</label><input type="text" class="admin-text-input" id="authStoreName" placeholder="Mağazanız" autocomplete="organization"></div>
+        <label class="auth-label" for="authEmail">E-posta</label>
+        <input type="email" class="admin-text-input" id="authEmail" placeholder="ornek@magaza.com" autocomplete="username">
+        <label class="auth-label" for="authPassword">Şifre</label>
+        <input type="password" class="admin-text-input admin-password-input" id="authPassword" placeholder="En az 8 karakter" autocomplete="current-password">
+        <div id="authFieldTerms" class="auth-terms" style="display:none">
+          <label><input type="checkbox" id="authTermsCheckbox"><span><a href="/terms/mesafeli-satis-sozlesmesi.html" target="_blank" rel="noopener">Mesafeli Satış Sözleşmesi</a> ve <a href="/terms/kullanici-sozlesmesi.html" target="_blank" rel="noopener">Kullanıcı Sözleşmesi</a>'ni kabul ediyorum.</span></label>
+        </div>
+        <div class="admin-password-error" id="adminPasswordError"></div>
+        <button class="btn btn-primary" id="authSubmitBtn">Giriş Yap</button>
+        <div class="admin-password-hint">
+          <span id="authSwitchToRegisterWrap">Hesabınız yok mu? <a href="#" id="authSwitchToRegister">Ücretsiz hesap oluşturun</a></span>
+          <span id="authSwitchToLoginWrap" style="display:none">Zaten hesabınız var mı? <a href="#" id="authSwitchToLogin">Giriş yapın</a></span>
+        </div>
       </div>
-
-      <div class="admin-password-error" id="adminPasswordError"></div>
-      <button class="btn btn-primary" id="authSubmitBtn" style="width:100%">Giriş Yap</button>
-
-      <div class="admin-password-hint">
-        <span id="authSwitchToRegisterWrap">Hesabınız yok mu? <a href="#" id="authSwitchToRegister">Mağaza Oluştur</a></span>
-        <span id="authSwitchToLoginWrap" style="display:none">Zaten hesabınız var mı? <a href="#" id="authSwitchToLogin">Giriş Yap</a></span>
-      </div>
-    </div>
+    </section>
   </div>
 
   <div id="onboardingOverlay" class="edit-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
     <div class="edit-modal onboarding-modal" tabindex="-1">
-      <h3 id="onboardingTitle">🚀 Kurulumu Tamamla</h3>
-      <div class="onboarding-progress" aria-label="Kurulum ilerlemesi">
-        <span class="active" data-onboarding-progress="1">1</span>
-        <span data-onboarding-progress="2">2</span>
-        <span data-onboarding-progress="3">3</span>
-      </div>
+      <p class="auth-kicker">HIZLI KURULUM</p><h3 id="onboardingTitle">Çarkınızı 3 adımda hazırlayın</h3>
+      <div class="onboarding-progress" aria-label="Kurulum ilerlemesi"><span class="active" data-onboarding-progress="1">1</span><span data-onboarding-progress="2">2</span><span data-onboarding-progress="3">3</span></div>
       <div id="onboardingError" class="admin-password-error" role="alert"></div>
-      <div id="onboardingStep1">
-        <p>1/3 — Çarkı hangi sitede kullanacaksınız?</p>
-        <label for="onboardingDomain">Mağaza domaini</label>
-        <input type="text" class="admin-text-input" id="onboardingDomain" placeholder="ornek.com" autocomplete="url">
-        <button class="btn btn-primary" id="onboardingStep1Next">Devam Et</button>
-      </div>
-      <div id="onboardingStep2" style="display:none">
-        <p>2/3 — Çark renklerini seçin</p>
-        <div class="onboarding-colors">
-          <label>Ana renk <input type="color" id="onboardingPrimaryColor" value="#FFD700"></label>
-          <label>İşaretçi <input type="color" id="onboardingPointerColor" value="#FF4757"></label>
-        </div>
-        <button class="btn btn-primary" id="onboardingStep2Next">Devam Et</button>
-      </div>
-      <div id="onboardingStep3" style="display:none">
-        <p>3/3 — Bu kodu sitenizde <code>&lt;/body&gt;</code> etiketinden önce ekleyin.</p>
-        <textarea id="onboardingEmbedCode" class="admin-text-input" rows="8" readonly></textarea>
-        <button class="btn btn-secondary" id="onboardingCopyEmbed">Kodu Kopyala</button>
-        <button class="btn btn-primary" id="onboardingFinish">Kurulumu Tamamla</button>
-      </div>
+      <div id="onboardingStep1"><p>Çarkı hangi internet sitesinde kullanacaksınız?</p><label for="onboardingDomain">Mağaza domaini</label><input type="text" class="admin-text-input" id="onboardingDomain" placeholder="ornek.com" autocomplete="url"><button class="btn btn-primary" id="onboardingStep1Next">Devam Et</button></div>
+      <div id="onboardingStep2" style="display:none"><p>Markanıza uygun başlangıç renklerini seçin.</p><div class="onboarding-colors"><label>Ana renk <input type="color" id="onboardingPrimaryColor" value="#7C3AED"></label><label>İşaretçi <input type="color" id="onboardingPointerColor" value="#EC4899"></label></div><button class="btn btn-primary" id="onboardingStep2Next">Devam Et</button></div>
+      <div id="onboardingStep3" style="display:none"><p>Bu kodu sitenizde <code>&lt;/body&gt;</code> etiketinden önce ekleyin.</p><textarea id="onboardingEmbedCode" class="admin-text-input" rows="8" readonly></textarea><button class="btn btn-secondary" id="onboardingCopyEmbed">Kodu Kopyala</button><button class="btn btn-primary" id="onboardingFinish">Paneli Aç</button></div>
     </div>
   </div>
 
   <div class="admin-container" id="adminContent" style="display:none">
-    <header class="admin-header">
-      <div class="admin-logo">🎡 Çark Admin <span id="adminStoreName" style="font-size:13px;font-weight:400;opacity:0.6;"></span></div>
-      <nav class="admin-nav">
-        <a href="#" class="active" data-tab="settings" aria-current="page">⚙️ Çark Ayarları</a>
-        <a href="#" data-tab="appearance">🎨 Görünüm</a>
-        <a href="#" data-tab="entries">👥 Katılımcılar</a>
-        <a href="#" data-tab="integration">🔌 Entegrasyon</a>
+    <div class="sidebar-scrim" id="sidebarScrim"></div>
+    <aside class="admin-sidebar" id="adminSidebar">
+      <a class="panel-brand" href="/mystore/"><img src="/mystore/assets/logo-mark.svg" alt="" width="38" height="38"><span>mystore</span><small>Çark</small></a>
+      <p class="sidebar-label">KAMPANYA YÖNETİMİ</p>
+      <nav class="admin-nav" aria-label="Panel menüsü">
+        <a href="#" class="active" data-tab="settings" aria-current="page"><span class="nav-icon">⌁</span><span>Çark Ayarları</span></a>
+        <a href="#" data-tab="appearance"><span class="nav-icon">◈</span><span>Görünüm</span></a>
+        <a href="#" data-tab="entries"><span class="nav-icon">◎</span><span>Katılımcılar</span></a>
+        <a href="#" data-tab="integration"><span class="nav-icon">↗</span><span>Entegrasyon</span></a>
       </nav>
-      <button id="logoutBtn" class="btn btn-ghost" style="padding:8px 16px;font-size:13px;">Çıkış Yap</button>
-    </header>
-    <main id="admin-main">
-      <!-- Tabs will be rendered here by admin.js -->
-    </main>
-  </div>
-  
-  <div class="toast" id="toast">✅ Kaydedildi</div>
-  
-  <div class="edit-modal-overlay" id="editModal">
-    <div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" tabindex="-1">
-      <h3>
-        <span id="editModalTitle">✏️ Dilim Düzenle</span>
-        <button class="close-modal-btn" id="closeModalBtn">&times;</button>
-      </h3>
-      <div id="editModalContent"></div>
+      <div class="sidebar-help"><strong>Yardıma mı ihtiyacınız var?</strong><span>Kurulum adımlarını tekrar inceleyin.</span><a href="/mystore/#contact">Bize ulaşın →</a></div>
+      <button id="logoutBtn" class="sidebar-logout"><span>↪</span> Çıkış Yap</button>
+    </aside>
+    <div class="admin-workspace">
+      <header class="admin-header">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Menüyü aç" aria-expanded="false">☰</button>
+        <div class="panel-heading"><p>MyStore / <span id="panelBreadcrumb">Çark Ayarları</span></p><h1 id="panelTitle">Çark Ayarları</h1></div>
+        <div class="panel-actions"><a id="demoLink" class="btn btn-secondary" href="index.html">Çarkı Önizle ↗</a><div class="store-avatar" id="storeAvatar">M</div><div class="store-identity"><strong id="adminStoreName">Mağazanız</strong><span>Ücretsiz plan</span></div></div>
+      </header>
+      <main id="admin-main"></main>
+      <footer class="panel-footer"><span>© <span id="panelYear"></span> MyStore Çark</span><a href="/mystore/">Satış sitesine dön</a></footer>
     </div>
   </div>
 
-  <div class="edit-modal-overlay" id="kvkkPreviewModal">
-    <div class="edit-modal kvkk-preview-modal" role="dialog" aria-modal="true" aria-labelledby="kvkkPreviewModalTitle" tabindex="-1">
-      <h3>
-        <span id="kvkkPreviewModalTitle">👁️ Müşterinin Göreceği Metin</span>
-        <button class="close-modal-btn" id="closeKvkkPreviewBtn">&times;</button>
-      </h3>
-      <div class="kvkk-preview-text" id="kvkkPreviewText"></div>
-    </div>
-  </div>
-
-  <a href="index.html" id="demoLink" style="position:fixed;bottom:20px;left:20px;padding:12px 24px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#fff;text-decoration:none;font-size:14px;backdrop-filter:blur(10px);transition:all 0.3s;z-index:100;display:flex;align-items:center;gap:8px;">
-    <span>←</span> Demo Sayfası
-  </a>
-
-  <script>
-    // ?apiUrl=http://localhost:3001 ile yerel/farklı bir backend'e bağlanmayı test etmek için
-    var _apiUrl = new URLSearchParams(location.search).get('apiUrl');
-    if (_apiUrl) window.CARK_API_URL = _apiUrl;
-  </script>
+  <div class="toast" id="toast">Kaydedildi</div>
+  <div class="edit-modal-overlay" id="editModal"><div class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" tabindex="-1"><h3><span id="editModalTitle">Dilim Düzenle</span><button class="close-modal-btn" id="closeModalBtn">&times;</button></h3><div id="editModalContent"></div></div></div>
+  <div class="edit-modal-overlay" id="kvkkPreviewModal"><div class="edit-modal kvkk-preview-modal" role="dialog" aria-modal="true" aria-labelledby="kvkkPreviewModalTitle" tabindex="-1"><h3><span id="kvkkPreviewModalTitle">Müşterinin Göreceği Metin</span><button class="close-modal-btn" id="closeKvkkPreviewBtn">&times;</button></h3><div class="kvkk-preview-text" id="kvkkPreviewText"></div></div></div>
+  <script>var _apiUrl=new URLSearchParams(location.search).get('apiUrl');if(_apiUrl)window.CARK_API_URL=_apiUrl;</script>
   <script type="module" src="/src/admin.js"></script>
 </body>
 </html>

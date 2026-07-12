@@ -78,8 +78,11 @@ class AdminPanel {
     }
     const nameEl = document.getElementById('adminStoreName');
     if (nameEl && this.store) {
-      nameEl.textContent = `— ${this.store.name}`;
+      nameEl.textContent = this.store.name;
     }
+    const avatar = document.getElementById('storeAvatar');
+    if (avatar && this.store) avatar.textContent = this.store.name.trim().charAt(0).toLocaleUpperCase('tr-TR') || 'M';
+    document.getElementById('panelYear').textContent = new Date().getFullYear();
     // "Demo Sayfası" linki mağaza slug'ı olmadan gerçek kayıtlı ayarları değil,
     // sabit örnek konfigürasyonu gösteriyordu — kendi mağazasının canlı config'ini
     // görebilsin diye slug/apiUrl'i query string'e ekliyoruz.
@@ -88,6 +91,21 @@ class AdminPanel {
       demoLink.href = `index.html?storeSlug=${encodeURIComponent(this.store.slug)}&apiUrl=${encodeURIComponent(getApiBase())}`;
     }
     document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
+    const sidebar = document.getElementById('adminSidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarScrim = document.getElementById('sidebarScrim');
+    const closeSidebar = () => {
+      sidebar?.classList.remove('open');
+      sidebarScrim?.classList.remove('show');
+      sidebarToggle?.setAttribute('aria-expanded', 'false');
+    };
+    sidebarToggle?.addEventListener('click', () => {
+      const open = !sidebar?.classList.contains('open');
+      sidebar?.classList.toggle('open', open);
+      sidebarScrim?.classList.toggle('show', open);
+      sidebarToggle.setAttribute('aria-expanded', String(open));
+    });
+    sidebarScrim?.addEventListener('click', closeSidebar);
 
     this.setupTabs();
     this.setupModalEscapeHandling();
@@ -303,6 +321,12 @@ class AdminPanel {
   }
 
   setupTabs() {
+    const tabTitles = {
+      settings: 'Çark Ayarları',
+      appearance: 'Görünüm',
+      entries: 'Katılımcılar',
+      integration: 'Entegrasyon',
+    };
     document.querySelectorAll('.admin-nav a').forEach((tab) => {
       tab.addEventListener('click', (e) => {
         e.preventDefault();
@@ -313,9 +337,16 @@ class AdminPanel {
           t.classList.remove('active');
           t.removeAttribute('aria-current');
         });
-        e.target.classList.add('active');
-        e.target.setAttribute('aria-current', 'page');
-        this.currentTab = e.target.dataset.tab;
+        const selectedTab = e.currentTarget;
+        selectedTab.classList.add('active');
+        selectedTab.setAttribute('aria-current', 'page');
+        this.currentTab = selectedTab.dataset.tab;
+        const title = tabTitles[this.currentTab] || 'Yönetim Paneli';
+        document.getElementById('panelTitle').textContent = title;
+        document.getElementById('panelBreadcrumb').textContent = title;
+        document.getElementById('adminSidebar')?.classList.remove('open');
+        document.getElementById('sidebarScrim')?.classList.remove('show');
+        document.getElementById('sidebarToggle')?.setAttribute('aria-expanded', 'false');
         this.render();
       });
     });
