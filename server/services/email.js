@@ -15,12 +15,12 @@ async function send({ to, subject, html }) {
 }
 
 export function sendVerificationEmail(store, token) {
-  const url = `${config.appBaseUrl}/admin.html?verifyToken=${token}`;
+  const url = `${config.appBaseUrl}/mystore/panel?verifyToken=${token}`;
   return send({ to: store.email, subject: 'Çark hesabınızı doğrulayın', html: `<p>Merhaba ${store.name},</p><p>Hesabınızı doğrulamak için <a href="${url}">buraya tıklayın</a>. Bağlantı 24 saat geçerlidir.</p>` });
 }
 
 export function sendPasswordResetEmail(store, token) {
-  const url = `${config.appBaseUrl}/admin.html?resetToken=${token}`;
+  const url = `${config.appBaseUrl}/mystore/panel?resetToken=${token}`;
   return send({ to: store.email, subject: 'Çark şifre sıfırlama', html: `<p>Merhaba ${store.name},</p><p>Şifrenizi sıfırlamak için <a href="${url}">buraya tıklayın</a>. Bağlantı 1 saat geçerlidir. Bu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz.</p>` });
 }
 

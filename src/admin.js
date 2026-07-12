@@ -18,7 +18,17 @@ function getApiBase() {
 }
 
 function authToken() {
-  return localStorage.getItem('cark_admin_token') || '';
+  return localStorage.getItem('cark_admin_token') || sessionStorage.getItem('cark_admin_token') || '';
+}
+
+function clearAuthToken() {
+  localStorage.removeItem('cark_admin_token');
+  sessionStorage.removeItem('cark_admin_token');
+}
+
+function saveAuthToken(token, remember) {
+  clearAuthToken();
+  (remember ? localStorage : sessionStorage).setItem('cark_admin_token', token);
 }
 
 const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -39,6 +49,17 @@ class AdminPanel {
   }
 
   async init() {
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get('resetToken');
+    if (resetToken) {
+      this.showResetPasswordForm(resetToken);
+      return;
+    }
+    const verifyToken = params.get('verifyToken');
+    if (verifyToken) {
+      await this.verifyEmail(verifyToken);
+      return;
+    }
     const token = authToken();
     if (token) {
       const base = getApiBase();
@@ -60,7 +81,7 @@ class AdminPanel {
       } catch {
         /* ignore, falls through to auth form */
       }
-      localStorage.removeItem('cark_admin_token');
+      clearAuthToken();
     }
 
     const requestedMode = new URLSearchParams(window.location.search).get('mode');
@@ -88,7 +109,7 @@ class AdminPanel {
     // görebilsin diye slug/apiUrl'i query string'e ekliyoruz.
     const demoLink = document.getElementById('demoLink');
     if (demoLink && this.store) {
-      demoLink.href = `index.html?storeSlug=${encodeURIComponent(this.store.slug)}&apiUrl=${encodeURIComponent(getApiBase())}`;
+      demoLink.href = `/index.html?storeSlug=${encodeURIComponent(this.store.slug)}&apiUrl=${encodeURIComponent(getApiBase())}`;
     }
     document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
     const sidebar = document.getElementById('adminSidebar');
@@ -118,7 +139,10 @@ class AdminPanel {
     if (!overlay) {
       return;
     }
-    overlay.style.display = 'flex';
+    overlay.style.display = 'grid';
+    document.getElementById('authMainView').style.display = 'block';
+    document.getElementById('forgotPasswordView').style.display = 'none';
+    document.getElementById('resetPasswordView').style.display = 'none';
 
     const title = document.getElementById('authTitle');
     const subtitle = document.getElementById('authSubtitle');
@@ -129,9 +153,11 @@ class AdminPanel {
     const termsWrap = document.getElementById('authFieldTerms');
     const termsCheckbox = document.getElementById('authTermsCheckbox');
     const error = document.getElementById('adminPasswordError');
+    error.classList.remove('success');
     const btn = document.getElementById('authSubmitBtn');
     const toRegisterWrap = document.getElementById('authSwitchToRegisterWrap');
     const toLoginWrap = document.getElementById('authSwitchToLoginWrap');
+    const loginOptions = document.getElementById('authLoginOptions');
 
     const isRegister = mode === 'register';
     title.textContent = isRegister ? 'Mağaza Oluştur' : 'Giriş Yap';
@@ -140,6 +166,7 @@ class AdminPanel {
       : 'Mağazanızın admin paneline giriş yapın';
     storeNameWrap.style.display = isRegister ? 'block' : 'none';
     termsWrap.style.display = isRegister ? 'block' : 'none';
+    loginOptions.style.display = isRegister ? 'none' : 'flex';
     if (!isRegister) {
       termsCheckbox.checked = false;
     }
@@ -191,7 +218,7 @@ class AdminPanel {
           showError(data.error || 'Bir hata oluştu');
           return;
         }
-        localStorage.setItem('cark_admin_token', data.token);
+        saveAuthToken(data.token, isRegister || document.getElementById('authRememberMe').checked);
         this.store = data.store;
         if (!this.store.isOnboarded) {
           this.showOnboarding();
@@ -212,11 +239,106 @@ class AdminPanel {
         submit();
       }
     };
+    document.getElementById('authPasswordToggle').onclick = () => this.togglePassword('authPassword', 'authPasswordToggle');
+    document.getElementById('authForgotPassword').onclick = (e) => {
+      e.preventDefault();
+      this.showForgotPasswordForm(emailInput.value.trim());
+    };
     (isRegister ? storeNameInput : emailInput).focus();
   }
 
+  togglePassword(inputId, buttonId) {
+    const input = document.getElementById(inputId);
+    const button = document.getElementById(buttonId);
+    const visible = input.type === 'text';
+    input.type = visible ? 'password' : 'text';
+    button.textContent = visible ? 'Göster' : 'Gizle';
+    button.setAttribute('aria-label', visible ? 'Şifreyi göster' : 'Şifreyi gizle');
+    button.setAttribute('aria-pressed', String(!visible));
+    input.focus();
+  }
+
+  showForgotPasswordForm(email = '') {
+    document.getElementById('adminPasswordOverlay').style.display = 'grid';
+    document.getElementById('authMainView').style.display = 'none';
+    document.getElementById('resetPasswordView').style.display = 'none';
+    const view = document.getElementById('forgotPasswordView');
+    view.style.display = 'block';
+    document.getElementById('authTitle').textContent = 'Şifrenizi yenileyin';
+    document.getElementById('authSubtitle').textContent = 'Güvenli bağlantıyı e-postanıza gönderelim.';
+    const emailInput = document.getElementById('forgotEmail');
+    const error = document.getElementById('forgotPasswordError');
+    const success = document.getElementById('forgotPasswordSuccess');
+    const submit = document.getElementById('forgotPasswordSubmit');
+    emailInput.value = email;
+    error.style.display = 'none'; success.style.display = 'none';
+    submit.onclick = async () => {
+      const value = emailInput.value.trim();
+      if (!value) { error.textContent = 'E-posta adresinizi girin'; error.style.display = 'block'; return; }
+      submit.disabled = true; error.style.display = 'none'; success.style.display = 'none';
+      try {
+        const res = await fetch(`${getApiBase()}/api/auth/forgot-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: value }) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Bağlantı gönderilemedi');
+        success.textContent = data.message; success.style.display = 'block';
+      } catch (err) { error.textContent = err.message; error.style.display = 'block'; }
+      finally { submit.disabled = false; }
+    };
+    document.getElementById('forgotPasswordBack').onclick = () => this.showAuthForm('login');
+    emailInput.focus();
+  }
+
+  showResetPasswordForm(token) {
+    document.getElementById('adminPasswordOverlay').style.display = 'grid';
+    document.getElementById('authMainView').style.display = 'none';
+    document.getElementById('forgotPasswordView').style.display = 'none';
+    document.getElementById('resetPasswordView').style.display = 'block';
+    document.getElementById('authTitle').textContent = 'Yeni şifre belirleyin';
+    document.getElementById('authSubtitle').textContent = 'Hesabınız için güçlü bir şifre oluşturun.';
+    const input = document.getElementById('resetPassword');
+    const error = document.getElementById('resetPasswordError');
+    const success = document.getElementById('resetPasswordSuccess');
+    const submit = document.getElementById('resetPasswordSubmit');
+    document.getElementById('resetPasswordToggle').onclick = () => this.togglePassword('resetPassword', 'resetPasswordToggle');
+    submit.onclick = async () => {
+      if (input.value.length < 8) { error.textContent = 'Şifre en az 8 karakter olmalıdır'; error.style.display = 'block'; return; }
+      submit.disabled = true; error.style.display = 'none';
+      try {
+        const res = await fetch(`${getApiBase()}/api/auth/reset-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, newPassword: input.value }) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Şifre yenilenemedi');
+        success.textContent = 'Şifreniz yenilendi. Artık giriş yapabilirsiniz.'; success.style.display = 'block';
+        submit.style.display = 'none';
+        history.replaceState({}, '', '/mystore/panel');
+      } catch (err) { error.textContent = err.message; error.style.display = 'block'; }
+      finally { submit.disabled = false; }
+    };
+    document.getElementById('resetPasswordBack').onclick = () => { history.replaceState({}, '', '/mystore/panel'); this.showAuthForm('login'); };
+    input.focus();
+  }
+
+  async verifyEmail(token) {
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/verify-email`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'E-posta doğrulanamadı');
+      history.replaceState({}, '', '/mystore/panel');
+      this.showAuthForm('login');
+      const message = document.getElementById('adminPasswordError');
+      message.classList.add('success');
+      message.textContent = 'E-posta adresiniz doğrulandı. Giriş yapabilirsiniz.';
+      message.style.display = 'block';
+    } catch (err) {
+      history.replaceState({}, '', '/mystore/panel');
+      this.showAuthForm('login');
+      const error = document.getElementById('adminPasswordError');
+      error.classList.remove('success');
+      error.textContent = err.message; error.style.display = 'block';
+    }
+  }
+
   logout() {
-    localStorage.removeItem('cark_admin_token');
+    clearAuthToken();
     this.store = null;
     document.getElementById('adminContent').style.display = 'none';
     this.showAuthForm('login');

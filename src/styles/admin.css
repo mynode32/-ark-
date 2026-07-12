@@ -883,6 +883,20 @@ textarea.admin-text-input { height: auto; padding-block: 12px; }
 .admin-password-box > .btn { width: 100%; }
 .admin-password-hint { margin-top: 22px; color: var(--panel-muted); text-align: center; }
 .admin-password-error { color: #dc2626; }
+.admin-password-error.success, .auth-success { color: #15803d; }
+.auth-success { display: none; margin: 0 0 14px; padding: 11px 13px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f0fdf4; font-size: 12px; line-height: 1.5; }
+.password-field { position: relative; }
+.password-field .admin-text-input { padding-right: 72px; }
+.password-toggle { position: absolute; top: 8px; right: 8px; height: 34px; padding: 0 10px; border: 0; border-radius: 7px; color: var(--panel-primary); background: #ede9fe; font-size: 11px; font-weight: 750; cursor: pointer; }
+.password-toggle:hover { background: #ddd6fe; }
+.auth-options { margin: -4px 0 18px; display: flex; justify-content: space-between; align-items: center; color: var(--panel-muted); font-size: 12px; }
+.auth-options label { display: flex; align-items: center; gap: 6px; }
+.auth-options input { accent-color: var(--panel-primary); }
+.auth-options a { color: var(--panel-primary); text-decoration: none; font-weight: 650; }
+.auth-secondary-view > p { margin-bottom: 25px; color: var(--panel-muted); font-size: 14px; line-height: 1.6; }
+.auth-secondary-view > .btn { width: 100%; }
+.auth-text-button { width: 100%; margin-top: 15px; padding: 8px; border: 0; color: var(--panel-muted); background: transparent; cursor: pointer; font-size: 12px; }
+.auth-text-button:hover { color: var(--panel-primary); }
 
 .admin-container { max-width: none; min-height: 100vh; margin: 0; padding: 0; }
 .admin-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 80; width: 264px; display: flex; flex-direction: column; padding: 26px 18px 18px; border-right: 1px solid #e4e0f2; background: #f7f5ff; }

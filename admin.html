@@ -34,11 +34,13 @@
         <p class="auth-kicker">MYSTORE ÇARK</p>
         <h2 id="authTitle">Giriş Yap</h2>
         <p id="authSubtitle">Kampanyanızı yönetmeye devam edin.</p>
+        <div id="authMainView">
         <div id="authFieldStoreName" style="display:none"><label class="auth-label" for="authStoreName">Mağaza adı</label><input type="text" class="admin-text-input" id="authStoreName" placeholder="Mağazanız" autocomplete="organization"></div>
         <label class="auth-label" for="authEmail">E-posta</label>
         <input type="email" class="admin-text-input" id="authEmail" placeholder="ornek@magaza.com" autocomplete="username">
         <label class="auth-label" for="authPassword">Şifre</label>
-        <input type="password" class="admin-text-input admin-password-input" id="authPassword" placeholder="En az 8 karakter" autocomplete="current-password">
+        <div class="password-field"><input type="password" class="admin-text-input admin-password-input" id="authPassword" placeholder="En az 8 karakter" autocomplete="current-password"><button type="button" class="password-toggle" id="authPasswordToggle" aria-label="Şifreyi göster" aria-pressed="false">Göster</button></div>
+        <div class="auth-options" id="authLoginOptions"><label><input type="checkbox" id="authRememberMe"> Beni hatırla</label><a href="#" id="authForgotPassword">Şifremi unuttum</a></div>
         <div id="authFieldTerms" class="auth-terms" style="display:none">
           <label><input type="checkbox" id="authTermsCheckbox"><span><a href="/terms/mesafeli-satis-sozlesmesi.html" target="_blank" rel="noopener">Mesafeli Satış Sözleşmesi</a> ve <a href="/terms/kullanici-sozlesmesi.html" target="_blank" rel="noopener">Kullanıcı Sözleşmesi</a>'ni kabul ediyorum.</span></label>
         </div>
@@ -47,6 +49,19 @@
         <div class="admin-password-hint">
           <span id="authSwitchToRegisterWrap">Hesabınız yok mu? <a href="#" id="authSwitchToRegister">Ücretsiz hesap oluşturun</a></span>
           <span id="authSwitchToLoginWrap" style="display:none">Zaten hesabınız var mı? <a href="#" id="authSwitchToLogin">Giriş yapın</a></span>
+        </div>
+        </div>
+        <div id="forgotPasswordView" class="auth-secondary-view" style="display:none">
+          <p>Hesabınızın e-posta adresini yazın. Size bir saat geçerli güvenli şifre yenileme bağlantısı gönderelim.</p>
+          <label class="auth-label" for="forgotEmail">E-posta</label><input type="email" class="admin-text-input" id="forgotEmail" placeholder="ornek@magaza.com" autocomplete="email">
+          <div class="admin-password-error" id="forgotPasswordError"></div><div class="auth-success" id="forgotPasswordSuccess"></div>
+          <button class="btn btn-primary" id="forgotPasswordSubmit">Bağlantı Gönder</button><button class="auth-text-button" id="forgotPasswordBack">← Girişe dön</button>
+        </div>
+        <div id="resetPasswordView" class="auth-secondary-view" style="display:none">
+          <p>Hesabınız için en az 8 karakterli yeni bir şifre belirleyin.</p>
+          <label class="auth-label" for="resetPassword">Yeni şifre</label><div class="password-field"><input type="password" class="admin-text-input admin-password-input" id="resetPassword" placeholder="En az 8 karakter" autocomplete="new-password"><button type="button" class="password-toggle" id="resetPasswordToggle" aria-label="Şifreyi göster" aria-pressed="false">Göster</button></div>
+          <div class="admin-password-error" id="resetPasswordError"></div><div class="auth-success" id="resetPasswordSuccess"></div>
+          <button class="btn btn-primary" id="resetPasswordSubmit">Şifreyi Yenile</button><button class="auth-text-button" id="resetPasswordBack">← Girişe dön</button>
         </div>
       </div>
     </section>
