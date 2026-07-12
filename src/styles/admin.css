@@ -1,4 +1,8 @@
 /* Base */
+:root {
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --cark-primary: #ffd700;
+}
 * {
   margin: 0;
   padding: 0;
@@ -48,23 +52,29 @@ body {
   color: rgba(255, 255, 255, 0.5);
   margin-bottom: 24px;
 }
-.admin-password-input {
+.admin-text-input {
   width: 100%;
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   color: #fff;
-  font-size: 18px;
-  text-align: center;
-  letter-spacing: 4px;
+  font-size: 15px;
   margin-bottom: 16px;
   transition: all 0.3s;
 }
-.admin-password-input:focus {
+.admin-text-input:focus {
   outline: none;
   border-color: #ffd700;
   box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+}
+/* Reserved for the password field itself: the centered, letter-spaced
+   treatment reads like a PIN/code entry, which is wrong for a full name or
+   email address (see .admin-text-input above). */
+.admin-password-input {
+  font-size: 18px;
+  text-align: center;
+  letter-spacing: 4px;
 }
 .admin-password-error {
   color: #ff4757;
@@ -75,7 +85,15 @@ body {
 .admin-password-hint {
   margin-top: 20px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.6);
+}
+.admin-password-hint a {
+  color: #ffd700;
+  text-decoration: underline;
+}
+.admin-password-hint a:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
 }
 .admin-password-hint code {
   color: rgba(255, 255, 255, 0.5);
@@ -122,6 +140,10 @@ body {
   color: #ffd700;
   background: rgba(255, 215, 0, 0.08);
   border-color: rgba(255, 215, 0, 0.2);
+}
+.admin-nav a:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
 }
 
 /* Tabs content */
@@ -189,7 +211,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   transition: all 0.3s;
-  cursor: pointer;
 }
 .segment-item:hover {
   border-color: rgba(255, 215, 0, 0.3);
@@ -220,6 +241,10 @@ body {
 .wheel-style-option.active {
   border-color: #ffd700;
   background: rgba(255, 215, 0, 0.08);
+}
+.wheel-style-option:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
 }
 .wheel-style-option .wheel-style-title {
   font-weight: 700;
@@ -455,6 +480,10 @@ select.form-input option {
   justify-content: center;
   gap: 8px;
 }
+.btn:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
+}
 .btn-primary {
   background: linear-gradient(135deg, #ffd700, #ffa502);
   color: #1a1a2e;
@@ -480,6 +509,26 @@ select.form-input option {
 }
 .btn-danger:hover {
   background: rgba(255, 71, 87, 0.25);
+}
+.btn-ghost {
+  background: none;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-decoration: none;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+#demoLink:hover,
+#demoLink:focus-visible {
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+#demoLink:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
 }
 .btn-group {
   display: flex;
@@ -624,6 +673,16 @@ select.form-input option {
   gap: 8px;
   font-weight: 500;
 }
+.toast.error {
+  background: rgba(255, 71, 87, 0.15);
+  border-color: rgba(255, 71, 87, 0.3);
+  color: #ff4757;
+}
+.toast.warning {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: rgba(255, 215, 0, 0.3);
+  color: #ffd700;
+}
 .toast.show {
   transform: translateY(0);
   opacity: 1;
@@ -661,6 +720,10 @@ select.form-input option {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   transform: translateY(20px);
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.edit-modal:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: -2px;
 }
 .edit-modal-overlay.active .edit-modal {
   transform: translateY(0);

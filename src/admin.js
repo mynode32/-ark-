@@ -34,6 +34,7 @@ class AdminPanel {
     this.currentTab = 'settings';
     this.editingSegmentId = null;
     this.authMode = 'login';
+    this.isDirty = false;
     this.init();
   }
 
@@ -84,6 +85,7 @@ class AdminPanel {
     document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
 
     this.setupTabs();
+    this.setupModalEscapeHandling();
     this.render();
   }
 
@@ -203,11 +205,63 @@ class AdminPanel {
     document.querySelectorAll('.admin-nav a').forEach((tab) => {
       tab.addEventListener('click', (e) => {
         e.preventDefault();
-        document.querySelectorAll('.admin-nav a').forEach((t) => t.classList.remove('active'));
+        if (this.isDirty && !confirm('Kaydedilmemiş değişiklikleriniz var. Sekmeden çıkarsanız kaybolacaklar. Devam edilsin mi?')) {
+          return;
+        }
+        document.querySelectorAll('.admin-nav a').forEach((t) => {
+          t.classList.remove('active');
+          t.removeAttribute('aria-current');
+        });
         e.target.classList.add('active');
+        e.target.setAttribute('aria-current', 'page');
         this.currentTab = e.target.dataset.tab;
         this.render();
       });
+    });
+  }
+
+  // Only Settings/Appearance buffer edits behind an explicit Save button, so
+  // only those two tabs can lose work on tab-switch; mark dirty on any edit
+  // to a form control or style-option card inside #admin-main. #admin-main
+  // itself survives re-renders (only its innerHTML is replaced), so these
+  // delegated listeners are attached once, not per render.
+  trackDirtyState() {
+    if (this._dirtyTrackingAttached) return;
+    this._dirtyTrackingAttached = true;
+    const main = document.getElementById('admin-main');
+    const markDirty = () => {
+      this.isDirty = true;
+    };
+    main.addEventListener('input', (e) => {
+      if (e.target.matches('input, textarea, select')) markDirty();
+    });
+    main.addEventListener('change', (e) => {
+      if (e.target.matches('input, textarea, select')) markDirty();
+    });
+    main.addEventListener('click', (e) => {
+      if (e.target.closest('.wheel-style-option')) markDirty();
+    });
+  }
+
+  // Centralizes modal open/close so focus moves into the dialog on open
+  // (screen readers announce it, keyboard users land inside it) and back to
+  // whatever triggered it on close. Escape-to-close is wired once globally.
+  openModal(overlayId) {
+    const overlay = document.getElementById(overlayId);
+    this._lastFocusedBeforeModal = document.activeElement;
+    overlay.classList.add('active');
+    overlay.querySelector('.edit-modal')?.focus();
+  }
+
+  closeModal(overlayId) {
+    document.getElementById(overlayId).classList.remove('active');
+    this._lastFocusedBeforeModal?.focus?.();
+  }
+
+  setupModalEscapeHandling() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      document.querySelectorAll('.edit-modal-overlay.active').forEach((overlay) => this.closeModal(overlay.id));
     });
   }
 
@@ -229,6 +283,8 @@ class AdminPanel {
       main.innerHTML = this.renderIntegrationTab();
       this.setupIntegrationListeners();
     }
+    this.isDirty = false;
+    this.trackDirtyState();
   }
 
   // --- Settings Tab ---
@@ -388,7 +444,7 @@ class AdminPanel {
   async testSegmentCoupon(btn) {
     const base = getApiBase();
     if (!authToken() || !base) {
-      this.showToast('Deneme çevirme sadece kayıtlı hesaplarda çalışır');
+      this.showToast('Deneme çevirme sadece kayıtlı hesaplarda çalışır', 'error');
       return;
     }
     const originalText = btn.textContent;
@@ -401,16 +457,16 @@ class AdminPanel {
       });
       const data = await res.json();
       if (!res.ok) {
-        this.showToast(data.error || 'Test başarısız oldu');
+        this.showToast(data.error || 'Test başarısız oldu', 'error');
       } else if (!data.tested) {
-        this.showToast(data.reason || 'Bu dilim test edilemez');
+        this.showToast(data.reason || 'Bu dilim test edilemez', 'warning');
       } else if (data.isLocalCoupon) {
-        this.showToast(`⚠️ İkas'a kaydedilemedi — bu dilim müşteride reddedilecek kod üretir (${data.couponCode})`);
+        this.showToast(`İkas'a kaydedilemedi — bu dilim müşteride reddedilecek kod üretir (${data.couponCode})`, 'warning');
       } else {
-        this.showToast(`✓ Kupon başarıyla oluşturuldu: ${data.couponCode}`);
+        this.showToast(`Kupon başarıyla oluşturuldu: ${data.couponCode}`);
       }
     } catch {
-      this.showToast('Backend bağlantı hatası');
+      this.showToast('Backend bağlantı hatası', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -510,16 +566,12 @@ class AdminPanel {
       const text = document.getElementById('setting-kvkkFullText').value.trim();
       const previewEl = document.getElementById('kvkkPreviewText');
       previewEl.textContent = text || 'Bu alan boş bırakılırsa "Aydınlatma Metnini Oku" linki müşteriye hiç gösterilmez.';
-      document.getElementById('kvkkPreviewModal').classList.add('active');
+      this.openModal('kvkkPreviewModal');
     });
 
-    document
-      .getElementById('closeKvkkPreviewBtn')
-      .addEventListener('click', () => document.getElementById('kvkkPreviewModal').classList.remove('active'));
+    document.getElementById('closeKvkkPreviewBtn').addEventListener('click', () => this.closeModal('kvkkPreviewModal'));
 
-    document
-      .getElementById('closeModalBtn')
-      .addEventListener('click', () => document.getElementById('editModal').classList.remove('active'));
+    document.getElementById('closeModalBtn').addEventListener('click', () => this.closeModal('editModal'));
   }
 
   async saveAndRender(payload) {
@@ -527,7 +579,7 @@ class AdminPanel {
     saveConfigToLocal(this.config);
     const ok = await this.saveConfigToBackend(payload);
     this.render();
-    this.showToast(ok ? "Backend'e kaydedildi" : 'Backend yok, lokal kaydedildi');
+    this.showToast(ok ? "Backend'e kaydedildi" : 'Backend yok, lokal kaydedildi', ok ? 'success' : 'warning');
   }
 
   // --- Appearance Tab ---
@@ -542,12 +594,12 @@ class AdminPanel {
           <div>
             <div class="admin-card" style="margin-bottom: 24px;">
               <h3>🎯 Çark Stili</h3>
-              <div class="wheel-style-options" id="wheelStyleOptions">
-                <div class="wheel-style-option ${theme.wheelStyle !== 'standard' ? 'active' : ''}" data-style="premium">
+              <div class="wheel-style-options" id="wheelStyleOptions" role="radiogroup" aria-label="Çark Stili">
+                <div class="wheel-style-option ${theme.wheelStyle !== 'standard' ? 'active' : ''}" data-style="premium" role="radio" tabindex="0" aria-checked="${theme.wheelStyle !== 'standard'}">
                   <div class="wheel-style-title">✨ Premium</div>
                   <div class="wheel-style-desc">Metalik, parlayan, ışıklı çark</div>
                 </div>
-                <div class="wheel-style-option ${theme.wheelStyle === 'standard' ? 'active' : ''}" data-style="standard">
+                <div class="wheel-style-option ${theme.wheelStyle === 'standard' ? 'active' : ''}" data-style="standard" role="radio" tabindex="0" aria-checked="${theme.wheelStyle === 'standard'}">
                   <div class="wheel-style-title">⚪ Standart</div>
                   <div class="wheel-style-desc">Sade, düz renkli, minimalist çark</div>
                 </div>
@@ -556,12 +608,12 @@ class AdminPanel {
 
             <div class="admin-card" style="margin-bottom: 24px;">
               <h3>📍 Ok Konumu</h3>
-              <div class="wheel-style-options" id="pointerStyleOptions">
-                <div class="wheel-style-option ${theme.pointerStyle !== 'center' ? 'active' : ''}" data-pointer-style="top">
+              <div class="wheel-style-options" id="pointerStyleOptions" role="radiogroup" aria-label="Ok Konumu">
+                <div class="wheel-style-option ${theme.pointerStyle !== 'center' ? 'active' : ''}" data-pointer-style="top" role="radio" tabindex="0" aria-checked="${theme.pointerStyle !== 'center'}">
                   <div class="wheel-style-title">⬆️ Üstte</div>
                   <div class="wheel-style-desc">Ok, çarkın üst kenarında sabit durur</div>
                 </div>
-                <div class="wheel-style-option ${theme.pointerStyle === 'center' ? 'active' : ''}" data-pointer-style="center">
+                <div class="wheel-style-option ${theme.pointerStyle === 'center' ? 'active' : ''}" data-pointer-style="center" role="radio" tabindex="0" aria-checked="${theme.pointerStyle === 'center'}">
                   <div class="wheel-style-title">🎯 Ortada</div>
                   <div class="wheel-style-desc">Ok, çarkın merkezindeki göbeğe bitişik durur</div>
                 </div>
@@ -662,21 +714,8 @@ class AdminPanel {
   }
 
   setupAppearanceListeners() {
-    document.getElementById('wheelStyleOptions').addEventListener('click', (e) => {
-      const option = e.target.closest('.wheel-style-option');
-      if (!option) return;
-      document.querySelectorAll('#wheelStyleOptions .wheel-style-option').forEach((el) => el.classList.remove('active'));
-      option.classList.add('active');
-      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
-    });
-
-    document.getElementById('pointerStyleOptions').addEventListener('click', (e) => {
-      const option = e.target.closest('.wheel-style-option');
-      if (!option) return;
-      document.querySelectorAll('#pointerStyleOptions .wheel-style-option').forEach((el) => el.classList.remove('active'));
-      option.classList.add('active');
-      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
-    });
+    this.setupStyleOptionGroup('wheelStyleOptions');
+    this.setupStyleOptionGroup('pointerStyleOptions');
 
     const autoCheckbox = document.getElementById('theme-autoSiteTheme');
     const manualBgColors = document.getElementById('manualBgColors');
@@ -705,6 +744,33 @@ class AdminPanel {
     document.getElementById('saveAppearanceBtn').addEventListener('click', async () => {
       const theme = this.readAppearanceForm();
       await this.saveAndRender({ theme });
+    });
+  }
+
+  // A `role="radio"` option group is mouse-only by default (a plain div with
+  // a click handler); this wires up keyboard selection (Enter/Space) and
+  // keeps aria-checked in sync so screen readers announce the current pick.
+  setupStyleOptionGroup(groupId) {
+    const group = document.getElementById(groupId);
+    const selectOption = (option) => {
+      group.querySelectorAll('.wheel-style-option').forEach((el) => {
+        el.classList.remove('active');
+        el.setAttribute('aria-checked', 'false');
+      });
+      option.classList.add('active');
+      option.setAttribute('aria-checked', 'true');
+      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
+    };
+    group.addEventListener('click', (e) => {
+      const option = e.target.closest('.wheel-style-option');
+      if (option) selectOption(option);
+    });
+    group.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const option = e.target.closest('.wheel-style-option');
+      if (!option) return;
+      e.preventDefault();
+      selectOption(option);
     });
   }
 
@@ -820,7 +886,7 @@ class AdminPanel {
       </div>
     `;
 
-    document.getElementById('editModal').classList.add('active');
+    this.openModal('editModal');
 
     document.getElementById('seg-prob').addEventListener('input', (e) => {
       document.getElementById('seg-prob-val').textContent = e.target.value;
@@ -845,9 +911,7 @@ class AdminPanel {
 
     this.populateIkasCampaignSelect(seg.ikasCampaignId);
 
-    document
-      .getElementById('cancelSegBtn')
-      .addEventListener('click', () => document.getElementById('editModal').classList.remove('active'));
+    document.getElementById('cancelSegBtn').addEventListener('click', () => this.closeModal('editModal'));
 
     document.getElementById('saveSegBtn').addEventListener('click', async () => {
       const updated = {
@@ -872,7 +936,7 @@ class AdminPanel {
         this.config.segments.push(updated);
       }
 
-      document.getElementById('editModal').classList.remove('active');
+      this.closeModal('editModal');
       await this.saveAndRender({ segments: this.config.segments });
     });
   }
@@ -1265,7 +1329,7 @@ class AdminPanel {
 
     saveBtn.addEventListener('click', async () => {
       if (!this.platformCredsLoaded) {
-        this.showToast('Mevcut ayarlar henüz yüklenmedi, lütfen bekleyin veya sayfayı yenileyin');
+        this.showToast('Mevcut ayarlar henüz yüklenmedi, lütfen bekleyin veya sayfayı yenileyin', 'warning');
         return;
       }
       const base = getApiBase();
@@ -1297,6 +1361,7 @@ class AdminPanel {
               data.connectionTest.ok
                 ? 'Kaydedildi — İkas bağlantısı doğrulandı ✓'
                 : `Kaydedildi ama İkas bağlantı testi başarısız oldu: ${data.connectionTest.error || 'bilinmeyen hata'}. Bilgileri kontrol edin.`,
+              data.connectionTest.ok ? 'success' : 'warning',
             );
           } else {
             this.showToast('Platform ayarları kaydedildi');
@@ -1304,10 +1369,10 @@ class AdminPanel {
           this.loadPlatformCredentials();
         } else {
           const data = await res.json().catch(() => ({}));
-          this.showToast(data.error || 'Kaydedilemedi');
+          this.showToast(data.error || 'Kaydedilemedi', 'error');
         }
       } catch {
-        this.showToast('Backend bağlantı hatası');
+        this.showToast('Backend bağlantı hatası', 'error');
       }
     });
   }
@@ -1349,17 +1414,18 @@ class AdminPanel {
       if (statusEl) {
         statusEl.textContent = '⚠️ Mevcut ayarlar yüklenemedi — kaydetmeden önce sayfayı yenileyin!';
       }
-      this.showToast('Platform ayarları yüklenemedi, sayfayı yenileyin');
+      this.showToast('Platform ayarları yüklenemedi, sayfayı yenileyin', 'error');
     }
   }
 
-  showToast(msg) {
+  showToast(msg, type = 'success') {
     const toast = document.getElementById('toast');
     if (!toast) {
       return;
     }
-    toast.innerHTML = `✅ ${msg}`;
-    toast.classList.add('show');
+    const icon = { success: '✅', warning: '⚠️', error: '✖️' }[type] || '✅';
+    toast.innerHTML = `${icon} ${msg}`;
+    toast.className = `toast show${type !== 'success' ? ` ${type}` : ''}`;
     setTimeout(() => toast.classList.remove('show'), 3000);
   }
 }
