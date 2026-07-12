@@ -70,13 +70,13 @@ h1 em { color: var(--violet); font-style: normal; }
 .wheel { position: relative; width: 180px; height: 180px; border: 8px solid #fff; border-radius: 50%; background: conic-gradient(#7c3aed 0 60deg, #f472b6 60deg 120deg, #fbbf24 120deg 180deg, #4f46e5 180deg 240deg, #fb7185 240deg 300deg, #a78bfa 300deg); box-shadow: 0 0 0 2px #7c3aed, 0 12px 28px rgba(124, 58, 237, .22); animation: wheel-showcase-spin 18s linear infinite; }
 .wheel-wrap::before { content: ""; position: absolute; top: -18px; left: 50%; z-index: 3; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 24px solid var(--ink); }
 .wheel-center { position: absolute; inset: 50% auto auto 50%; width: 62px; height: 62px; display: grid; place-items: center; transform: translate(-50%, -50%); border: 6px solid #fff; border-radius: 50%; color: #fff; background: var(--ink); font-size: 11px; font-weight: 850; animation: wheel-center-counter 18s linear infinite; }
-.wheel-label { position: absolute; z-index: 1; width: 72px; color: #fff; font-size: 7px; font-weight: 900; line-height: 1; letter-spacing: .025em; text-align: center; text-shadow: 0 1px 2px rgba(15,23,42,.4); }
-.label-ikas { top: 22px; left: 46px; transform: rotate(30deg); }
-.label-shopify { top: 52px; right: -1px; transform: rotate(90deg); }
-.label-website { right: 4px; bottom: 44px; transform: rotate(150deg); }
-.label-wordpress { bottom: 21px; left: 45px; transform: rotate(210deg); }
-.label-webflow { bottom: 50px; left: -4px; transform: rotate(270deg); }
-.label-prestashop { top: 48px; left: -3px; transform: rotate(330deg); }
+.wheel-label { position: absolute; top: 50%; left: 50%; z-index: 1; width: 86px; color: #fff; font-size: 9px; font-weight: 900; line-height: 1; letter-spacing: .015em; text-align: center; white-space: nowrap; text-shadow: 0 1px 3px rgba(15,23,42,.62); transform: translate(-50%, -50%) rotate(var(--segment-angle)) translateY(-57px); transform-origin: center; }
+.label-ikas { --segment-angle: 30deg; }
+.label-shopify { --segment-angle: 90deg; }
+.label-website { --segment-angle: 150deg; }
+.label-wordpress { --segment-angle: 210deg; }
+.label-webflow { --segment-angle: 270deg; }
+.label-prestashop { --segment-angle: 330deg; }
 @keyframes wheel-showcase-spin { to { transform: rotate(360deg); } }
 @keyframes wheel-center-counter { to { transform: translate(-50%, -50%) rotate(-360deg); } }
 .wheel.is-boosted { animation-duration: 2.8s; }
