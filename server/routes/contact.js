@@ -14,6 +14,14 @@ const contactLimiter = rateLimit({
   message: { error: 'Çok fazla iletişim talebi gönderdiniz. Lütfen daha sonra tekrar deneyin.' },
 });
 
+const contactAdminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Çok fazla yönetim isteği gönderdiniz. Lütfen daha sonra tekrar deneyin.' },
+});
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^0?5\d{9}$/;
 
@@ -48,7 +56,7 @@ contactRouter.post('/', contactLimiter, asyncHandler(async (req, res) => {
   res.status(201).json({ message: 'Talebiniz alındı, en kısa sürede sizi arayacağız.' });
 }));
 
-contactRouter.get('/', asyncHandler(async (req, res) => {
+contactRouter.get('/', contactAdminLimiter, asyncHandler(async (req, res) => {
   if (!config.contactAdminKey) {
     return res.status(503).json({ error: 'İletişim talebi yönetimi henüz yapılandırılmadı.' });
   }

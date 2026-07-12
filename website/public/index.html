@@ -1,688 +1,161 @@
-<!DOCTYPE html>
-
-<html class="scroll-smooth" lang="tr"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>mystore | E-ticaret Satışlarını Artırmanın Formülü</title>
-<meta name="description" content="mystore Şans Çarkı ile ziyaretçilerinizi müşteriye dönüştürün. Dakikalar içinde kurun, kampanyalarınızı yönetin ve katılımları tek panelden takip edin."/>
-<meta name="theme-color" content="#0F172A"/>
-<meta property="og:type" content="website"/>
-<meta property="og:title" content="mystore | E-ticaret için Şans Çarkı"/>
-<meta property="og:description" content="E-ticaret sitenize dakikalar içinde kurulan, yönetilebilir Şans Çarkı çözümü."/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    "colors": {
-                        "primary-fixed-dim": "#bec6e0",
-                        "on-tertiary-fixed-variant": "#005236",
-                        "on-surface-variant": "#45464d",
-                        "surface": "#f8f9ff",
-                        "on-secondary-fixed": "#25005a",
-                        "secondary-fixed-dim": "#d2bbff",
-                        "tertiary": "#000000",
-                        "primary": "#000000",
-                        "inverse-on-surface": "#eaf1ff",
-                        "tertiary-fixed-dim": "#4edea3",
-                        "on-tertiary": "#ffffff",
-                        "on-primary-fixed": "#131b2e",
-                        "primary-fixed": "#dae2fd",
-                        "on-tertiary-container": "#009668",
-                        "surface-container-highest": "#d3e4fe",
-                        "surface-tint": "#565e74",
-                        "surface-container": "#e5eeff",
-                        "surface-glass": "rgba(255, 255, 255, 0.7)",
-                        "deep-navy": "#0F172A",
-                        "on-primary-fixed-variant": "#3f465c",
-                        "secondary-fixed": "#eaddff",
-                        "primary-container": "#131b2e",
-                        "surface-container-high": "#dce9ff",
-                        "on-primary-container": "#7c839b",
-                        "outline": "#76777d",
-                        "surface-dim": "#cbdbf5",
-                        "background": "#f8f9ff",
-                        "secondary": "#712ae2",
-                        "outline-variant": "#c6c6cd",
-                        "surface-variant": "#d3e4fe",
-                        "on-secondary": "#ffffff",
-                        "on-primary": "#ffffff",
-                        "slate-gray": "#64748B",
-                        "surface-container-lowest": "#ffffff",
-                        "tertiary-fixed": "#6ffbbe",
-                        "on-error-container": "#93000a",
-                        "electric-violet": "#7C3AED",
-                        "error-container": "#ffdad6",
-                        "tertiary-container": "#002113",
-                        "inverse-primary": "#bec6e0",
-                        "ice-white": "#F9F9FB",
-                        "on-secondary-container": "#fffbff",
-                        "secondary-container": "#8a4cfc",
-                        "surface-container-low": "#eff4ff",
-                        "on-secondary-fixed-variant": "#5a00c6",
-                        "on-tertiary-fixed": "#002113",
-                        "refined-emerald": "#10B981",
-                        "on-surface": "#0b1c30",
-                        "surface-bright": "#f8f9ff",
-                        "error": "#ba1a1a",
-                        "on-background": "#0b1c30",
-                        "on-error": "#ffffff",
-                        "inverse-surface": "#213145"
-                    },
-                    "borderRadius": {
-                        "DEFAULT": "0.25rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "full": "9999px"
-                    },
-                    "spacing": {
-                        "gutter": "24px",
-                        "margin-mobile": "20px",
-                        "margin-desktop": "80px",
-                        "unit": "8px",
-                        "max-width": "1280px"
-                    },
-                    "fontFamily": {
-                        "display-lg": ["Inter"],
-                        "label-sm": ["Inter"],
-                        "body-lg": ["Inter"],
-                        "headline-md": ["Inter"],
-                        "display-lg-mobile": ["Inter"],
-                        "body-md": ["Inter"],
-                        "label-lg": ["Inter"],
-                        "headline-lg": ["Inter"]
-                    },
-                    "fontSize": {
-                        "display-lg": ["64px", {"lineHeight": "72px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
-                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500"}],
-                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
-                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
-                        "display-lg-mobile": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
-                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
-                        "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600"}],
-                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
-                    }
-                },
-            },
-        }
-    </script>
-<style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-            display: inline-block;
-            vertical-align: middle;
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.03);
-        }
-        .shadow-glow {
-            box-shadow: 0 20px 80px -20px rgba(124, 58, 237, 0.15);
-        }
-        .bento-grid {
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            gap: 24px;
-        }
-        :focus-visible { outline: 3px solid #7C3AED; outline-offset: 3px; }
-        @media (max-width: 767px) {
-            .px-margin-desktop { padding-left: 20px !important; padding-right: 20px !important; }
-            .py-32 { padding-top: 72px !important; padding-bottom: 72px !important; }
-        }
-    </style>
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MyStore Çark | E-ticaret sitenize dakikalar içinde Şans Çarkı</title>
+  <meta name="description" content="MyStore Çark ile ziyaretçilerinizi kampanyaya dahil edin, kuponları yönetin ve katılımları tek panelden takip edin.">
+  <meta name="theme-color" content="#0a1020">
+  <meta name="robots" content="noindex,nofollow">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MyStore Çark | Markanıza özel Şans Çarkı">
+  <meta property="og:description" content="Hesabınızı oluşturun, Çark'ınızı tasarlayın ve tek kodla sitenize ekleyin.">
+  <link rel="icon" href="/mystore/assets/logo-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/mystore/styles.css">
 </head>
-<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
-<!-- TopNavBar -->
-<nav class="fixed top-0 w-full z-50 bg-surface-glass dark:bg-surface-container/80 backdrop-blur-xl border-b border-white/10 shadow-sm">
-<div class="flex justify-between items-center px-margin-desktop py-4 max-w-max-width mx-auto">
-<div class="flex items-center gap-8">
-<a class="flex items-center gap-2" href="#top" aria-label="mystore ana sayfa">
-<img alt="mystore logo" class="h-10 w-auto" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDX6Epu7ZAWWNciyD6xoNwnkR4IcfNqzdFfcUL1lihTUA-vhq5s5Q4go3-ZSLua67Ml-zXn6up8vsZXoAT1Zb0U-2nGoCNLwzNHKfcQ5t-VO-UivVG_LzeQOz2A2teIv1cDJ60h_OolZBz9QIOYQp6vqacoLmiVtVzWWVKQS8Q03Px_V4FRMexTM3Xej1geDkWXbrd8ljnuaqCYnWVHMes3cghUAXwmgs1gOGxtot72h1QDXasrM6s9awKXy8yjMFYSUuhwjkRAHxXY"/>
-</a>
-<div class="hidden md:flex gap-6">
-<a class="font-label-lg text-label-lg text-slate-gray hover:text-electric-violet transition-colors" href="#features">Özellikler</a>
-<a class="font-label-lg text-label-lg text-slate-gray hover:text-electric-violet transition-colors" href="#pricing">Planlar</a>
-<a class="font-label-lg text-label-lg text-slate-gray hover:text-electric-violet transition-colors" href="#faq">SSS</a>
-<a class="font-label-lg text-label-lg text-slate-gray hover:text-electric-violet transition-colors" href="#contact">İletişim</a>
-</div>
-</div>
-<div class="flex items-center gap-4">
-<a data-app-link="login" class="hidden sm:inline font-label-lg text-label-lg text-slate-gray hover:text-electric-violet transition-colors duration-300" href="https://cark-backend.onrender.com/admin.html">Giriş Yap</a>
-<a data-app-link="register" class="hidden sm:inline bg-electric-violet text-white px-6 py-2.5 rounded-full font-label-lg text-label-lg hover:shadow-glow transition-all active:scale-95" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a>
-<button id="mobile-menu-button" class="md:hidden p-2 rounded-lg text-deep-navy" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Menüyü aç">
-<span class="material-symbols-outlined">menu</span>
-</button>
-</div>
-</div>
-<div id="mobile-menu" class="hidden md:hidden border-t border-slate-gray/10 bg-white px-5 py-4">
-<div class="flex flex-col gap-4">
-<a href="#features">Özellikler</a><a href="#pricing">Planlar</a><a href="#faq">SSS</a><a href="#contact">İletişim</a>
-<a data-app-link="login" href="https://cark-backend.onrender.com/admin.html">Giriş Yap</a>
-<a data-app-link="register" class="text-electric-violet font-semibold" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a>
-</div>
-</div>
-</nav>
-<main class="pt-24" id="top">
-<!-- Hero Section -->
-<section class="relative overflow-hidden py-32 px-margin-desktop">
-<div class="max-w-max-width mx-auto flex flex-col md:flex-row items-center gap-16 relative z-10">
-<div class="w-full md:w-1/2 space-y-8">
-<div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-electric-violet/10 border border-electric-violet/20 text-electric-violet font-label-lg text-label-lg animate-pulse">
-<span class="w-2 h-2 rounded-full bg-electric-violet"></span>
-                        Yeni Nesil E-Ticaret Çözümleri
-                    </div>
-<h1 class="font-display-lg text-display-lg-mobile md:text-display-lg leading-tight text-deep-navy">
-                        E-ticaret satışlarınızı artırmanın formülü: <span class="text-electric-violet">mystore!</span>
-</h1>
-<p class="font-body-lg text-body-lg text-slate-gray max-w-lg">
-                        Şans Çarkı kampanyanızı dakikalar içinde kurun; ziyaretçi katılımlarını, kuponları ve kampanya ayarlarını tek panelden yönetin.
-                    </p>
-<div class="flex flex-wrap gap-4 pt-4">
-<a href="#contact" class="bg-deep-navy text-white px-8 py-4 rounded-xl font-label-lg text-label-lg hover:bg-black transition-colors flex items-center gap-3 group shadow-glow">
-                            Sizi Arayalım
-                            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
-</a>
-<a href="#features" class="bg-white border border-outline-variant text-on-surface px-8 py-4 rounded-xl font-label-lg text-label-lg hover:bg-surface transition-colors">
-                            Modülleri Keşfet
-                        </a>
-</div>
-</div>
-<div class="w-full md:w-1/2 relative">
-<div class="relative w-full aspect-square md:aspect-video rounded-3xl overflow-hidden glass-card shadow-glow border border-white/40">
-<img class="w-full h-full object-cover" data-alt="A clean, high-fidelity UI dashboard interface for an e-commerce platform analytics page. The design features soft gradients of electric violet and deep navy, with minimalist data visualizations, elegant cards with glassmorphism effects, and crisp typography. The atmosphere is professional, sleek, and high-tech corporate modern." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8GaoqkDS5m7GWo-CIiYWiE7Ymiw91cUlsHs6R0DHesLBenl6fM7A0RaS9En5fZls7t2gzPrM8AVeReqH0uRdgb5FULgBbGF1xYBwrgg6-ZI8msnqDQMNp8-aKFxHcgc_MlswwqNYr_gOhE0ou5_W81rPy4obgDp2ztxU7AhyQUiOUuJCKTuz0O3CszscPN1ItiiBrfgJqUlgOU6dwQZm72OfbytTWehmkq4RcmGbmyUuQncRUzjvhdLl1RQNkp0QEhWAktzoI5G3i"/>
-</div>
-<!-- Floating Badge -->
-<div class="absolute -bottom-6 -left-6 glass-card p-6 rounded-2xl border border-white/50 shadow-xl hidden lg:block animate-bounce">
-<div class="flex items-center gap-4">
-<div class="w-12 h-12 bg-refined-emerald/20 rounded-full flex items-center justify-center">
-<span class="material-symbols-outlined text-refined-emerald" data-icon="trending_up">trending_up</span>
-</div>
-<div>
-<div class="font-headline-md text-headline-md text-deep-navy">10 dk</div>
-<div class="font-label-sm text-label-sm text-slate-gray">Hızlı Kurulum</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<!-- Abstract background element -->
-<div class="absolute top-0 right-0 -z-10 opacity-30 pointer-events-none">
+<body>
+  <a class="skip-link" href="#main">İçeriğe geç</a>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="brand" href="#top" aria-label="MyStore ana sayfa">
+        <img src="/mystore/assets/logo-mark.svg" alt="" width="38" height="38">
+        <span>mystore</span><small>Çark</small>
+      </a>
+      <nav class="desktop-nav" aria-label="Ana menü">
+        <a href="#product">Ürün</a><a href="#how">Nasıl çalışır?</a><a href="#pricing">Planlar</a><a href="#faq">SS</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="text-link desktop-only" data-app-link="login" href="https://cark-backend.onrender.com/admin.html">Giriş Yap</a>
+        <a class="button button-small desktop-only" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a>
+        <button class="menu-button" id="menuButton" type="button" aria-expanded="false" aria-controls="mobileMenu" aria-label="Menüyü aç"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+    <nav class="mobile-nav" id="mobileMenu" aria-label="Mobil menü" hidden>
+      <a href="#product">Ürün</a><a href="#how">Nasıl çalışır?</a><a href="#pricing">Planlar</a><a href="#faq">SSS</a>
+      <a data-app-link="login" href="https://cark-backend.onrender.com/admin.html">Giriş Yap</a>
+      <a data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a>
+    </nav>
+  </header>
 
-</div>
-</section>
-<!-- Logo Cloud -->
-<section class="py-20 bg-ice-white">
-<div class="max-w-max-width mx-auto px-margin-desktop text-center space-y-12">
-<h3 class="font-label-lg text-label-lg uppercase tracking-widest text-slate-gray">E-ticaret kampanyanız için ihtiyaç duyduğunuz temel araçlar</h3>
-<div class="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-60 grayscale hover:grayscale-0 transition-all">
-<img class="h-8 w-auto" data-alt="Minimalist luxury fashion brand logo in monochrome navy style for a B2B trust section." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBG9_vEk7USP9-Rwo2wbqz9yeSG49zQfINXUfamkmSwhbZkQTYpiUQi5_njFHJcHnyvan1uVoHfpgSLREH1VnTY5yhB4FP6XszuRSXN_osSl1PN_2SUS7PGvak-EGVrc4pRIIDsN-37GZVDSb1NPS7Vhi8hIFaywiluXHvdN6CQDz9i-9-pH_RgN43X4N3I-5DfbeQZvLj-awGGVIB8x8es06UTtOsry4un_YucD4En0JuLBKct9srioAqffinkOjJ5sXzi91mDHkD5"/>
-<img class="h-10 w-auto" data-alt="High-end tech company logo with clean lines and geometric shapes in slate gray." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIULm3q0cphiF8u2VkOUTpT9hSWjjh6BdMrKMq5jViQKenMSN0PM6acKjNLrl15n9ZQDrpMmnwDKTWMBxQrhPkWce9J9X0CYgEhzz8tQzugILtUuQQPJnPNNkFEJCrWlu14KVWCtR5MnK45BDwiUw6PRBn8mOliys-M1zZR30x0HmaYd_y8PI_BgEYacWegDlH6JG1LAkAmC8EmEF3cQ2fxY6uHnoKHyPGXfwWBLrnL4RYt7Iml5--jIcg--SKfKreEICeOXpDskWG"/>
-<img class="h-7 w-auto" data-alt="Global retail giant logo with bold, serif typography and professional B2B aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTbCai-uVc840jk7iCuxA27Ijjwmvr3UY5U813n-P78ri8yFESPUv1ICwMHLtDUHTyzWs7CASv_rktfyZXWHBvGGYEf2l2gffGJMjMGj2dnxDCIRiiO05KjAkPDIjsy9Dr_2kV92EkNnCwY_-MMgVZUp9bDg9O6U1apkth3pu7aMO4WxDSod6BeCtdXD6gZoNomuncPgySxK1LC6bodaEa49pmlKdz0pomILKbonDpYBeFEdCDNIgiSp7DzqUWHAEzrmxckmPFMXcJ"/>
-<img class="h-9 w-auto" data-alt="Premium cosmetics brand logo, elegant script and minimalist icon for social proof." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzqAX42bFBsdt9ayrGpeul0eHAuE0OrlND3RhIWjn4vGiT3PCvjXCFjKcbd-9D5Kk8NbWJDije_cO8s8zBOGIo8I8zlWKsDa1pfapQ2w9ek9wGkFAFHfQegTRUkAWCwfts9MLJIdX3xzztt3jmovUDyhSkfGfu2ik8U6tLt1Lc9oogYdenC97K-OvEUEvO6dmM8XjK3L3xnoKMyhU_aShjdHR_5Nwd_rGnis1mfp-wmmYFUBOe-1YvWhGnsEJvU3R7TBjT9ck4UQfZ"/>
-<img class="h-8 w-auto" data-alt="Modern logistics and e-commerce leader logo with dynamic, forward-leaning design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD95uy_jhSKg42-ml5T019HwCSxh5fye_dl5R82rKHS19ILMnpdJvvKbSXOnFm3tQTGEv7BqeKMQNyGJ_PID8Q-ZEqx3GFDYpp_hF6Vd8sfXZx77zTsBDkQg0QW68wtnMyOieD3DtecOUmTH6inji8e4EYdND3GGy9ryFLPcc9X8utLXK36vMeMsGn6OIQiyzoXSvyg0cis-F0kMnIy9s1558thMIkNP03mcc8gLyJ4vW1osYhhVR_7LFepntp1mLnwGpkeJkQHpZJi"/>
-</div>
-</div>
-</section>
-<!-- Stats & Features -->
-<section class="py-32 px-margin-desktop bg-surface" id="features">
-<div class="max-w-max-width mx-auto space-y-24">
-<div class="flex flex-col md:flex-row justify-between items-end gap-8">
-<div class="max-w-2xl space-y-4">
-<h2 class="font-headline-lg text-headline-lg text-deep-navy">Ziyaretçiyi kampanyaya dahil eden etkileşimli deneyim</h2>
-<p class="font-body-lg text-body-lg text-slate-gray">Kurulumdan katılımcı takibine kadar Şans Çarkı kampanyanızı tek panelden yönetin.</p>
-</div>
-<div class="flex gap-4">
-<div class="p-8 bg-white rounded-2xl shadow-sm border border-slate-gray/10 text-center w-48">
-<div class="font-display-lg text-headline-lg text-electric-violet mb-1">10dk</div>
-<div class="font-label-sm text-label-sm text-slate-gray">Hızlı Kurulum</div>
-</div>
-</div>
-</div>
-<!-- Bento Grid Product Modules -->
-<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-<!-- Module: Şans Çarkı -->
-<div class="md:col-span-8 group relative overflow-hidden glass-card rounded-[2rem] p-10 hover:shadow-glow transition-all">
-<div class="flex flex-col md:flex-row gap-10">
-<div class="flex-1 space-y-6">
-<div class="w-14 h-14 bg-electric-violet rounded-2xl flex items-center justify-center text-white">
-<span class="material-symbols-outlined text-3xl" data-icon="casino" data-weight="fill">casino</span>
-</div>
-<h3 class="font-headline-lg text-headline-lg text-deep-navy">mystore Şans Çarkı</h3>
-<p class="font-body-md text-body-md text-slate-gray">Ziyaretçiyi etkileşime sokarak e-posta ve telefon bilgilerini toplayın, anlık indirimlerle satın alma kararını hızlandırın.</p>
-<ul class="space-y-3">
-<li class="flex items-center gap-3 text-on-surface font-label-lg">
-<span class="material-symbols-outlined text-refined-emerald" data-icon="check_circle">check_circle</span>
-                                        Müşteri Bilgisi Topla
-                                    </li>
-<li class="flex items-center gap-3 text-on-surface font-label-lg">
-<span class="material-symbols-outlined text-refined-emerald" data-icon="check_circle">check_circle</span>
-                                        Daha Fazla Satış Yap
-                                    </li>
-</ul>
-</div>
-<div class="flex-1 relative min-h-[250px]">
-<img class="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" data-alt="A premium 3D render of a stylized 'Wheel of Fortune' or spin-to-win game element, with elegant violet and gold accents, glowing lights, and a high-end e-commerce interface context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsSUhDVawj-rJyFISbqi4GQhaaWYl5rMzKg3RT-KEble5mBtlVHB-wnF94X8BI3DeWeBNePdumVi5ZDNvvTV1Gk_GoL2KIrUcIF3GRx84Rr6BWPwaH7JD2RgzXs-uOUFfCQE2t3FGCFpq0bKPXipiaoz4mZL01O_1GBPCI_B5xeZOE-8lsn2RMK4ukKRQbJ8iV6eNOwsBvQQ4XfOVps_lv5Yqb2ml2GoyA8aPsYKpw7VbHeowzHmuRjGc8layi1WGXBwGv-8jsF0aG"/>
-</div>
-</div>
-</div>
-<!-- Module: Flash Sale -->
-<div class="md:col-span-4 group glass-card rounded-[2rem] p-10 hover:shadow-glow transition-all flex flex-col justify-between">
-<div class="space-y-6">
-<div class="w-14 h-14 bg-amber-400/10 border border-amber-400/20 rounded-2xl flex items-center justify-center text-amber-500">
-<span class="material-symbols-outlined text-3xl" data-icon="bolt" data-weight="fill">bolt</span>
-</div>
-<h3 class="font-headline-md text-headline-md text-deep-navy">Flash Sale</h3>
-<p class="font-body-md text-body-md text-slate-gray">Aciliyet hissi yaratan geri sayım modülleri ile sepet dönüşümlerini anında artırın.</p>
-</div>
-<div class="mt-8">
-<img class="w-full rounded-xl" data-alt="A sleek digital countdown timer component for an e-commerce site, featuring modern typography, neon violet light effects, and a premium metallic border." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkcpx9MO5XScSlM6BLP6f32AEByJ6vUOQSagLhLrLS29jrNR29z0x2lX0T5wMW_suIIwgAM5eeC99dUxU1Op2xuCdJhM5k0PA2jeyJ-BHvTK91KL98DO0ZArY1gPvFHMjiRBqa_trwMHsYawiN-gdONKQtIz50MrkMeUy_uTcihgjFe6Inh47IdDPio7lHJNWra3p2X-TfoIeiWnAj2pvOUyYs9js7lPnqCDTVD_R3_3wLJCRbxePF62Q6Iy73-GHygtxSyiUuHIIw"/>
-</div>
-</div>
-<!-- Module: Sepet Öneri -->
-<div class="md:col-span-4 group glass-card rounded-[2rem] p-10 hover:shadow-glow transition-all">
-<div class="space-y-6">
-<div class="w-14 h-14 bg-refined-emerald/10 border border-refined-emerald/20 rounded-2xl flex items-center justify-center text-refined-emerald">
-<span class="material-symbols-outlined text-3xl" data-icon="shopping_cart_checkout">shopping_cart_checkout</span>
-</div>
-<h3 class="font-headline-md text-headline-md text-deep-navy">Sepet Öneri</h3>
-<p class="font-body-md text-body-md text-slate-gray">Tamamlayıcı ürünlerle sepet ortalamasını yukarı taşıyın.</p>
-<div class="pt-4 flex flex-wrap gap-2">
-<span class="px-3 py-1 bg-white border border-slate-gray/10 rounded-full text-label-sm text-slate-gray">Upsell</span>
-<span class="px-3 py-1 bg-white border border-slate-gray/10 rounded-full text-label-sm text-slate-gray">Cross-sell</span>
-</div>
-</div>
-</div>
-<!-- Module: Native App -->
-<div class="md:col-span-8 group relative overflow-hidden bg-deep-navy rounded-[2rem] p-10 hover:shadow-glow transition-all text-white">
-<div class="flex flex-col md:flex-row gap-10 items-center">
-<div class="flex-1 space-y-6 relative z-10">
-<div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white">
-<span class="material-symbols-outlined text-3xl" data-icon="smartphone">smartphone</span>
-</div>
-<h3 class="font-headline-lg text-headline-lg">mystore Native &amp; Webview</h3>
-<p class="font-body-md text-body-md text-slate-gray-300">Işık hızında mobil uygulama deneyimi. Push bildirimler ve yüksek performans ile müşterilerinizi cebinizde tutun.</p>
-<button class="text-electric-violet font-label-lg flex items-center gap-2 group/btn">
-                                    İncele <span class="material-symbols-outlined group-hover/btn:translate-x-1 transition-transform" data-icon="east">east</span>
-</button>
-</div>
-<div class="flex-1">
-<img class="w-full drop-shadow-2xl translate-y-12 group-hover:translate-y-8 transition-transform duration-700" data-alt="Professional UI mockup showing two premium smartphones displaying a sleek, dark-mode e-commerce application with high-end product photography and elegant navigation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDL7Vq0NA-R5xYQsT48YOr0Hw5UKO8CDSF8qwnSMjOUYmWG8TcCjjUQYhU81r0fMGA_jD8ny99arxWZ1loGfOT-Z6WhHobO_LD6vF8bwe97BsIe4CS-Q-fIKfPXyee5xVuoKWGD-BlwYMOILN-UAo3tXyxnYe9BNDc5032nZ_KSNaUUcRG9wDR_lSRUl5liSf7--Bx15mvjbNflqhLMP1O99n9GQGt7LoZMVJocWHg-TTwXGYBFAGbet2UWHh1zovi7B8jEzuiejEGq"/>
-</div>
-</div>
-<div class="absolute inset-0 -z-0 opacity-10">
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span></span> E-ticaret için etkileşimli kampanya</p>
+          <h1>E-ticaret sitenize dakikalar içinde kurulan, <em>markanıza özel</em> Şans Çarkı.</h1>
+          <p class="hero-text">Ziyaretçilerinizi kampanyaya dahil edin, kuponlarınızı yönetin ve katılımları tek panelden takip edin.</p>
+          <div class="hero-actions">
+            <a class="button" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Çarkını Oluştur</a>
+            <a class="button button-ghost" href="#how">Nasıl çalıştığını gör</a>
+          </div>
+          <ul class="hero-points" aria-label="Ürün avantajları"><li>Kredi kartı gerekmez</li><li>Teknik bilgi gerekmez</li><li>Her siteye eklenir</li></ul>
+        </div>
+        <div class="product-stage" aria-label="MyStore Çark ürün önizlemesi">
+          <div class="browser-shell">
+            <div class="browser-top"><i></i><i></i><i></i><span>magazaniz.com</span></div>
+            <div class="store-preview"><div class="store-line wide"></div><div class="store-line"></div><button>Alışverişe Başla</button></div>
+            <div class="wheel-card">
+              <p>HOŞ GELDİNİZ</p><h2>Şansını Çevir!</h2>
+              <div class="wheel"><div class="wheel-center">ÇEVİR</div></div>
+              <small>İndirim kuponunu hemen kazan</small>
+            </div>
+          </div>
+          <div class="mini-stat"><strong>Canlı</strong><span>Kampanya panelden yönetiliyor</span></div>
+        </div>
+      </div>
+    </section>
 
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- Pricing -->
-<section class="py-32 px-margin-desktop bg-ice-white" id="pricing">
-<div class="max-w-5xl mx-auto space-y-14">
-<div class="text-center space-y-4">
-<div class="font-label-lg text-label-lg text-electric-violet uppercase tracking-widest">Şeffaf Planlar</div>
-<h2 class="font-headline-lg text-headline-lg text-deep-navy">İhtiyacınıza uygun planla başlayın</h2>
-<p class="text-slate-gray">Fiyatlar lansman öncesi örnek değerlerdir; ödeme sistemi açılmadan önce kesinleştirilecektir.</p>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-<article class="bg-white rounded-3xl p-8 border border-slate-gray/10">
-<h3 class="text-xl font-bold text-deep-navy">Ücretsiz</h3><p class="text-slate-gray mt-2">Denemek ve ilk kampanyayı kurmak için.</p>
-<p class="text-4xl font-bold text-deep-navy my-6">₺0</p>
-<ul class="space-y-3 text-sm"><li>✓ Aylık 100 katılım</li><li>✓ Domain güvenliği</li><li>✓ Katılımcı paneli</li></ul>
-<a data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register" class="mt-8 block text-center border border-electric-violet text-electric-violet rounded-xl py-3 font-semibold">Ücretsiz Başla</a>
-</article>
-<article class="bg-deep-navy text-white rounded-3xl p-8 ring-2 ring-electric-violet shadow-glow relative">
-<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-electric-violet px-4 py-1 rounded-full text-xs font-semibold">En Popüler</span>
-<h3 class="text-xl font-bold">Pro</h3><p class="text-slate-gray mt-2">Büyüyen mağazalar ve aktif kampanyalar için.</p>
-<p class="text-4xl font-bold my-6">₺799<span class="text-sm text-slate-gray">/ay</span></p>
-<ul class="space-y-3 text-sm"><li>✓ Aylık 2.000 katılım</li><li>✓ İkas entegrasyonu</li><li>✓ Gelişmiş tema ayarları</li></ul>
-<a data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register" class="mt-8 block text-center bg-electric-violet rounded-xl py-3 font-semibold">Pro'yu Dene</a>
-</article>
-<article class="bg-white rounded-3xl p-8 border border-slate-gray/10">
-<h3 class="text-xl font-bold text-deep-navy">Kurumsal</h3><p class="text-slate-gray mt-2">Yüksek hacim ve özel ihtiyaçlar için.</p>
-<p class="text-3xl font-bold text-deep-navy my-6">Teklif Alın</p>
-<ul class="space-y-3 text-sm"><li>✓ Özel katılım limiti</li><li>✓ Öncelikli destek</li><li>✓ Özel entegrasyon</li></ul>
-<a href="#contact" class="mt-8 block text-center border border-electric-violet text-electric-violet rounded-xl py-3 font-semibold">Bize Ulaşın</a>
-</article>
-</div>
-</div>
-</section>
-<!-- Testimonials -->
-<section class="py-32 bg-white">
-<div class="max-w-max-width mx-auto px-margin-desktop space-y-16">
-<div class="text-center space-y-4">
-<div class="font-label-lg text-label-lg text-electric-violet uppercase tracking-widest">Neler Kazandırır?</div>
-<h2 class="font-headline-lg text-headline-lg text-deep-navy">Kampanyanızı yönetmenin pratik yolu</h2>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-<!-- Testimonial 1 -->
-<div class="p-8 rounded-[2rem] border border-slate-gray/10 bg-ice-white space-y-6 flex flex-col justify-between">
-<div class="space-y-4">
-<div class="flex gap-1 text-amber-400">
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-</div>
-<p class="font-body-md text-body-md text-on-surface">Ziyaretçilerinizi eğlenceli bir kampanyaya dahil edin ve kupon deneyimini doğrudan sitenizde sunun.</p>
-</div>
-<div class="flex items-center gap-4">
-<div class="w-12 h-12 rounded-full bg-electric-violet/20 flex items-center justify-center font-bold text-electric-violet">01</div>
-<div>
-<div class="font-label-lg text-label-lg text-deep-navy">Etkileşim</div>
-<div class="font-label-sm text-label-sm text-slate-gray">Ziyaretçiyi kampanyaya dahil edin</div>
-</div>
-</div>
-</div>
-<!-- Testimonial 2 -->
-<div class="p-8 rounded-[2rem] border border-slate-gray/10 bg-ice-white space-y-6 flex flex-col justify-between">
-<div class="space-y-4">
-<div class="flex gap-1 text-amber-400">
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-</div>
-<p class="font-body-md text-body-md text-on-surface">Dilimleri, kazanma oranlarını, renkleri ve kampanya metinlerini kod yazmadan panelden güncelleyin.</p>
-</div>
-<div class="flex items-center gap-4">
-<div class="w-12 h-12 rounded-full bg-refined-emerald/20 flex items-center justify-center font-bold text-refined-emerald">02</div>
-<div>
-<div class="font-label-lg text-label-lg text-deep-navy">Kontrol</div>
-<div class="font-label-sm text-label-sm text-slate-gray">Tüm ayarlar tek panelde</div>
-</div>
-</div>
-</div>
-<!-- Testimonial 3 -->
-<div class="p-8 rounded-[2rem] border border-slate-gray/10 bg-ice-white space-y-6 flex flex-col justify-between">
-<div class="space-y-4">
-<div class="flex gap-1 text-amber-400">
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-<span class="material-symbols-outlined" data-icon="star" data-weight="fill">star</span>
-</div>
-<p class="font-body-md text-body-md text-on-surface">Katılımcıları ve oluşturulan kuponları takip edin; verilerinizi ihtiyaç duyduğunuzda dışarı aktarın.</p>
-</div>
-<div class="flex items-center gap-4">
-<div class="w-12 h-12 rounded-full bg-amber-400/20 flex items-center justify-center font-bold text-amber-600">03</div>
-<div>
-<div class="font-label-lg text-label-lg text-deep-navy">Ölçüm</div>
-<div class="font-label-sm text-label-sm text-slate-gray">Katılımları takip edin</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- Lead Form Section -->
-<section class="py-32 px-margin-desktop bg-deep-navy relative overflow-hidden" id="contact">
-<div class="max-w-max-width mx-auto flex flex-col md:flex-row gap-20 items-center relative z-10">
-<div class="w-full md:w-1/2 space-y-6 text-white">
-<h2 class="font-display-lg text-display-lg-mobile md:text-headline-lg leading-tight">Formu Doldurun, <br/><span class="text-electric-violet">Detaylı Bilgi İçin</span> Sizi Arayalım</h2>
-<p class="font-body-lg text-body-lg text-slate-gray-300">Türkiye'nin en etkili e-ticaret modülü sağlayıcısı ile tanışın. Satış performansınızı birlikte analiz edelim.</p>
-<div class="flex flex-col gap-4 pt-6">
-<div class="flex items-center gap-4">
-<div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-<span class="material-symbols-outlined text-electric-violet" data-icon="phone_in_talk">phone_in_talk</span>
-</div>
-<span class="font-body-md">0 532 512 60 42</span>
-</div>
-<div class="flex items-center gap-4">
-<div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-<span class="material-symbols-outlined text-electric-violet" data-icon="mail">mail</span>
-</div>
-<span class="font-body-md">info@mystore.com</span>
-</div>
-</div>
-</div>
-<div class="w-full md:w-1/2">
-<div class="glass-card bg-white/5 border-white/10 rounded-3xl p-10 space-y-6">
-<form class="space-y-4" id="contact-form" novalidate="">
-<div class="grid grid-cols-2 gap-4">
-<div class="space-y-2">
-<label class="text-white text-label-sm" for="firstName">Ad</label>
-<input class="w-full bg-white/5 border-white/10 rounded-xl px-4 py-3 text-white focus:border-electric-violet focus:ring-0 transition-colors" id="firstName" name="firstName" placeholder="Adınız" required="" type="text"/>
-</div>
-<div class="space-y-2">
-<label class="text-white text-label-sm" for="lastName">Soyad</label>
-<input class="w-full bg-white/5 border-white/10 rounded-xl px-4 py-3 text-white focus:border-electric-violet focus:ring-0 transition-colors" id="lastName" name="lastName" placeholder="Soyadınız" required="" type="text"/>
-</div>
-</div>
-<div class="space-y-2">
-<label class="text-white text-label-sm" for="email">E-posta</label>
-<input class="w-full bg-white/5 border-white/10 rounded-xl px-4 py-3 text-white focus:border-electric-violet focus:ring-0 transition-colors" id="email" name="email" placeholder="E-posta adresiniz" required="" type="email"/>
-</div>
-<div class="space-y-2">
-<label class="text-white text-label-sm" for="phone">Telefon</label>
-<input class="w-full bg-white/5 border-white/10 rounded-xl px-4 py-3 text-white focus:border-electric-violet focus:ring-0 transition-colors" id="phone" name="phone" placeholder="0 (5XX) XXX XX XX" required="" type="tel"/>
-</div>
-<div class="flex items-start gap-3 py-2">
-<input class="rounded border-white/20 bg-white/5 text-electric-violet focus:ring-offset-deep-navy" id="agree" name="agree" required="" type="checkbox"/>
-<label class="text-label-sm text-slate-gray-300" for="agree">
-<a class="text-electric-violet underline" href="/legal/aydinlatma-metni.html" target="_blank" rel="noopener">Aydınlatma Metni</a>'ni okudum; iletişim talebimin işlenmesini onaylıyorum.
-                                </label>
-</div>
-<p class="text-label-sm hidden" id="form-status"></p>
-<button class="w-full bg-electric-violet text-white font-label-lg py-4 rounded-xl hover:bg-opacity-90 transition-all shadow-glow disabled:opacity-50 disabled:cursor-not-allowed" id="submit-btn" type="submit">
-                                Gönder
-                            </button>
-</form>
-</div>
-</div>
-</div>
-<!-- Animated background accent -->
-<div class="absolute bottom-0 left-0 w-full h-full opacity-20 pointer-events-none">
+    <section class="proof-strip" aria-label="Temel özellikler">
+      <div class="container proof-grid"><div><strong>10 dk</strong><span>Kurulum hedefi</span></div><div><strong>6 dilim</strong><span>Özelleştirilebilir Çark</span></div><div><strong>Tek panel</strong><span>Kampanya ve katılımcılar</span></div><div><strong>KVKK</strong><span>Onay ve veri yönetimi</span></div></div>
+    </section>
 
-</div>
-</section>
-<!-- FAQ Section -->
-<section class="py-32 px-margin-desktop bg-ice-white" id="faq">
-<div class="max-w-3xl mx-auto space-y-12">
-<div class="text-center space-y-4">
-<div class="font-label-lg text-label-lg text-electric-violet uppercase tracking-widest">Soru &amp; Cevap</div>
-<h2 class="font-headline-lg text-headline-lg text-deep-navy">mystore İle İlgili Sıkça Sorulan Sorular</h2>
-</div>
-<div class="space-y-4">
-<!-- Accordion Item 1 -->
-<div class="glass-card rounded-2xl overflow-hidden">
-<button class="w-full px-8 py-6 flex items-center justify-between text-left group" onclick="toggleAccordion(this)">
-<span class="font-headline-md text-body-lg text-deep-navy group-hover:text-electric-violet transition-colors">mystore ne yapar?</span>
-<span class="material-symbols-outlined text-slate-gray transition-transform duration-300" data-icon="expand_more">expand_more</span>
-</button>
-<div class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out px-8">
-<div class="pb-6 text-slate-gray font-body-md">
-                                mystore, e-ticaret siteleri için geliştirilen on-site marketing modülleri ve mobil uygulama çözümleriyle ziyaretçileri müşteriye dönüştürmeyi ve satışları ölçeklendirmeyi hedefler.
-                            </div>
-</div>
-</div>
-<!-- Accordion Item 2 -->
-<div class="glass-card rounded-2xl overflow-hidden">
-<button class="w-full px-8 py-6 flex items-center justify-between text-left group" onclick="toggleAccordion(this)">
-<span class="font-headline-md text-body-lg text-deep-navy group-hover:text-electric-violet transition-colors">mystore Şans Çarkı ne işe yarar?</span>
-<span class="material-symbols-outlined text-slate-gray transition-transform duration-300" data-icon="expand_more">expand_more</span>
-</button>
-<div class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out px-8">
-<div class="pb-6 text-slate-gray font-body-md">
-                                mystore Şans Çarkı, ziyaretçileri etkileşime sokarak e-posta ve telefon gibi müşteri verilerinin toplanmasını sağlar. Toplanan veriler sayesinde remarketing yapılabilir ve anlık satışlar artırılabilir.
-                            </div>
-</div>
-</div>
-<!-- Accordion Item 3 -->
-<div class="glass-card rounded-2xl overflow-hidden">
-<button class="w-full px-8 py-6 flex items-center justify-between text-left group" onclick="toggleAccordion(this)">
-<span class="font-headline-md text-body-lg text-deep-navy group-hover:text-electric-violet transition-colors">Modülleri kurmak ve yönetmek zor mu?</span>
-<span class="material-symbols-outlined text-slate-gray transition-transform duration-300" data-icon="expand_more">expand_more</span>
-</button>
-<div class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out px-8">
-<div class="pb-6 text-slate-gray font-body-md">
-                                Hayır. Tüm mystore modülleri, teknik bilgi gerektirmeden mystore Panel üzerinden kolayca kurulur ve yönetilir. 10 dakika içinde yayına alabilirsiniz.
-                            </div>
-</div>
-</div>
-</div>
-</div>
-</section>
-</main>
-<!-- Footer -->
-<footer class="w-full py-20 bg-deep-navy border-t border-slate-gray/20">
-<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter px-margin-desktop max-w-max-width mx-auto">
-<div class="space-y-6">
-<img alt="mystore logo white" class="h-10 w-auto brightness-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDX6Epu7ZAWWNciyD6xoNwnkR4IcfNqzdFfcUL1lihTUA-vhq5s5Q4go3-ZSLua67Ml-zXn6up8vsZXoAT1Zb0U-2nGoCNLwzNHKfcQ5t-VO-UivVG_LzeQOz2A2teIv1cDJ60h_OolZBz9QIOYQp6vqacoLmiVtVzWWVKQS8Q03Px_V4FRMexTM3Xej1geDkWXbrd8ljnuaqCYnWVHMes3cghUAXwmgs1gOGxtot72h1QDXasrM6s9awKXy8yjMFYSUuhwjkRAHxXY"/>
-<p class="font-body-md text-slate-gray text-sm">© <span id="current-year">2026</span> mystore. Tüm hakları saklıdır.</p>
-<div class="flex gap-4">
-<a class="text-slate-gray hover:text-white transition-colors" href="#">
-<img class="w-5 h-5 grayscale invert opacity-50" data-alt="LinkedIn social media icon in minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgTc733-fcjsmE-OgdFuJB4kuRSw8-z_FDkP_SnAaoFdbDcGDRwWCdx4oGWqxOcdtG5-CNUDFF5_s3EmoNG9D2dMipPjVSVRRGsgEE8BNknJb5A17uItLeUGBkOwkRZR79eptdS4GKGohvuEQB2Jj7qZcDPgbJdkGZslCcypviYULuBK_zwpKjBuYX5HraZiTB0UJLG4QcLVnmSd-389bG9LcrIUjrQRADtrwY81l_V-YgEKkcOldwGPPqfKWJ-2faC7j2qlO_cazY"/>
-</a>
-<a class="text-slate-gray hover:text-white transition-colors" href="#">
-<img class="w-5 h-5 grayscale invert opacity-50" data-alt="Instagram social media icon in minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCo3pPbugjuTMrRRr_3fJZk1ZhWnopUS_mymghGwVtPNO_koObdA-eUQAyLFNgyJ2xM46Wxex11W2beqlUn8KxuxKjza4R-qEtvIorvJnAOLc7_v0znAHPROLd3RPV5tqUWKRBODqKH47EozXDjPJRQBPYSBX6yxUICgXtCMMs0YTXyvTRhmRalzEWv2ryhJgOZ6_sv1jpWEVoiVIjOywQBE2FnOYgy1DlwWQdbDll8DfOyvKlh6LjSQ5KuVQ_1ak3bW2wCm32c-kuB"/>
-</a>
-</div>
-</div>
-<div class="space-y-4">
-<h4 class="font-label-lg text-white">Keşfet</h4>
-<ul class="space-y-2">
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="#top">Ana Sayfa</a></li>
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="#features">E-Ticaret Modülleri</a></li>
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="#pricing">Planlar</a></li>
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="#contact">İletişim</a></li>
-</ul>
-</div>
-<div class="space-y-4">
-<h4 class="font-label-lg text-white">Yasal</h4>
-<ul class="space-y-2">
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="/legal/aydinlatma-metni.html">Aydınlatma Metni</a></li>
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="/legal/saas-hizmet-sozlesmesi.html">SaaS Hizmet Sözleşmesi</a></li>
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="/legal/abonelik-iade-politikasi.html">Abonelik ve İade Politikası</a></li>
-<li><a class="text-slate-gray hover:text-refined-emerald transition-colors" href="/legal/gizlilik-politikasi.html">Gizlilik Politikası</a></li>
-</ul>
-</div>
-<div class="space-y-4">
-<h4 class="font-label-lg text-white">İletişim</h4>
-<ul class="space-y-4">
-<li class="flex items-center gap-3 text-slate-gray">
-<span class="material-symbols-outlined text-refined-emerald" data-icon="mail">mail</span>
-                        info@mystore.com
-                    </li>
-<li class="flex items-center gap-3 text-slate-gray">
-<span class="material-symbols-outlined text-refined-emerald" data-icon="call">call</span>
-                        0 532 512 60 42
-                    </li>
-</ul>
-</div>
-</div>
-</footer>
-<script>
-        const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-        const APP_URL = window.MYSTORE_APP_URL || (isLocal ? 'http://localhost:3001/admin.html' : 'https://cark-backend.onrender.com/admin.html');
-        const API_BASE_URL = window.MYSTORE_API_URL || (isLocal ? 'http://localhost:3001' : 'https://cark-backend.onrender.com');
-        document.querySelectorAll('[data-app-link="login"]').forEach((link) => { link.href = APP_URL; });
-        document.querySelectorAll('[data-app-link="register"]').forEach((link) => { link.href = `${APP_URL}?mode=register`; });
-        document.getElementById('current-year').textContent = new Date().getFullYear();
+    <section class="section" id="product">
+      <div class="container">
+        <div class="section-heading"><p class="eyebrow">GERÇEK ÜRÜN, NET ODAK</p><h2>Çark kampanyanız için gereken her şey</h2><p>Henüz sunmadığımız ürünleri vaat etmiyoruz. MyStore bugün tek bir işi iyi yapmaya odaklanıyor: e-ticaret siteleri için yönetilebilir Şans Çarkı.</p></div>
+        <div class="feature-grid">
+          <article><span>01</span><h3>Markanıza göre tasarlayın</h3><p>Renkleri, dilimleri, ödülleri ve kazanma olasılıklarını panelden düzenleyin.</p></article>
+          <article><span>02</span><h3>Kuponları yönetin</h3><p>İkas entegrasyonuyla kupon üretin veya kendi kupon kodlarınızı manuel kullanın.</p></article>
+          <article><span>03</span><h3>Katılımları takip edin</h3><p>Ad, telefon, e-posta, ödül ve kupon verilerini görüntüleyin; CSV olarak dışa aktarın.</p></article>
+          <article><span>04</span><h3>Güvenli yayınlayın</h3><p>Domain izni, aylık kota, abonelik kontrolü ve veri silme araçlarıyla kampanyanızı koruyun.</p></article>
+        </div>
+      </div>
+    </section>
 
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileMenu = document.getElementById('mobile-menu');
-        mobileMenuButton?.addEventListener('click', () => {
-            const open = !mobileMenu.classList.contains('hidden');
-            mobileMenu.classList.toggle('hidden', open);
-            mobileMenuButton.setAttribute('aria-expanded', String(!open));
-            mobileMenuButton.querySelector('.material-symbols-outlined').textContent = open ? 'menu' : 'close';
-        });
-        mobileMenu?.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => {
-            mobileMenu.classList.add('hidden');
-            mobileMenuButton.setAttribute('aria-expanded', 'false');
-        }));
+    <section class="section section-dark" id="how">
+      <div class="container how-grid">
+        <div class="section-heading left"><p class="eyebrow">4 BASİT ADIM</p><h2>İlk kampanyanızı bugün yayınlayın</h2><p>Uzun entegrasyon projeleri ve tema geliştirme süreçleri olmadan başlayın.</p></div>
+        <ol class="steps"><li><b>1</b><div><h3>Hesap oluşturun</h3><p>Ücretsiz hesabınızı açın ve kurulum sihirbazını başlatın.</p></div></li><li><b>2</b><div><h3>Domaininizi ekleyin</h3><p>Çark'ın yalnızca izin verdiğiniz sitede çalışmasını sağlayın.</p></div></li><li><b>3</b><div><h3>Çarkınızı tasarlayın</h3><p>Ödülleri, oranları ve görünümü markanıza göre düzenleyin.</p></div></li><li><b>4</b><div><h3>Kodu sitenize yerleştirin</h3><p>Panelde üretilen kısa embed kodunu sitenize ekleyin.</p></div></li></ol>
+      </div>
+    </section>
 
-        function toggleAccordion(button) {
-            const content = button.nextElementSibling;
-            const icon = button.querySelector('.material-symbols-outlined');
+    <section class="section integrations">
+      <div class="container integration-grid">
+        <div><p class="eyebrow">PLATFORM DESTEĞİ</p><h2>İkas ile otomatik, diğer sitelerde manuel kullanım</h2><p>İkas mağazalarında kupon ve müşteri aktarımını otomatikleştirin. Diğer e-ticaret altyapılarında embed kodu ve kendi kuponlarınızla çalışın.</p></div>
+        <div class="integration-cards"><article><strong>İKAS</strong><span>Otomatik kupon ve müşteri aktarımı</span></article><article><strong>&lt;/&gt;</strong><span>Her site için standart embed kodu</span></article></div>
+      </div>
+    </section>
 
-            const isOpen = content.style.maxHeight !== '0px' && content.style.maxHeight !== '';
+    <section class="section pricing" id="pricing">
+      <div class="container">
+        <div class="section-heading"><p class="eyebrow">ŞEFFAF BAŞLANGIÇ</p><h2>Önce deneyin, ihtiyacınız artınca yükseltin</h2><p>Pro fiyatı lansman öncesi örnek değerdir ve ödeme sistemi açılmadan önce kesinleştirilecektir.</p></div>
+        <div class="price-grid">
+          <article class="price-card"><p>Ücretsiz</p><h3>₺0</h3><span>Başlangıç için</span><ul><li>Aylık 100 katılım</li><li>Domain güvenliği</li><li>Katılımcı paneli</li><li>Manuel kupon kullanımı</li></ul><a class="button button-ghost" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Başla</a></article>
+          <article class="price-card featured"><div class="badge">Lansman planı</div><p>Pro</p><h3>₺799<small>/ay</small></h3><span>Aktif mağazalar için</span><ul><li>Aylık 2.000 katılım</li><li>İkas entegrasyonu</li><li>Gelişmiş tema ayarları</li><li>Öncelikli destek hedefi</li></ul><a class="button" data-app-link="register" href="https://cark-backend.onrender.com/admin.html?mode=register">Ücretsiz Deneyin</a></article>
+        </div>
+      </div>
+    </section>
 
-            // Close all first
-            document.querySelectorAll('.accordion-content').forEach(el => {
-                el.style.maxHeight = '0px';
-            });
-            document.querySelectorAll('.material-symbols-outlined').forEach(el => {
-                if (el.innerText === 'expand_more') el.style.transform = 'rotate(0deg)';
-            });
+    <section class="section faq" id="faq">
+      <div class="container narrow"><div class="section-heading"><p class="eyebrow">SIK SORULANLAR</p><h2>Başlamadan önce merak edilenler</h2></div>
+        <details><summary>MyStore Çark hangi sitelerde çalışır?</summary><p>JavaScript embed kodu eklenebilen tüm sitelerde çalışır. İkas için ayrıca otomatik kupon ve müşteri aktarımı bulunur.</p></details>
+        <details><summary>Kurulum için yazılımcı gerekir mi?</summary><p>Panel kurulumu kod bilgisi gerektirmez. Embed kodunu sitenize eklemek için tema koduna erişmeniz yeterlidir.</p></details>
+        <details><summary>Ücretsiz planda ödeme bilgisi gerekir mi?</summary><p>Hayır. Ücretsiz hesabı açmak için kredi kartı gerekmez.</p></details>
+        <details><summary>Katılımcı verilerimi indirebilir veya silebilir miyim?</summary><p>Evet. Verilerinizi dışa aktarabilir, katılımcı kayıtlarını temizleyebilir veya hesabınızı silebilirsiniz.</p></details>
+      </div>
+    </section>
 
-            if (!isOpen) {
-                content.style.maxHeight = content.scrollHeight + 'px';
-                icon.style.transform = 'rotate(180deg)';
-            } else {
-                content.style.maxHeight = '0px';
-                icon.style.transform = 'rotate(0deg)';
-            }
-        }
+    <section class="section contact" id="contact">
+      <div class="container contact-grid">
+        <div><p class="eyebrow">BİZE ULAŞIN</p><h2>Sorunuz mu var?</h2><p>Formu bırakın; ürün, kurulum veya kurumsal ihtiyaçlarınız hakkında size dönüş yapalım.</p></div>
+        <form id="contactForm" novalidate>
+          <div class="form-row"><label>Ad<input id="firstName" name="firstName" autocomplete="given-name" maxlength="80" required></label><label>Soyad<input id="lastName" name="lastName" autocomplete="family-name" maxlength="80" required></label></div>
+          <label>E-posta<input id="email" name="email" type="email" autocomplete="email" maxlength="200" required></label>
+          <label>Telefon<input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="05XX XXX XX XX" required></label>
+          <label class="consent"><input id="consent" type="checkbox" required><span><a href="/legal/aydinlatma-metni.html" target="_blank" rel="noopener">Aydınlatma Metni</a>'ni okudum ve iletişim talebimin işlenmesini onaylıyorum.</span></label>
+          <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
+          <button class="button" id="submitButton" type="submit">Talebimi Gönder</button>
+        </form>
+      </div>
+    </section>
+  </main>
 
-        // Initialize accordions to closed state
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('div > div.max-h-0').forEach(el => {
-                el.classList.add('accordion-content');
-            });
-        });
+  <footer><div class="container footer-grid"><div class="brand footer-brand"><img src="/mystore/assets/logo-mark.svg" alt="" width="34" height="34"><span>mystore</span><small>Çark</small></div><nav aria-label="Yasal bağlantılar"><a href="/legal/aydinlatma-metni.html">Aydınlatma Metni</a><a href="/legal/saas-hizmet-sozlesmesi.html">SaaS Hizmet Sözleşmesi</a><a href="/legal/abonelik-iade-politikasi.html">Abonelik ve İade</a><a href="/legal/gizlilik-politikasi.html">Gizlilik</a></nav><p>© <span id="year"></span> MyStore. Tüm hakları saklıdır.</p></div></footer>
 
-        // Contact form submission
-        const contactForm = document.getElementById('contact-form');
-        const formStatus = document.getElementById('form-status');
-        const submitBtn = document.getElementById('submit-btn');
+  <script>
+    const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+    const appUrl = window.MYSTORE_APP_URL || (local ? 'http://localhost:3001/admin.html' : 'https://cark-backend.onrender.com/admin.html');
+    const apiUrl = window.MYSTORE_API_URL || (local ? 'http://localhost:3001' : 'https://cark-backend.onrender.com');
+    document.querySelectorAll('[data-app-link="login"]').forEach((a) => { a.href = appUrl; });
+    document.querySelectorAll('[data-app-link="register"]').forEach((a) => { a.href = `${appUrl}?mode=register`; });
+    document.getElementById('year').textContent = new Date().getFullYear();
 
-        function showStatus(message, isError) {
-            formStatus.textContent = message;
-            formStatus.classList.remove('hidden', 'text-red-400', 'text-refined-emerald');
-            formStatus.classList.add(isError ? 'text-red-400' : 'text-refined-emerald');
-        }
+    const menuButton = document.getElementById('menuButton');
+    const mobileMenu = document.getElementById('mobileMenu');
+    menuButton.addEventListener('click', () => { const open = mobileMenu.hidden; mobileMenu.hidden = !open; menuButton.setAttribute('aria-expanded', String(open)); });
+    mobileMenu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => { mobileMenu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); }));
 
-        contactForm?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const firstName = document.getElementById('firstName').value.trim();
-            const lastName = document.getElementById('lastName').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-            const agree = document.getElementById('agree').checked;
-
-            if (!firstName || !lastName || !email || !phone) {
-                showStatus('Lütfen tüm alanları doldurun.', true);
-                return;
-            }
-            if (!agree) {
-                showStatus('Devam etmek için kullanım sözleşmesini onaylayın.', true);
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Gönderiliyor...';
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/contact`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ firstName, lastName, email, phone, consent: true }),
-                });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.error || 'Bir şeyler ters gitti.');
-                }
-
-                showStatus(data.message || 'Talebiniz alındı, teşekkürler!', false);
-                contactForm.reset();
-            } catch (err) {
-                showStatus(err.message, true);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Gönder';
-            }
-        });
-    </script>
-</body></html>
+    const form = document.getElementById('contactForm');
+    const status = document.getElementById('formStatus');
+    const submit = document.getElementById('submitButton');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); status.className = 'form-status'; status.textContent = '';
+      const payload = { firstName: form.firstName.value.trim(), lastName: form.lastName.value.trim(), email: form.email.value.trim(), phone: form.phone.value.trim(), consent: form.consent.checked };
+      if (!payload.firstName || !payload.lastName || !payload.email || !payload.phone || !payload.consent) { status.classList.add('error'); status.textContent = 'Lütfen tüm alanları doldurun ve onay kutusunu işaretleyin.'; return; }
+      submit.disabled = true; submit.textContent = 'Gönderiliyor…';
+      try { const response = await fetch(`${apiUrl}/api/contact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Talep gönderilemedi.'); status.classList.add('success'); status.textContent = data.message; form.reset(); }
+      catch (error) { status.classList.add('error'); status.textContent = error.message; }
+      finally { submit.disabled = false; submit.textContent = 'Talebimi Gönder'; }
+    });
+  </script>
+</body>
+</html>
