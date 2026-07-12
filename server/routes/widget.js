@@ -1,8 +1,18 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getWidgetConfig, claimEntry, finalizeEntry, findStoreBySlug, findLastEntryByPhone, isDomainAllowed } from '../store.js';
+import {
+  getWidgetConfig,
+  claimEntry,
+  finalizeEntry,
+  findStoreBySlug,
+  findLastEntryByPhone,
+  isDomainAllowed,
+  getMonthlySpinCount,
+  PLAN_SPIN_LIMITS,
+} from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { sendQuotaExceededEmail } from '../services/email.js';
 
 export const widgetRouter = Router();
 
@@ -14,6 +24,24 @@ const spinLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, standardHeaders: t
 // phone number — without a limiter it's an open door for probing which
 // phone numbers have already participated.
 const checkSpinLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+
+// A store at its exact limit remains at that count while every new request is
+// rejected. Without this guard, the plan's `currentCount === limit` check would
+// send the same warning on every rejected spin until the month rolls over.
+const quotaEmailsSent = new Set();
+
+function notifyQuotaExceededOnce(store) {
+  const month = new Date().toISOString().slice(0, 7);
+  const key = `${store.id}:${month}`;
+  if (quotaEmailsSent.has(key)) {
+    return;
+  }
+  quotaEmailsSent.add(key);
+  sendQuotaExceededEmail(store).catch((err) => {
+    quotaEmailsSent.delete(key);
+    console.error('[Quota] Mail hatası:', err.message);
+  });
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^0?5\d{9}$/;
@@ -83,6 +111,8 @@ widgetRouter.use('/:storeSlug', (req, res, next) => {
  */
 widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
   const config = await getWidgetConfig(req.store.id);
+  const limit = PLAN_SPIN_LIMITS[req.store.planType] ?? PLAN_SPIN_LIMITS.free;
+  const currentCount = await getMonthlySpinCount(req.store.id);
   res.json({
     segments: config.segments,
     settings: {
@@ -95,6 +125,7 @@ widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
     },
     kvkk: config.kvkk,
     theme: config.theme || {},
+    quotaExceeded: currentCount >= limit,
   });
 }));
 
@@ -113,6 +144,14 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
     }
 
     const storeId = req.store.id;
+    const limit = PLAN_SPIN_LIMITS[req.store.planType] ?? PLAN_SPIN_LIMITS.free;
+    const currentCount = await getMonthlySpinCount(storeId);
+    if (currentCount >= limit) {
+      if (currentCount === limit) {
+        notifyQuotaExceededOnce(req.store);
+      }
+      return res.status(403).json({ error: 'Bu ay için katılım limitine ulaşıldı.', quotaExceeded: true });
+    }
 
     // Winner odds always come from the store's own saved config — a client
     // could otherwise send its own `segments` array and force the server to

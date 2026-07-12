@@ -475,3 +475,15 @@ export async function markEmailVerified(storeId) {
 export async function setOnboarded(storeId) {
   await query('UPDATE stores SET is_onboarded = true WHERE id = $1', [storeId]);
 }
+
+// Örnek değerlerdir — gerçek fiyatlandırmaya göre güncellenmeli.
+export const PLAN_SPIN_LIMITS = { free: 100, pro: 2000, unlimited: Infinity };
+
+export async function getMonthlySpinCount(storeId) {
+  const res = await query(
+    `SELECT COUNT(*) AS count FROM entries
+     WHERE store_id = $1 AND "timestamp" >= date_trunc('month', now())`,
+    [storeId],
+  );
+  return Number(res.rows[0]?.count || 0);
+}
