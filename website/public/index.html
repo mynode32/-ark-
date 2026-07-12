@@ -164,6 +164,73 @@
       catch (error) { status.classList.add('error'); status.textContent = error.message; }
       finally { submit.disabled = false; submit.textContent = 'Talebimi Gönder'; }
     });
+
+    // Hafif scroll animasyonları: yalnızca transform/opacity kullanır ve
+    // prefers-reduced-motion açıkken CSS tarafından tamamen devre dışı kalır.
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const revealGroups = [
+      ['.hero-copy', 'reveal-from-left'], ['.product-stage', 'reveal-from-right'],
+      ['.proof-grid > div', ''], ['.section-heading', ''], ['.feature-grid > article', ''],
+      ['.steps > li', ''], ['.integration-cards > article', ''], ['.price-card', ''],
+      ['.faq details', ''], ['.contact-grid > *', ''],
+    ];
+    document.body.classList.add('motion-ready');
+    revealGroups.forEach(([selector, direction]) => {
+      document.querySelectorAll(selector).forEach((element, index) => {
+        element.classList.add('reveal-on-scroll');
+        if (direction) element.classList.add(direction);
+        element.style.setProperty('--reveal-delay', `${Math.min(index * 85, 340)}ms`);
+      });
+    });
+
+    const animateCount = (element) => {
+      if (element.dataset.counted === 'true' || reduceMotion) return;
+      const match = element.textContent.match(/^([\d.]+)/);
+      if (!match) return;
+      element.dataset.counted = 'true';
+      const target = Number(match[1].replace('.', ''));
+      const suffix = element.textContent.slice(match[1].length);
+      const start = performance.now();
+      const tick = (now) => {
+        const progress = Math.min((now - start) / 900, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        element.textContent = `${Math.round(target * eased).toLocaleString('tr-TR')}${suffix}`;
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+
+    const revealObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        entry.target.querySelectorAll?.('.proof-grid strong').forEach(animateCount);
+        if (entry.target.matches('.proof-grid > div')) entry.target.querySelectorAll('strong').forEach(animateCount);
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -7% 0px' });
+    document.querySelectorAll('.reveal-on-scroll').forEach((element) => revealObserver.observe(element));
+
+    const wheel = document.querySelector('.wheel');
+    const wheelBoostObserver = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting || reduceMotion) return;
+      wheel?.classList.add('is-boosted');
+      window.setTimeout(() => wheel?.classList.remove('is-boosted'), 1400);
+    }, { threshold: .45 });
+    const pricing = document.getElementById('pricing');
+    if (pricing) wheelBoostObserver.observe(pricing);
+
+    if (!reduceMotion) {
+      let ticking = false;
+      window.addEventListener('scroll', () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          document.documentElement.style.setProperty('--hero-parallax', `${Math.min(window.scrollY * .08, 42)}px`);
+          ticking = false;
+        });
+      }, { passive: true });
+    }
   </script>
 </body>
 </html>
