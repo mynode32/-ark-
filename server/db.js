@@ -130,5 +130,51 @@ export async function ensureSchema() {
   `);
   await query('CREATE INDEX IF NOT EXISTS config_changes_store_id_idx ON config_changes(store_id, changed_at DESC)');
 
+  // --- SaaS: plan/abonelik/güvenlik/yasal alanları ---
+  await query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS plan_type TEXT NOT NULL DEFAULT 'free'");
+  await query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'trialing'");
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ');
+  await query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS allowed_domains JSONB NOT NULL DEFAULT '[]'");
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN NOT NULL DEFAULT false');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS terms_version TEXT');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS invoice_title TEXT');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS tax_id TEXT');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ');
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      token TEXT UNIQUE NOT NULL,
+      purpose TEXT NOT NULL DEFAULT 'password_reset',
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS password_resets_store_id_idx ON password_resets(store_id)');
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS billing_history (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      store_id UUID REFERENCES stores(id) ON DELETE SET NULL,
+      provider TEXT NOT NULL,
+      provider_transaction_id TEXT UNIQUE NOT NULL,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'TRY',
+      status TEXT NOT NULL,
+      plan_type TEXT NOT NULL,
+      period_start TIMESTAMPTZ,
+      period_end TIMESTAMPTZ,
+      invoice_number TEXT,
+      invoice_url TEXT,
+      raw_payload JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS billing_history_store_id_idx ON billing_history(store_id, created_at DESC)');
+
   console.log('[DB] Şema hazır.');
 }

@@ -12,6 +12,9 @@ import {
   getPlatformCredentials,
   savePlatformCredentials,
   getConfigHistory,
+  findStoreById,
+  validateDomains,
+  updateAllowedDomains,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
@@ -273,4 +276,16 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
  */
 adminRouter.get('/stats', asyncHandler(async (req, res) => {
   res.json(await getEntryStats(req.storeId));
+}));
+
+adminRouter.get('/domains', asyncHandler(async (req, res) => {
+  const store = await findStoreById(req.storeId);
+  res.json({ domains: store.allowedDomains });
+}));
+
+adminRouter.put('/domains', asyncHandler(async (req, res) => {
+  const { domains } = req.body;
+  const error = validateDomains(domains || []);
+  if (error) return res.status(400).json({ error });
+  res.json({ domains: await updateAllowedDomains(req.storeId, domains) });
 }));

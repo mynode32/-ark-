@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getWidgetConfig, claimEntry, finalizeEntry, findStoreBySlug, findLastEntryByPhone } from '../store.js';
+import { getWidgetConfig, claimEntry, finalizeEntry, findStoreBySlug, findLastEntryByPhone, isDomainAllowed } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
@@ -70,6 +70,12 @@ const resolveStore = asyncHandler(async (req, res, next) => {
 });
 
 widgetRouter.use('/:storeSlug', resolveStore);
+widgetRouter.use('/:storeSlug', (req, res, next) => {
+  if (!isDomainAllowed(req.store.allowedDomains, req)) {
+    return res.status(403).json({ error: 'Bu domain için çark erişimi yetkili değil.' });
+  }
+  next();
+});
 
 /**
  * GET /api/widget/:storeSlug/config

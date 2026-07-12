@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { query, withTransaction } from './db.js';
 
 // The wheel is fixed at exactly 6 equal 60° slices (see validateSegments
@@ -65,6 +66,17 @@ function rowToStore(row) {
     passwordHash: row.password_hash,
     widgetConfig: row.widget_config,
     createdAt: row.created_at,
+    planType: row.plan_type,
+    subscriptionStatus: row.subscription_status,
+    subscriptionEndsAt: row.subscription_ends_at,
+    allowedDomains: row.allowed_domains || [],
+    isOnboarded: Boolean(row.is_onboarded),
+    emailVerifiedAt: row.email_verified_at,
+    termsAcceptedAt: row.terms_accepted_at,
+    termsVersion: row.terms_version,
+    invoiceTitle: row.invoice_title,
+    taxId: row.tax_id,
+    deletedAt: row.deleted_at,
   };
 }
 
@@ -396,4 +408,66 @@ export async function saveCachedIkasToken(storeId, tokenEnc, expiresAt) {
     'UPDATE store_platform_credentials SET ikas_token_enc = $2, ikas_token_expires_at = $3 WHERE store_id = $1',
     [storeId, tokenEnc, new Date(expiresAt).toISOString()],
   );
+}
+
+// --- Domain güvenliği ---
+function extractHostname(headerValue) {
+  if (!headerValue) return null;
+  try {
+    return new URL(headerValue).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function isDomainAllowed(allowedDomains, req) {
+  if (!Array.isArray(allowedDomains) || allowedDomains.length === 0) return true;
+  const candidate = extractHostname(req.headers.origin) || extractHostname(req.headers.referer);
+  if (!candidate) return false;
+  return allowedDomains.map((d) => String(d).replace(/^www\./, '').toLowerCase()).includes(candidate);
+}
+
+const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+
+export function validateDomains(domains) {
+  if (!Array.isArray(domains) || domains.length > 10) return 'En fazla 10 domain ekleyebilirsiniz';
+  for (const d of domains) {
+    if (typeof d !== 'string' || !DOMAIN_RE.test(d.trim())) {
+      return `Geçersiz domain: "${d}" (örn: ornek.com, protokol veya www yazmayın)`;
+    }
+  }
+  return null;
+}
+
+export async function updateAllowedDomains(storeId, domains) {
+  const normalized = domains.map((d) => d.trim().replace(/^www\./, '').toLowerCase());
+  await query('UPDATE stores SET allowed_domains = $1 WHERE id = $2', [JSON.stringify(normalized), storeId]);
+  await logConfigChange(storeId, 'domains', `${normalized.length} izinli domain güncellendi`);
+  return normalized;
+}
+
+// --- Auth token'ları ---
+export async function createAuthToken(storeId, purpose, ttlMs) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + ttlMs).toISOString();
+  await query('INSERT INTO password_resets (store_id, token, purpose, expires_at) VALUES ($1, $2, $3, $4)', [storeId, token, purpose, expiresAt]);
+  return token;
+}
+
+export async function findValidToken(token, purpose) {
+  const res = await query(`SELECT * FROM password_resets
+    WHERE token = $1 AND purpose = $2 AND used_at IS NULL AND expires_at > now()`, [token, purpose]);
+  return res.rows[0] || null;
+}
+
+export async function consumeToken(tokenId) {
+  await query('UPDATE password_resets SET used_at = now() WHERE id = $1', [tokenId]);
+}
+
+export async function updateStorePassword(storeId, passwordHash) {
+  await query('UPDATE stores SET password_hash = $1 WHERE id = $2', [passwordHash, storeId]);
+}
+
+export async function markEmailVerified(storeId) {
+  await query('UPDATE stores SET email_verified_at = now() WHERE id = $1', [storeId]);
 }

@@ -47,6 +47,9 @@ export const config = {
   databaseUrl,
   jwtSecret,
   encryptionKey,
+  resendApiKey: env.RESEND_API_KEY || process.env.RESEND_API_KEY || '',
+  emailFrom: env.EMAIL_FROM || process.env.EMAIL_FROM || 'Çark <bildirim@cark-app.com>',
+  appBaseUrl: env.APP_BASE_URL || process.env.APP_BASE_URL || 'http://localhost:5173',
   ikas: {
     // GraphQL host is shared across all stores; auth host/clientId/secret are
     // now per-store (see server/services/platforms/ikas.js) except for the
