@@ -142,6 +142,8 @@ export async function ensureSchema() {
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS invoice_title TEXT');
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS tax_id TEXT');
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS iyzico_card_user_key TEXT');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS iyzico_card_token TEXT');
 
   await query(`
     CREATE TABLE IF NOT EXISTS password_resets (
@@ -175,6 +177,20 @@ export async function ensureSchema() {
     )
   `);
   await query('CREATE INDEX IF NOT EXISTS billing_history_store_id_idx ON billing_history(store_id, created_at DESC)');
+
+  // Checkout tokenını mağaza + seçilen planla sunucu tarafında eşleştirir;
+  // callback body'sinden plan/store bilgisi kabul edilmez.
+  await query(`
+    CREATE TABLE IF NOT EXISTS billing_checkout_sessions (
+      token TEXT PRIMARY KEY,
+      store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      plan_type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + interval '1 hour',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS billing_checkout_sessions_store_id_idx ON billing_checkout_sessions(store_id, created_at DESC)');
 
   console.log('[DB] Şema hazır.');
 }

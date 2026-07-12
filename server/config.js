@@ -27,6 +27,7 @@ const ikasStoreId = env.IKAS_STORE_ID || process.env.IKAS_STORE_ID || '';
 const jwtSecret = env.JWT_SECRET || process.env.JWT_SECRET;
 const encryptionKey = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
 const databaseUrl = env.DATABASE_URL || process.env.DATABASE_URL || '';
+const port = parseInt(env.PORT || process.env.PORT || '3001');
 
 if (!jwtSecret) {
   throw new Error('JWT_SECRET ortam değişkeni tanımlı değil. server/.env dosyasına JWT_SECRET=... ekleyin.');
@@ -43,13 +44,20 @@ if (!encryptionKey || !/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
 }
 
 export const config = {
-  port: parseInt(env.PORT || process.env.PORT || '3001'),
+  port,
   databaseUrl,
   jwtSecret,
   encryptionKey,
   resendApiKey: env.RESEND_API_KEY || process.env.RESEND_API_KEY || '',
   emailFrom: env.EMAIL_FROM || process.env.EMAIL_FROM || 'Çark <bildirim@cark-app.com>',
-  appBaseUrl: env.APP_BASE_URL || process.env.APP_BASE_URL || 'http://localhost:5173',
+  appBaseUrl: env.APP_BASE_URL || process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000',
+  backendBaseUrl:
+    env.BACKEND_BASE_URL || process.env.BACKEND_BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`,
+  iyzico: {
+    apiKey: env.IYZICO_API_KEY || process.env.IYZICO_API_KEY || '',
+    secretKey: env.IYZICO_SECRET_KEY || process.env.IYZICO_SECRET_KEY || '',
+    baseUrl: env.IYZICO_BASE_URL || process.env.IYZICO_BASE_URL || 'https://sandbox-api.iyzipay.com',
+  },
   ikas: {
     // GraphQL host is shared across all stores; auth host/clientId/secret are
     // now per-store (see server/services/platforms/ikas.js) except for the

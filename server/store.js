@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { query, withTransaction } from './db.js';
+import { encryptSecret } from './services/crypto.js';
 
 // The wheel is fixed at exactly 6 equal 60° slices (see validateSegments
 // and src/wheel.js) — colors alternate through the Ferrari-red / matte-black
@@ -77,6 +78,8 @@ function rowToStore(row) {
     invoiceTitle: row.invoice_title,
     taxId: row.tax_id,
     deletedAt: row.deleted_at,
+    iyzicoCardUserKey: row.iyzico_card_user_key,
+    iyzicoCardToken: row.iyzico_card_token,
   };
 }
 
@@ -486,4 +489,77 @@ export async function getMonthlySpinCount(storeId) {
     [storeId],
   );
   return Number(res.rows[0]?.count || 0);
+}
+
+// --- Abonelik ve ödeme kayıtları ---
+
+export async function saveCheckoutSession({ token, storeId, planType }) {
+  await query(
+    `INSERT INTO billing_checkout_sessions (token, store_id, plan_type)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (token) DO NOTHING`,
+    [token, storeId, planType],
+  );
+}
+
+export async function findCheckoutSession(token) {
+  const res = await query(
+    `SELECT * FROM billing_checkout_sessions
+     WHERE token = $1 AND expires_at > now()`,
+    [token],
+  );
+  return res.rows[0] || null;
+}
+
+export async function completeCheckoutSession(token) {
+  await query("UPDATE billing_checkout_sessions SET status = 'completed' WHERE token = $1", [token]);
+}
+
+export async function activateSubscription(storeId, { planType, cardUserKey, cardToken }) {
+  await query(
+    `UPDATE stores SET plan_type = $2, subscription_status = 'active',
+       subscription_ends_at = now() + interval '1 month',
+       iyzico_card_user_key = $3, iyzico_card_token = $4
+     WHERE id = $1`,
+    [storeId, planType, encryptSecret(cardUserKey), encryptSecret(cardToken)],
+  );
+}
+
+export async function recordBillingEvent({
+  storeId,
+  provider,
+  providerTransactionId,
+  amount,
+  status,
+  planType,
+  invoiceNumber = null,
+  invoiceUrl = null,
+  rawPayload = null,
+}) {
+  await query(
+    `INSERT INTO billing_history
+       (store_id, provider, provider_transaction_id, amount, status, plan_type,
+        period_start, period_end, invoice_number, invoice_url, raw_payload)
+     VALUES ($1, $2, $3, $4, $5, $6, now(), now() + interval '1 month', $7, $8, $9)
+     ON CONFLICT (provider_transaction_id) DO NOTHING`,
+    [
+      storeId,
+      provider,
+      providerTransactionId,
+      amount,
+      status,
+      planType,
+      invoiceNumber,
+      invoiceUrl,
+      rawPayload ? JSON.stringify(rawPayload) : null,
+    ],
+  );
+}
+
+export async function markPastDue(storeId) {
+  await query("UPDATE stores SET subscription_status = 'past_due' WHERE id = $1", [storeId]);
+}
+
+export async function cancelSubscription(storeId) {
+  await query("UPDATE stores SET subscription_status = 'canceled' WHERE id = $1", [storeId]);
 }

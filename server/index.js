@@ -7,6 +7,9 @@ import { ensureSchema, pool } from './db.js';
 import { widgetRouter } from './routes/widget.js';
 import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
+import { billingRouter } from './routes/billing.js';
+import cron from 'node-cron';
+import { renewSubscriptions } from './jobs/renewSubscriptions.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -30,6 +33,7 @@ app.use(express.static(resolve(__dirname, '..', 'dist-app')));
 app.use('/api/auth', authRouter);
 app.use('/api/widget', widgetRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/billing', billingRouter);
 
 // Health check — actually pings the DB so a broken connection shows up here
 // instead of every tenant's requests failing with no external signal.
@@ -66,6 +70,9 @@ ensureSchema()
       console.log(`   Widget API:  http://localhost:${config.port}/api/widget/:storeSlug/config`);
       console.log(`   Admin API:   http://localhost:${config.port}/api/admin/config`);
       console.log(`   DB:          ${config.databaseUrl ? 'CONFIGURED' : 'NOT CONFIGURED'}`);
+    });
+    cron.schedule('0 3 * * *', () => {
+      renewSubscriptions().catch((err) => console.error('[Cron] renewSubscriptions hatası:', err.message));
     });
   });
 

@@ -105,6 +105,18 @@ widgetRouter.use('/:storeSlug', (req, res, next) => {
   next();
 });
 
+widgetRouter.use('/:storeSlug', (req, res, next) => {
+  const { subscriptionStatus, subscriptionEndsAt } = req.store;
+  const expired = subscriptionEndsAt && new Date(subscriptionEndsAt) < new Date();
+  if (subscriptionStatus === 'canceled' && expired) {
+    return res.status(402).json({ error: 'Abonelik sona erdi.' });
+  }
+  if (subscriptionStatus === 'past_due' && expired) {
+    return res.status(402).json({ error: 'Ödeme sorunu nedeniyle çark durduruldu.' });
+  }
+  next();
+});
+
 /**
  * GET /api/widget/:storeSlug/config
  * Returns widget configuration (public, no auth needed)
