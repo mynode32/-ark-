@@ -946,6 +946,7 @@ select.form-input option { color: var(--panel-ink); background: #fff; }
 .probability-slider input[type='range']::-webkit-slider-thumb { background: var(--panel-primary); box-shadow: 0 0 8px rgba(124,58,237,.25); }
 .probability-value { color: var(--panel-primary); background: #ede9fe; }
 .preview-container { border-color: #e2e8f0; background: #eef1f7; }
+.admin-card.preview-highlight { border-color: var(--panel-primary); box-shadow: 0 0 0 4px rgba(124,58,237,.12), 0 18px 45px rgba(124,58,237,.13); }
 .preview-stats span { color: var(--panel-primary); }
 .btn { border-radius: 10px; }
 .btn-primary { color: #fff; background: linear-gradient(135deg,var(--panel-primary),var(--panel-primary-dark)); box-shadow: 0 7px 18px rgba(124,58,237,.18); }

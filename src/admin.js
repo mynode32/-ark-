@@ -104,12 +104,22 @@ class AdminPanel {
     const avatar = document.getElementById('storeAvatar');
     if (avatar && this.store) avatar.textContent = this.store.name.trim().charAt(0).toLocaleUpperCase('tr-TR') || 'M';
     document.getElementById('panelYear').textContent = new Date().getFullYear();
-    // "Demo Sayfası" linki mağaza slug'ı olmadan gerçek kayıtlı ayarları değil,
-    // sabit örnek konfigürasyonu gösteriyordu — kendi mağazasının canlı config'ini
-    // görebilsin diye slug/apiUrl'i query string'e ekliyoruz.
+    // Önizleme panelin dışındaki ayrı bir demo sayfasını açmaz. Ayarlar
+    // sekmesindeki gerçek widget önizlemesine götürerek tek ürün hissini korur.
     const demoLink = document.getElementById('demoLink');
     if (demoLink && this.store) {
-      demoLink.href = `/index.html?storeSlug=${encodeURIComponent(this.store.slug)}&apiUrl=${encodeURIComponent(getApiBase())}`;
+      demoLink.href = '#panel-preview';
+      demoLink.onclick = (event) => {
+        event.preventDefault();
+        const settingsTab = document.querySelector('.admin-nav a[data-tab="settings"]');
+        if (this.currentTab !== 'settings') settingsTab?.click();
+        window.setTimeout(() => {
+          const preview = document.getElementById('previewContainer');
+          preview?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          preview?.closest('.admin-card')?.classList.add('preview-highlight');
+          window.setTimeout(() => preview?.closest('.admin-card')?.classList.remove('preview-highlight'), 1400);
+        }, 80);
+      };
     }
     document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
     const sidebar = document.getElementById('adminSidebar');
