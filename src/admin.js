@@ -63,7 +63,8 @@ class AdminPanel {
       localStorage.removeItem('cark_admin_token');
     }
 
-    this.showAuthForm('login');
+    const requestedMode = new URLSearchParams(window.location.search).get('mode');
+    this.showAuthForm(requestedMode === 'register' ? 'register' : 'login');
   }
 
   showContent() {

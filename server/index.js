@@ -11,6 +11,7 @@ import { billingRouter } from './routes/billing.js';
 import cron from 'node-cron';
 import { renewSubscriptions } from './jobs/renewSubscriptions.js';
 import { purgeDeletedStores } from './jobs/purgeDeletedStores.js';
+import { contactRouter } from './routes/contact.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/widget', widgetRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/billing', billingRouter);
+app.use('/api/contact', contactRouter);
 
 // Health check — actually pings the DB so a broken connection shows up here
 // instead of every tenant's requests failing with no external signal.

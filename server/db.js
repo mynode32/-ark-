@@ -192,5 +192,19 @@ export async function ensureSchema() {
   `);
   await query('CREATE INDEX IF NOT EXISTS billing_checkout_sessions_store_id_idx ON billing_checkout_sessions(store_id, created_at DESC)');
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS contact_leads (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      consent_at TIMESTAMPTZ NOT NULL,
+      source TEXT NOT NULL DEFAULT 'mystore-website',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS contact_leads_created_at_idx ON contact_leads(created_at DESC)');
+
   console.log('[DB] Şema hazır.');
 }
