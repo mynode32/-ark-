@@ -21,6 +21,11 @@ app.use(cors({ origin: config.corsOrigin }));
 // payloads (a few KB); this caps abuse without constraining real usage.
 app.use(express.json({ limit: '256kb' }));
 
+// MyStore satış sitesi ayrı bir statik servise/özel domaine taşınana kadar
+// aynı backend üzerinden /mystore altında canlı önizleme sunar.
+app.use('/mystore', express.static(resolve(__dirname, '..', 'website', 'public')));
+app.use('/legal', express.static(resolve(__dirname, '..', 'website', 'public', 'legal')));
+
 // Serves the built embeddable widget bundle (cark-widget.js) so İkas (or any
 // other store) can load it via a plain <script src="..."> tag from this backend.
 app.use('/dist', express.static(resolve(__dirname, '..', 'dist')));
