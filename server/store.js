@@ -575,3 +575,31 @@ export async function updateBillingInfo(storeId, { invoiceTitle, taxId }) {
   );
   return { invoiceTitle: res.rows[0]?.invoice_title || '', taxId: res.rows[0]?.tax_id || '' };
 }
+
+// --- Hesap silme / veri indirme ---
+
+export async function exportStoreData(storeId) {
+  const store = await findStoreById(storeId);
+  const entriesRes = await query('SELECT * FROM entries WHERE store_id = $1 ORDER BY "timestamp"', [storeId]);
+  const billingRes = await query('SELECT * FROM billing_history WHERE store_id = $1 ORDER BY created_at', [storeId]);
+  return {
+    store: { name: store.name, email: store.email, slug: store.slug, createdAt: store.createdAt, planType: store.planType },
+    widgetConfig: store.widgetConfig,
+    entries: entriesRes.rows,
+    billingHistory: billingRes.rows,
+    exportedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Mağaza hesabını dondurur (soft delete) ve entries tablosundaki katılımcı
+ * kişisel verilerini (ad/telefon/e-posta) anonimleştirir — istatistik alanları
+ * (ödül, kupon, indirim tipi) mağaza sahibinin geçmiş kayıtları için korunur.
+ * billing_history'e dokunulmaz (ON DELETE SET NULL ile VUK saklama zorunluluğu korunur).
+ */
+export async function softDeleteStore(storeId) {
+  await withTransaction(async (client) => {
+    await client.query('UPDATE entries SET name = NULL, phone = NULL, email = NULL WHERE store_id = $1', [storeId]);
+    await client.query("UPDATE stores SET deleted_at = now(), subscription_status = 'canceled' WHERE id = $1", [storeId]);
+  });
+}

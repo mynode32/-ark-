@@ -17,6 +17,8 @@ import {
   updateAllowedDomains,
   setOnboarded,
   updateBillingInfo,
+  exportStoreData,
+  softDeleteStore,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
@@ -315,4 +317,26 @@ adminRouter.put('/billing-info', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Vergi/T.C. kimlik numarası 10 veya 11 rakam olmalıdır' });
   }
   res.json(await updateBillingInfo(req.storeId, { invoiceTitle, taxId }));
+}));
+
+/**
+ * GET /api/admin/export-data
+ * Hesabı silmeden önce store owner'ın kendi verisini indirmesi için — silme
+ * işlemi sırası server tarafından zorunlu kılınmaz, indirme her zaman erişilebilir.
+ */
+adminRouter.get('/export-data', asyncHandler(async (req, res) => {
+  const data = await exportStoreData(req.storeId);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="cark-veri-${new Date().toISOString().split('T')[0]}.json"`);
+  res.send(JSON.stringify(data, null, 2));
+}));
+
+/**
+ * DELETE /api/admin/account
+ * Hesabı dondurur (soft delete) + katılımcı kişisel verilerini anonimleştirir.
+ * Geri alınamaz bir işlemdir; 30 gün sonra kalıcı olarak temizlenir (bkz. purgeDeletedStores).
+ */
+adminRouter.delete('/account', asyncHandler(async (req, res) => {
+  await softDeleteStore(req.storeId);
+  res.json({ ok: true });
 }));

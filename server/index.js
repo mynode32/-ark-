@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth.js';
 import { billingRouter } from './routes/billing.js';
 import cron from 'node-cron';
 import { renewSubscriptions } from './jobs/renewSubscriptions.js';
+import { purgeDeletedStores } from './jobs/purgeDeletedStores.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -73,6 +74,9 @@ ensureSchema()
     });
     cron.schedule('0 3 * * *', () => {
       renewSubscriptions().catch((err) => console.error('[Cron] renewSubscriptions hatası:', err.message));
+    });
+    cron.schedule('0 4 * * *', () => {
+      purgeDeletedStores().catch((err) => console.error('[Cron] purgeDeletedStores hatası:', err.message));
     });
   });
 
