@@ -65,9 +65,19 @@ h1 em { color: var(--violet); font-style: normal; }
 .wheel-card p { margin-bottom: 2px; color: var(--pink); font-size: 9px; font-weight: 850; letter-spacing: .17em; }
 .wheel-card h2 { margin-bottom: 14px; font-size: 24px; letter-spacing: -.04em; }
 .wheel-card small { color: var(--muted); font-size: 10px; }
-.wheel { position: relative; width: 180px; height: 180px; margin: 0 auto 12px; border: 8px solid #fff; border-radius: 50%; background: conic-gradient(#7c3aed 0 60deg, #f472b6 60deg 120deg, #fbbf24 120deg 180deg, #4f46e5 180deg 240deg, #fb7185 240deg 300deg, #a78bfa 300deg); box-shadow: 0 0 0 2px #7c3aed, 0 12px 28px rgba(124, 58, 237, .22); }
-.wheel::before { content: ""; position: absolute; top: -18px; left: 50%; z-index: 2; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 24px solid var(--ink); }
-.wheel-center { position: absolute; inset: 50% auto auto 50%; width: 62px; height: 62px; display: grid; place-items: center; transform: translate(-50%, -50%); border: 6px solid #fff; border-radius: 50%; color: #fff; background: var(--ink); font-size: 11px; font-weight: 850; }
+.wheel-wrap { position: relative; width: 180px; height: 180px; margin: 0 auto 12px; }
+.wheel { position: relative; width: 180px; height: 180px; border: 8px solid #fff; border-radius: 50%; background: conic-gradient(#7c3aed 0 60deg, #f472b6 60deg 120deg, #fbbf24 120deg 180deg, #4f46e5 180deg 240deg, #fb7185 240deg 300deg, #a78bfa 300deg); box-shadow: 0 0 0 2px #7c3aed, 0 12px 28px rgba(124, 58, 237, .22); animation: wheel-showcase-spin 18s linear infinite; }
+.wheel-wrap::before { content: ""; position: absolute; top: -18px; left: 50%; z-index: 3; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 24px solid var(--ink); }
+.wheel-center { position: absolute; inset: 50% auto auto 50%; width: 62px; height: 62px; display: grid; place-items: center; transform: translate(-50%, -50%); border: 6px solid #fff; border-radius: 50%; color: #fff; background: var(--ink); font-size: 11px; font-weight: 850; animation: wheel-center-counter 18s linear infinite; }
+.wheel-label { position: absolute; z-index: 1; width: 72px; color: #fff; font-size: 7px; font-weight: 900; line-height: 1; letter-spacing: .025em; text-align: center; text-shadow: 0 1px 2px rgba(15,23,42,.4); }
+.label-ikas { top: 22px; left: 46px; transform: rotate(30deg); }
+.label-shopify { top: 52px; right: -1px; transform: rotate(90deg); }
+.label-website { right: 4px; bottom: 44px; transform: rotate(150deg); }
+.label-wordpress { bottom: 21px; left: 45px; transform: rotate(210deg); }
+.label-webflow { bottom: 50px; left: -4px; transform: rotate(270deg); }
+.label-prestashop { top: 48px; left: -3px; transform: rotate(330deg); }
+@keyframes wheel-showcase-spin { to { transform: rotate(360deg); } }
+@keyframes wheel-center-counter { to { transform: translate(-50%, -50%) rotate(-360deg); } }
 .mini-stat { position: absolute; left: -26px; bottom: 48px; display: flex; gap: 9px; align-items: center; padding: 12px 16px; border: 1px solid #e8e3f6; border-radius: 13px; background: #fff; box-shadow: 0 12px 30px rgba(15,23,42,.13); font-size: 11px; }
 .mini-stat strong { color: #16a34a; }
 
@@ -178,4 +188,5 @@ footer p { margin: 0; font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
+  .wheel, .wheel-center { animation: none; }
 }
