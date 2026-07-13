@@ -63,9 +63,9 @@
                 <span class="wheel-label label-wordpress">WORDPRESS</span>
                 <span class="wheel-label label-webflow">WEBFLOW</span>
                 <span class="wheel-label label-prestashop">PRESTASHOP</span>
-                <div class="wheel-center">ÇEVİR</div>
+                <button class="wheel-center" id="demoSpinButton" type="button" aria-label="Demo Çarkı çevir">ÇEVİR</button>
               </div></div>
-              <small>İndirim kuponunu hemen kazan</small>
+              <small class="demo-result" id="demoResult" role="status" aria-live="polite">Platformları keşfetmek için ÇEVİR'e basın</small>
             </div>
           </div>
           <div class="mini-stat"><strong>Canlı</strong><span>Kampanya panelden yönetiliyor</span></div>
@@ -103,12 +103,44 @@
       </div>
     </section>
 
+    <section class="section use-cases" id="use-cases">
+      <div class="container">
+        <div class="section-heading"><p class="eyebrow">E-TİCARETİN ÖTESİNDE</p><h2>Çark yalnızca mağazalar için değil</h2><p>Ödül, yönlendirme veya iletişim toplama ihtiyacı olan her web sitesinde kampanyanızı oyunlaştırın.</p></div>
+        <div class="use-case-grid">
+          <article><span>🍽️</span><h3>Restoran ve kafeler</h3><p>Ücretsiz içecek, tatlı veya bir sonraki siparişe özel fırsat sunun.</p></article>
+          <article><span>🏨</span><h3>Otel ve turizm</h3><p>Oda indirimi, ücretsiz kahvaltı veya geç çıkış hakkı kazandırın.</p></article>
+          <article><span>🎓</span><h3>Eğitim ve kurslar</h3><p>Ücretsiz deneme dersi, kayıt indirimi veya eğitim materyali paylaşın.</p></article>
+          <article><span>🏋️</span><h3>Spor ve üyelik</h3><p>Deneme üyeliği, kişisel ölçüm veya üyelik avantajı verin.</p></article>
+          <article><span>🎪</span><h3>Etkinlik ve fuarlar</h3><p>Stand ziyaretçilerini kampanyaya dahil edip iletişim talebi toplayın.</p></article>
+          <article><span>💼</span><h3>Kurumsal hizmetler</h3><p>Ücretsiz analiz, danışmanlık veya teklif görüşmesine yönlendirin.</p></article>
+        </div>
+      </div>
+    </section>
+
     <section class="section pricing" id="pricing">
       <div class="container">
         <div class="section-heading"><p class="eyebrow">ŞEFFAF BAŞLANGIÇ</p><h2>Önce deneyin, ihtiyacınız artınca yükseltin</h2><p>Pro fiyatı lansman öncesi örnek değerdir ve ödeme sistemi açılmadan önce kesinleştirilecektir.</p></div>
         <div class="price-grid">
           <article class="price-card"><p>Ücretsiz</p><h3>₺0</h3><span>Başlangıç için</span><ul><li>Aylık 100 katılım</li><li>Domain güvenliği</li><li>Katılımcı paneli</li><li>Manuel kupon kullanımı</li></ul><a class="button button-ghost" data-app-link="register" href="https://cark-backend.onrender.com/mystore/panel?mode=register">Ücretsiz Başla</a></article>
           <article class="price-card featured"><div class="badge">Lansman planı</div><p>Pro</p><h3>₺799<small>/ay</small></h3><span>Aktif mağazalar için</span><ul><li>Aylık 2.000 katılım</li><li>İkas entegrasyonu</li><li>Gelişmiş tema ayarları</li><li>Öncelikli destek hedefi</li></ul><a class="button" data-app-link="register" href="https://cark-backend.onrender.com/mystore/panel?mode=register">Ücretsiz Deneyin</a></article>
+        </div>
+        <div class="plan-comparison" aria-label="Plan karşılaştırması">
+          <h3>Planları ayrıntılı karşılaştırın</h3>
+          <div class="comparison-scroll"><table>
+            <thead><tr><th>Özellik</th><th>Ücretsiz</th><th>Pro</th></tr></thead>
+            <tbody>
+              <tr><td>Aylık katılım</td><td>100</td><td>2.000</td></tr>
+              <tr><td>İzinli domain</td><td>10 domaine kadar</td><td>10 domaine kadar</td></tr>
+              <tr><td>Çark ve ödül düzenleme</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr>
+              <tr><td>Katılımcı paneli</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr>
+              <tr><td>CSV dışa aktarma</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr>
+              <tr><td>Manuel kupon kullanımı</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr>
+              <tr><td>İkas otomatik entegrasyonu</td><td><span class="no">—</span></td><td><span class="yes">✓</span></td></tr>
+              <tr><td>Gelişmiş görünüm seçenekleri</td><td>Temel</td><td>Gelişmiş</td></tr>
+              <tr><td>Destek</td><td>Standart</td><td>Öncelikli hedefi</td></tr>
+            </tbody>
+          </table></div>
+          <p>Pro fiyatı ve ticari koşulları ödeme sistemi açılmadan önce kesinleştirilecektir.</p>
         </div>
       </div>
     </section>
@@ -152,6 +184,27 @@
     menuButton.addEventListener('click', () => { const open = mobileMenu.hidden; mobileMenu.hidden = !open; menuButton.setAttribute('aria-expanded', String(open)); });
     mobileMenu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => { mobileMenu.hidden = true; menuButton.setAttribute('aria-expanded', 'false'); }));
 
+    const demoSpinButton = document.getElementById('demoSpinButton');
+    const demoResult = document.getElementById('demoResult');
+    const demoWheel = document.querySelector('.wheel');
+    const demoRewards = ['İkas: otomatik entegrasyon', 'Shopify: embed kodu', 'Web siteniz: embed kodu', 'WordPress: footer kodu', 'Webflow: özel kod', 'PrestaShop: embed kodu'];
+    demoSpinButton.addEventListener('click', () => {
+      if (demoSpinButton.disabled) return;
+      demoSpinButton.disabled = true;
+      demoSpinButton.textContent = '...';
+      demoResult.classList.remove('won');
+      demoResult.textContent = 'Platform seçiliyor…';
+      demoWheel.classList.add('demo-spinning');
+      window.setTimeout(() => {
+        const reward = demoRewards[Math.floor(Math.random() * demoRewards.length)];
+        demoWheel.classList.remove('demo-spinning');
+        demoSpinButton.textContent = 'ÇEVİR';
+        demoSpinButton.disabled = false;
+        demoResult.textContent = reward;
+        demoResult.classList.add('won');
+      }, 1700);
+    });
+
     const form = document.getElementById('contactForm');
     const status = document.getElementById('formStatus');
     const submit = document.getElementById('submitButton');
@@ -171,7 +224,8 @@
     const revealGroups = [
       ['.hero-copy', 'reveal-from-left'], ['.product-stage', 'reveal-from-right'],
       ['.proof-grid > div', ''], ['.section-heading', ''], ['.feature-grid > article', ''],
-      ['.steps > li', ''], ['.integration-cards > article', ''], ['.price-card', ''],
+      ['.steps > li', ''], ['.integration-cards > article', ''], ['.use-case-grid > article', ''], ['.price-card', ''],
+      ['.plan-comparison', ''],
       ['.faq details', ''], ['.contact-grid > *', ''],
     ];
     document.body.classList.add('motion-ready');
