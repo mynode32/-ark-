@@ -233,6 +233,20 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
       discountType: winner.discountType,
       discountValue: winner.discountValue,
       isLocalCoupon,
+      couponStatus:
+        winner.discountType === 'noLuck'
+          ? 'processed'
+          : isLocalCoupon
+            ? adapter.platform === 'ikas'
+              ? 'failed'
+              : 'manual_review'
+            : 'processed',
+      couponError:
+        isLocalCoupon && adapter.platform === 'ikas'
+          ? 'İkas kuponu oluşturulamadı; müşteriye yalnızca yerel kod gösterildi'
+          : isLocalCoupon
+            ? 'Bağlı bir e-ticaret altyapısı yok; manuel işlem gerekli'
+            : null,
     });
 
     console.log(`[Spin] ${name} -> ${winner.label} ${couponCode ? `(${couponCode})` : '(kupon yok)'}`);

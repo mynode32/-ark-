@@ -5,10 +5,16 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
   getWidgetConfig,
   saveWidgetConfig,
-  getEntries,
   getEntriesPage,
+  getFilteredEntries,
+  getEntryPrizes,
   getEntryStats,
   clearEntries,
+  getEntryById,
+  deleteEntries,
+  markEntriesProcessed,
+  updateEntryCoupon,
+  createTestEntry,
   getPlatformCredentials,
   savePlatformCredentials,
   getConfigHistory,
@@ -32,6 +38,24 @@ adminRouter.use(adminAuth);
 // Each test-coupon call can create a real İkas coupon — throttled to blunt
 // accidental spam-clicking, not abuse (this route is already auth-only).
 const testCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
+const retryCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+
+function entryFilters(queryParams) {
+  return {
+    search: typeof queryParams.search === 'string' ? queryParams.search.slice(0, 200) : '',
+    dateFrom: /^\d{4}-\d{2}-\d{2}$/.test(queryParams.dateFrom || '') ? queryParams.dateFrom : '',
+    dateTo: /^\d{4}-\d{2}-\d{2}$/.test(queryParams.dateTo || '') ? queryParams.dateTo : '',
+    prize: typeof queryParams.prize === 'string' ? queryParams.prize.slice(0, 100) : '',
+    status: typeof queryParams.status === 'string' ? queryParams.status : '',
+  };
+}
+
+function validIds(input) {
+  if (!Array.isArray(input) || input.length === 0 || input.length > 500) {
+    return [];
+  }
+  return input.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id)));
+}
 
 /**
  * GET /api/admin/auth-check
@@ -77,10 +101,13 @@ adminRouter.get('/entries', asyncHandler(async (req, res) => {
   // from the end of the list instead of erroring or paginating correctly.
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 50));
-  const search = typeof req.query.search === 'string' ? req.query.search : '';
+  const filters = entryFilters(req.query);
 
-  const { entries, total } = await getEntriesPage(req.storeId, { page, limit, search });
-  res.json({ entries, total, page, limit });
+  const [{ entries, total }, prizes] = await Promise.all([
+    getEntriesPage(req.storeId, { page, limit, ...filters }),
+    getEntryPrizes(req.storeId),
+  ]);
+  res.json({ entries, total, page, limit, prizes });
 }));
 
 /**
@@ -106,21 +133,65 @@ function csvCell(value) {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
+function entryStatusLabel(entry) {
+  return {
+    processed: "İkas'a işlendi",
+    pending: 'Beklemede',
+    failed: 'İşlenemedi',
+    manual_review: 'Manuel kontrol gerekli',
+  }[entry.couponStatus] || 'Bilinmiyor';
+}
+
+function xmlCell(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function excelXml(entries) {
+  const headers = ['Tarih', 'Ad Soyad', 'Telefon', 'E-posta', 'Kazanılan Ödül', 'Kupon Kodu', 'Kupon Durumu', 'Hata'];
+  const rows = entries.map((entry) => [
+    entry.timestamp || '',
+    entry.name || '',
+    entry.phone || '',
+    entry.email || '',
+    entry.prize || '',
+    entry.couponCode || '',
+    entryStatusLabel(entry),
+    entry.couponError || '',
+  ]);
+  const renderRow = (cells) =>
+    `<Row>${cells.map((cell) => `<Cell><Data ss:Type="String">${xmlCell(cell)}</Data></Cell>`).join('')}</Row>`;
+  return `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Worksheet ss:Name="Katılımcılar"><Table>${renderRow(headers)}${rows.map(renderRow).join('')}</Table></Worksheet></Workbook>`;
+}
+
 adminRouter.get('/entries/export', asyncHandler(async (req, res) => {
   // Export is inherently a full read — you can't aggregate away individual
   // rows in a per-participant CSV. What we can avoid is building one giant
   // string in memory before sending anything: stream each row out as it's
   // formatted instead of joining the whole file first.
-  const entries = await getEntries(req.storeId);
+  const ids = typeof req.query.ids === 'string' ? validIds(req.query.ids.split(',')) : [];
+  const entries = await getFilteredEntries(req.storeId, { ...entryFilters(req.query), ids });
+  const date = new Date().toISOString().split('T')[0];
+
+  if (req.query.format === 'excel') {
+    res.setHeader('Content-Type', 'application/vnd.ms-excel;charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="cark-katilimcilar-${date}.xls"`);
+    return res.send(excelXml(entries));
+  }
 
   res.setHeader('Content-Type', 'text/csv;charset=utf-8');
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename="cark-katilimcilar-${new Date().toISOString().split('T')[0]}.csv"`,
+    `attachment; filename="cark-katilimcilar-${date}.csv"`,
   );
 
   const BOM = '﻿';
-  const headers = ['Tarih', 'Ad Soyad', 'Telefon', 'E-posta', 'Kazanılan Ödül', 'Kupon Kodu', 'Kupon Durumu'];
+  const headers = ['Tarih', 'Ad Soyad', 'Telefon', 'E-posta', 'Kazanılan Ödül', 'Kupon Kodu', 'Kupon Durumu', 'Hata'];
   res.write(BOM + headers.map(csvCell).join(';') + '\n');
   for (const e of entries) {
     const row = [
@@ -130,11 +201,141 @@ adminRouter.get('/entries/export', asyncHandler(async (req, res) => {
       e.email || '',
       e.prize || '',
       e.couponCode || '',
-      !e.couponCode ? '' : e.isLocalCoupon ? 'İkas\'a işlenmedi' : 'İkas\'ta kayıtlı',
+      entryStatusLabel(e),
+      e.couponError || '',
     ];
     res.write(row.map(csvCell).join(';') + '\n');
   }
   res.end();
+}));
+
+async function retryEntryCoupon(storeId, entryId) {
+  const [entry, widgetConfig] = await Promise.all([getEntryById(storeId, entryId), getWidgetConfig(storeId)]);
+  if (!entry) {
+    throw Object.assign(new Error('Katılımcı bulunamadı'), { status: 404 });
+  }
+  if (entry.discountType === 'noLuck') {
+    return updateEntryCoupon(storeId, entryId, {
+      couponCode: null,
+      status: 'processed',
+      error: null,
+      isLocalCoupon: false,
+    });
+  }
+
+  const segment = widgetConfig?.segments?.find((item) => item.label === entry.prize);
+  if (!segment) {
+    return updateEntryCoupon(storeId, entryId, {
+      couponCode: null,
+      status: 'manual_review',
+      error: 'Bu ödüle ait güncel çark dilimi bulunamadı',
+      isLocalCoupon: true,
+    });
+  }
+  if (segment.couponCode) {
+    return updateEntryCoupon(storeId, entryId, {
+      couponCode: segment.couponCode,
+      status: 'processed',
+      error: null,
+      isLocalCoupon: false,
+    });
+  }
+
+  const adapter = await getPlatformAdapter(storeId);
+  if (adapter.platform !== 'ikas') {
+    return updateEntryCoupon(storeId, entryId, {
+      couponCode: entry.couponCode,
+      status: 'manual_review',
+      error: 'İkas bağlantısı yok; kupon manuel kontrol edilmeli',
+      isLocalCoupon: true,
+    });
+  }
+
+  try {
+    const coupon = segment.ikasCampaignId
+      ? await adapter.addCouponToCampaign({ campaignId: segment.ikasCampaignId, label: segment.label })
+      : await adapter.createCoupon({
+          label: segment.label,
+          discountType: segment.discountType,
+          discountValue: segment.discountValue,
+        });
+    return updateEntryCoupon(storeId, entryId, {
+      couponCode: coupon.code,
+      status: coupon.isLocal ? 'failed' : 'processed',
+      error: coupon.isLocal ? 'İkas kuponu tekrar oluşturulamadı' : null,
+      isLocalCoupon: coupon.isLocal,
+    });
+  } catch (error) {
+    return updateEntryCoupon(storeId, entryId, {
+      couponCode: entry.couponCode,
+      status: 'failed',
+      error: error.message || 'İkas kuponu tekrar oluşturulamadı',
+      isLocalCoupon: true,
+    });
+  }
+}
+
+adminRouter.post('/entries/test', asyncHandler(async (req, res) => {
+  const widgetConfig = await getWidgetConfig(req.storeId);
+  const entry = await createTestEntry(req.storeId, widgetConfig?.segments?.[0]);
+  res.status(201).json({ entry });
+}));
+
+adminRouter.get('/entries/widget-status', asyncHandler(async (req, res) => {
+  const [widgetConfig, store, credentials] = await Promise.all([
+    getWidgetConfig(req.storeId),
+    findStoreById(req.storeId),
+    getPlatformCredentials(req.storeId),
+  ]);
+  res.json({
+    ready: Boolean(widgetConfig?.segments?.length === 6 && store?.allowedDomains?.length),
+    segmentCount: widgetConfig?.segments?.length || 0,
+    domains: store?.allowedDomains || [],
+    platform: credentials.platform,
+    ikasConnected: credentials.platform === 'ikas' && Boolean(credentials.ikasClientId && credentials.ikasStoreId),
+  });
+}));
+
+adminRouter.post('/entries/bulk', retryCouponLimiter, asyncHandler(async (req, res) => {
+  const ids = validIds(req.body?.ids);
+  const action = req.body?.action;
+  if (!ids.length) {
+    return res.status(400).json({ error: 'En az bir geçerli katılımcı seçin' });
+  }
+  if (action === 'delete') {
+    return res.json({ ok: true, affected: await deleteEntries(req.storeId, ids) });
+  }
+  if (action === 'mark_processed') {
+    const entries = await markEntriesProcessed(req.storeId, ids);
+    return res.json({ ok: true, affected: entries.length, entries });
+  }
+  if (action === 'retry') {
+    const results = [];
+    for (const id of ids) {
+      results.push(await retryEntryCoupon(req.storeId, id));
+    }
+    return res.json({
+      ok: true,
+      affected: results.length,
+      processed: results.filter((entry) => entry?.couponStatus === 'processed').length,
+      failed: results.filter((entry) => entry?.couponStatus !== 'processed').length,
+      entries: results,
+    });
+  }
+  return res.status(400).json({ error: 'Geçersiz toplu işlem' });
+}));
+
+adminRouter.post('/entries/:entryId/retry', retryCouponLimiter, asyncHandler(async (req, res) => {
+  const entry = await retryEntryCoupon(req.storeId, req.params.entryId);
+  res.json({ entry });
+}));
+
+adminRouter.get('/entries/:entryId', asyncHandler(async (req, res) => {
+  const entry = await getEntryById(req.storeId, req.params.entryId);
+  if (!entry) {
+    return res.status(404).json({ error: 'Katılımcı bulunamadı' });
+  }
+  res.json({ entry });
 }));
 
 /**

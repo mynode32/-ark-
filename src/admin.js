@@ -1353,56 +1353,129 @@ class AdminPanel {
   renderEntriesTab() {
     return `
       <div class="tab-content active" id="tab-entries">
-        <div class="stats-grid" id="entriesStats">
-          <div class="stat-card"><div class="stat-value" id="stat-total">-</div><div class="stat-label">Toplam Katılım</div></div>
-          <div class="stat-card"><div class="stat-value" id="stat-today">-</div><div class="stat-label">Bugünkü Katılım</div></div>
-          <div class="stat-card"><div class="stat-value" id="stat-mostwon" style="font-size:24px;line-height:1.5;">-</div><div class="stat-label">En Çok Kazanılan</div></div>
-          <div class="stat-card"><div class="stat-value" id="stat-broken" style="color:#ff4757;">-</div><div class="stat-label" title="Bu kadar müşteriye verilen kupon kodu İkas'a kaydedilemedi, ödeme sayfasında çalışmaz">⚠️ İkas'a İşlenmeyen Kupon</div></div>
+        <div class="entries-quick-actions">
+          <button class="btn btn-secondary" id="createTestEntryBtn">🧪 Test katılımı oluştur</button>
+          <button class="btn btn-secondary" id="checkWidgetStatusBtn">🔎 Widget durumunu kontrol et</button>
+          <button class="btn btn-secondary" id="openInstallGuideBtn">📘 Kurulum rehberi</button>
         </div>
+        <div class="stats-grid entries-stats-grid" id="entriesStats">
+          <div class="stat-card"><div class="stat-value" id="stat-total">-</div><div class="stat-label">Toplam katılım</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-today">-</div><div class="stat-label">Bugünkü katılım</div></div>
+          <div class="stat-card stat-success"><div class="stat-value" id="stat-processed">-</div><div class="stat-label">İkas'a işlenen</div></div>
+          <div class="stat-card stat-danger"><div class="stat-value" id="stat-broken">-</div><div class="stat-label">İşlenemeyen</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-conversion">-</div><div class="stat-label">Dönüşüm oranı</div></div>
+          <div class="stat-card"><div class="stat-value stat-prize" id="stat-mostwon">-</div><div class="stat-label">En çok kazanılan</div></div>
+        </div>
+
+        <div class="entries-issue-banner" id="entriesIssueBanner" hidden>
+          <div><strong><span id="entriesIssueCount">0</span> İkas'a işlenmeyen kupon var</strong><span>Bu kayıtlar müşteri ödemesinde sorun çıkarabilir.</span></div>
+          <div class="entries-issue-actions">
+            <button class="btn btn-primary" id="retryBrokenBtn">Tekrar İşle</button>
+            <button class="btn btn-secondary" id="showBrokenBtn">Detayları Gör</button>
+            <button class="btn btn-secondary" id="exportBrokenBtn">CSV İndir</button>
+          </div>
+        </div>
+
+        <div class="admin-card entries-chart-card">
+          <div class="entries-section-heading"><div><h3>📊 Ödül Dağılımı</h3><p>Toplam ve bugünkü kazanan sayıları</p></div></div>
+          <div id="entriesPrizeChart" class="entries-prize-chart"><div class="entries-loading-line"></div></div>
+        </div>
+
         <div class="admin-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <h3 style="margin:0;">📝 Katılımcı Listesi</h3>
-            <div class="btn-group" style="margin:0;">
+          <div class="entries-list-header">
+            <div><h3>📝 Katılımcı Listesi</h3><p>Filtreleyin, inceleyin ve sorunlu kuponları yeniden işleyin.</p></div>
+            <div class="entries-export-actions">
               <button class="btn btn-secondary" id="clearEntriesBtn">Tümünü Sil</button>
-              <button class="btn btn-primary" id="exportBtn">📥 CSV İndir</button>
+              <button class="btn btn-secondary" id="exportExcelBtn">Excel İndir</button>
+              <button class="btn btn-primary" id="exportBtn">CSV İndir</button>
             </div>
           </div>
+
+          <div class="entries-filters">
+            <div class="form-group"><label>Başlangıç tarihi</label><input type="date" class="form-input" id="entriesDateFrom"></div>
+            <div class="form-group"><label>Bitiş tarihi</label><input type="date" class="form-input" id="entriesDateTo"></div>
+            <div class="form-group"><label>Ödül</label><select class="form-input" id="entriesPrizeFilter"><option value="">Tüm ödüller</option></select></div>
+            <div class="form-group"><label>Durum</label><select class="form-input" id="entriesStatusFilter">
+              <option value="">Tüm durumlar</option><option value="processed">İkas'a işlendi</option><option value="pending">Beklemede</option>
+              <option value="failed">İşlenemedi</option><option value="manual_review">Manuel kontrol gerekli</option>
+            </select></div>
+            <div class="form-group entries-search-group"><label>Arama</label><input type="search" class="form-input" id="entriesSearch" placeholder="Ad, telefon, e-posta veya kupon kodu"></div>
+            <button class="btn btn-secondary entries-filter-reset" id="resetEntriesFiltersBtn">Filtreleri temizle</button>
+          </div>
+
+          <div class="entries-bulk-toolbar" id="entriesBulkToolbar" hidden>
+            <strong><span id="selectedEntriesCount">0</span> kayıt seçildi</strong>
+            <div>
+              <button class="btn btn-secondary" data-bulk-action="export">CSV indir</button>
+              <button class="btn btn-secondary" data-bulk-action="retry">İkas'a tekrar gönder</button>
+              <button class="btn btn-secondary" data-bulk-action="mark_processed">Manuel işlendi işaretle</button>
+              <button class="btn btn-danger" data-bulk-action="delete">Seçilenleri sil</button>
+            </div>
+          </div>
+
           <div class="entries-table-wrapper">
             <div id="entriesContainer">
-              <div class="empty-state">Yükleniyor...</div>
+              <div class="entries-loading-state"><div class="entries-spinner"></div><span>Katılımcılar yükleniyor...</span></div>
             </div>
           </div>
         </div>
+
+        <div class="entry-detail-scrim" id="entryDetailScrim" hidden></div>
+        <aside class="entry-detail-drawer" id="entryDetailDrawer" aria-hidden="true" aria-labelledby="entryDetailTitle">
+          <div class="entry-detail-header"><div><span>Katılımcı Detayı</span><h3 id="entryDetailTitle">-</h3></div><button class="close-modal-btn" id="closeEntryDetailBtn" aria-label="Detayı kapat">&times;</button></div>
+          <div id="entryDetailContent"></div>
+        </aside>
       </div>
     `;
   }
 
   setupEntriesListeners() {
+    this.entriesPage = this.entriesPage || 1;
+    this.entriesPageSize = this.entriesPageSize || 25;
+    this.entriesFilters = this.entriesFilters || { dateFrom: '', dateTo: '', prize: '', status: '', search: '' };
+    this.selectedEntryIds = new Set();
     this.loadEntries();
 
-    document.getElementById('exportBtn')?.addEventListener('click', async () => {
-      const base = getApiBase();
-      if (authToken()) {
-        // Fetch with the token in a header (not a URL query string) so it
-        // never ends up in server access logs, browser history, or a
-        // Referer header — a bearer token is valid for 30 days.
-        const res = await fetch(`${base}/api/admin/entries/export`, {
-          headers: { Authorization: `Bearer ${authToken()}` },
-        });
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `cark-katilimcilar-${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else {
-        exportLocalCSV();
-      }
-      this.showToast('CSV dosyası indiriliyor');
+    const applyFilters = () => {
+      this.entriesFilters = {
+        dateFrom: document.getElementById('entriesDateFrom').value,
+        dateTo: document.getElementById('entriesDateTo').value,
+        prize: document.getElementById('entriesPrizeFilter').value,
+        status: document.getElementById('entriesStatusFilter').value,
+        search: document.getElementById('entriesSearch').value.trim(),
+      };
+      this.entriesPage = 1;
+      this.selectedEntryIds.clear();
+      this.loadEntries();
+    };
+    ['entriesDateFrom', 'entriesDateTo', 'entriesPrizeFilter', 'entriesStatusFilter'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('change', applyFilters);
     });
+    let searchTimer;
+    document.getElementById('entriesSearch')?.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(applyFilters, 350);
+    });
+    document.getElementById('resetEntriesFiltersBtn')?.addEventListener('click', () => {
+      this.entriesFilters = { dateFrom: '', dateTo: '', prize: '', status: '', search: '' };
+      ['entriesDateFrom', 'entriesDateTo', 'entriesPrizeFilter', 'entriesStatusFilter', 'entriesSearch'].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+      });
+      this.entriesPage = 1;
+      this.selectedEntryIds.clear();
+      this.loadEntries();
+    });
+
+    document.getElementById('exportBtn')?.addEventListener('click', () => this.downloadEntries('csv'));
+    document.getElementById('exportExcelBtn')?.addEventListener('click', () => this.downloadEntries('excel'));
+    document.getElementById('exportBrokenBtn')?.addEventListener('click', () => this.downloadEntries('csv', { status: 'failed' }));
+    document.getElementById('showBrokenBtn')?.addEventListener('click', () => {
+      document.getElementById('entriesStatusFilter').value = 'failed';
+      applyFilters();
+      document.getElementById('entriesContainer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    document.getElementById('retryBrokenBtn')?.addEventListener('click', () => this.retryAllBrokenEntries());
 
     document.getElementById('clearEntriesBtn')?.addEventListener('click', async () => {
       if (!confirm('Tüm katılımcı verileri silinecek. Emin misiniz?')) {
@@ -1421,37 +1494,54 @@ class AdminPanel {
       this.loadEntries();
       this.showToast('Veriler silindi');
     });
+
+    document.getElementById('entriesBulkToolbar')?.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-bulk-action]')?.dataset.bulkAction;
+      if (action) this.handleEntriesBulkAction(action);
+    });
+    document.getElementById('createTestEntryBtn')?.addEventListener('click', () => this.createTestEntry());
+    document.getElementById('checkWidgetStatusBtn')?.addEventListener('click', () => this.checkWidgetStatus());
+    document.getElementById('openInstallGuideBtn')?.addEventListener('click', () => {
+      document.querySelector('.admin-nav a[data-tab="integration"]')?.click();
+    });
+    document.getElementById('closeEntryDetailBtn')?.addEventListener('click', () => this.closeEntryDetail());
+    document.getElementById('entryDetailScrim')?.addEventListener('click', () => this.closeEntryDetail());
   }
 
   async loadEntries() {
     const container = document.getElementById('entriesContainer');
+    if (!container) return;
     const base = getApiBase();
-    const pageSize = 50;
-    this.entriesPage = this.entriesPage || 1;
+    const pageSize = this.entriesPageSize || 25;
+    container.innerHTML = '<div class="entries-loading-state"><div class="entries-spinner"></div><span>Katılımcılar yükleniyor...</span></div>';
 
-    let entries = [];
-    let stats = { total: 0, today: 0, mostWon: '-' };
+    let entries;
+    let stats = { total: 0, today: 0, processed: 0, failed: 0, conversionRate: 0, mostWon: '-', prizeDistribution: [] };
     let entriesTotal = 0;
+    let prizes = [];
 
     if (authToken()) {
       try {
         const token = authToken();
+        const query = this.entriesQueryParams();
+        query.set('page', this.entriesPage || 1);
+        query.set('limit', pageSize);
         const [entriesRes, statsRes] = await Promise.all([
-          fetch(`${base}/api/admin/entries?page=${this.entriesPage}&limit=${pageSize}`, {
+          fetch(`${base}/api/admin/entries?${query}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`${base}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
-        if (entriesRes.ok) {
-          const data = await entriesRes.json();
-          entries = data.entries || [];
-          entriesTotal = data.total || 0;
-        }
-        if (statsRes.ok) {
-          stats = await statsRes.json();
-        }
-      } catch {
-        /* ignore */
+        if (!entriesRes.ok || !statsRes.ok) throw new Error('Katılımcılar yüklenemedi');
+        const data = await entriesRes.json();
+        entries = data.entries || [];
+        entriesTotal = data.total || 0;
+        prizes = data.prizes || [];
+        stats = await statsRes.json();
+      } catch (error) {
+        container.innerHTML = `<div class="entries-error-state"><strong>Katılımcılar yüklenemedi</strong><span>${escapeHtml(error.message)}</span><button class="btn btn-secondary" id="retryEntriesLoadBtn">Tekrar dene</button></div>`;
+        document.getElementById('retryEntriesLoadBtn')?.addEventListener('click', () => this.loadEntries());
+        return;
       }
     } else {
       entries = getLocalEntries();
@@ -1468,14 +1558,35 @@ class AdminPanel {
       }
     }
 
+    this.currentEntries = entries;
+    this.currentEntryMap = new Map(entries.map((entry) => [String(entry.id), entry]));
+
+    const prizeSelect = document.getElementById('entriesPrizeFilter');
+    if (prizeSelect) {
+      const currentPrize = this.entriesFilters?.prize || '';
+      prizeSelect.innerHTML = `<option value="">Tüm ödüller</option>${prizes.map((prize) => `<option value="${escapeHtml(prize)}">${escapeHtml(prize)}</option>`).join('')}`;
+      prizeSelect.value = currentPrize;
+    }
+
     document.getElementById('stat-total').textContent = stats.total;
     document.getElementById('stat-today').textContent = stats.today;
     document.getElementById('stat-mostwon').textContent = stats.mostWon;
-    document.getElementById('stat-broken').textContent = stats.brokenCoupons ?? '-';
+    document.getElementById('stat-processed').textContent = stats.processed ?? 0;
+    document.getElementById('stat-broken').textContent = stats.failed ?? stats.brokenCoupons ?? 0;
+    document.getElementById('stat-conversion').textContent = `%${stats.conversionRate ?? 0}`;
+    const issueCount = stats.failed ?? stats.brokenCoupons ?? 0;
+    const issueBanner = document.getElementById('entriesIssueBanner');
+    issueBanner.hidden = issueCount === 0;
+    document.getElementById('entriesIssueCount').textContent = issueCount;
+    this.renderPrizeDistribution(stats.prizeDistribution || []);
 
     const isEmpty = authToken() ? entriesTotal === 0 : entries.length === 0;
     if (isEmpty) {
-      container.innerHTML = '<div class="empty-state">Henüz kimse çarkı çevirmedi.</div>';
+      const hasFilters = Object.values(this.entriesFilters || {}).some(Boolean);
+      container.innerHTML = hasFilters
+        ? '<div class="entries-empty-state"><div>🔎</div><strong>Filtrelere uygun katılımcı bulunamadı</strong><span>Filtreleri değiştirerek tekrar deneyin.</span><button class="btn btn-secondary" id="emptyResetFiltersBtn">Filtreleri temizle</button></div>'
+        : '<div class="entries-empty-state"><div>🎡</div><strong>Henüz katılımcı yok</strong><span>Çark sitenize eklendikten sonra katılımlar burada görünür.</span></div>';
+      document.getElementById('emptyResetFiltersBtn')?.addEventListener('click', () => document.getElementById('resetEntriesFiltersBtn')?.click());
       return;
     }
 
@@ -1483,6 +1594,7 @@ class AdminPanel {
       <table class="entries-table">
         <thead>
           <tr>
+            <th><input type="checkbox" id="selectAllEntries" aria-label="Sayfadaki tüm katılımcıları seç"></th>
             <th>Tarih</th>
             <th>Ad Soyad</th>
             <th>Telefon</th>
@@ -1490,26 +1602,23 @@ class AdminPanel {
             <th>Ödül</th>
             <th>Kupon</th>
             <th>Durum</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           ${entries
             .map(
               (e) => `
-            <tr>
+            <tr class="entry-row" data-entry-id="${escapeHtml(e.id)}" tabindex="0">
+              <td><input type="checkbox" class="entry-select" value="${escapeHtml(e.id)}" ${this.selectedEntryIds.has(String(e.id)) ? 'checked' : ''} aria-label="${escapeHtml(e.name || 'Katılımcı')} kaydını seç"></td>
               <td>${e.timestamp ? new Date(e.timestamp).toLocaleString('tr-TR') : '-'}</td>
               <td>${escapeHtml(e.name) || '-'}</td>
-              <td>${escapeHtml(e.phone) || '-'}</td>
-              <td>${escapeHtml(e.email) || '-'}</td>
-              <td style="font-weight:600;color:#FFD700;">${escapeHtml(e.prize) || '-'}</td>
+              <td><span class="masked-value" data-field="phone">${escapeHtml(this.maskPhone(e.phone)) || '-'}</span>${e.phone ? '<button class="reveal-entry-value" data-field="phone" title="Telefonu göster">Göster</button>' : ''}</td>
+              <td><span class="masked-value" data-field="email">${escapeHtml(this.maskEmail(e.email)) || '-'}</span>${e.email ? '<button class="reveal-entry-value" data-field="email" title="E-postayı göster">Göster</button>' : ''}</td>
+              <td class="entry-prize-cell">${escapeHtml(e.prize) || '-'}</td>
               <td>${e.couponCode ? `<code>${escapeHtml(e.couponCode)}</code>` : '-'}</td>
-              <td>${
-                !e.couponCode || typeof e.isLocalCoupon !== 'boolean'
-                  ? '-'
-                  : e.isLocalCoupon
-                    ? '<span title="Bu kod İkas\'a kaydedilemedi, ödeme sayfasında çalışmaz. Müşteriyle manuel ilgilenin." style="color:#ff4757;font-weight:600;cursor:help;">⚠️ İkas\'a işlenmedi</span>'
-                    : '<span style="color:#2ed573;">✓ İkas\'ta kayıtlı</span>'
-              }</td>
+              <td>${this.renderEntryStatus(e)}</td>
+              <td><button class="entry-detail-btn" aria-label="Katılımcı detayını aç">Detay</button></td>
             </tr>
           `,
             )
@@ -1517,11 +1626,12 @@ class AdminPanel {
         </tbody>
       </table>
       ${
-        authToken() && entriesTotal > pageSize
+        authToken()
           ? `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+        <div class="entries-pagination">
+          <label>Göster <select class="form-input" id="entriesPageSize"><option>10</option><option ${pageSize === 25 ? 'selected' : ''}>25</option><option ${pageSize === 50 ? 'selected' : ''}>50</option><option ${pageSize === 100 ? 'selected' : ''}>100</option></select></label>
           <button class="btn btn-secondary" id="entriesPrevBtn" ${this.entriesPage <= 1 ? 'disabled' : ''}>← Önceki</button>
-          <span style="color:var(--text-muted,#888);font-size:13px;">
+          <span>
             Sayfa ${this.entriesPage} / ${Math.max(1, Math.ceil(entriesTotal / pageSize))} — toplam ${entriesTotal} katılım
           </span>
           <button class="btn btn-secondary" id="entriesNextBtn" ${this.entriesPage >= Math.ceil(entriesTotal / pageSize) ? 'disabled' : ''}>Sonraki →</button>
@@ -1539,6 +1649,256 @@ class AdminPanel {
       this.entriesPage += 1;
       this.loadEntries();
     });
+    document.getElementById('entriesPageSize')?.addEventListener('change', (event) => {
+      this.entriesPageSize = parseInt(event.target.value, 10) || 25;
+      this.entriesPage = 1;
+      this.loadEntries();
+    });
+    this.bindEntryTableListeners();
+    this.updateEntriesBulkToolbar();
+  }
+
+  entriesQueryParams(overrides = {}) {
+    const query = new URLSearchParams();
+    const filters = { ...(this.entriesFilters || {}), ...overrides };
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) query.set(key, value);
+    });
+    return query;
+  }
+
+  maskPhone(phone) {
+    const value = String(phone || '').replace(/\s/g, '');
+    if (value.length < 7) return value;
+    return `${value.slice(0, 3)}****${value.slice(-3)}`;
+  }
+
+  maskEmail(email) {
+    const value = String(email || '');
+    const [name, domain] = value.split('@');
+    if (!domain) return value;
+    return `${name.slice(0, 3)}***@${domain}`;
+  }
+
+  entryStatusMeta(status) {
+    return {
+      processed: { label: "İkas'a işlendi", className: 'status-processed', icon: '✓' },
+      pending: { label: 'Beklemede', className: 'status-pending', icon: '●' },
+      failed: { label: 'İşlenemedi', className: 'status-failed', icon: '!' },
+      manual_review: { label: 'Manuel kontrol gerekli', className: 'status-manual', icon: '◆' },
+    }[status] || { label: 'Bilinmiyor', className: 'status-manual', icon: '?' };
+  }
+
+  renderEntryStatus(entry) {
+    const status = entry.couponStatus || (entry.isLocalCoupon ? 'failed' : entry.couponCode ? 'processed' : 'manual_review');
+    const meta = this.entryStatusMeta(status);
+    return `<span class="entry-status ${meta.className}" title="${escapeHtml(entry.couponError || meta.label)}"><b>${meta.icon}</b>${meta.label}</span>`;
+  }
+
+  bindEntryTableListeners() {
+    document.getElementById('selectAllEntries')?.addEventListener('change', (event) => {
+      document.querySelectorAll('.entry-select').forEach((checkbox) => {
+        checkbox.checked = event.target.checked;
+        if (event.target.checked) this.selectedEntryIds.add(String(checkbox.value));
+        else this.selectedEntryIds.delete(String(checkbox.value));
+      });
+      this.updateEntriesBulkToolbar();
+    });
+    document.querySelectorAll('.entry-select').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) this.selectedEntryIds.add(String(checkbox.value));
+        else this.selectedEntryIds.delete(String(checkbox.value));
+        this.updateEntriesBulkToolbar();
+      });
+    });
+    document.querySelectorAll('.reveal-entry-value').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const entry = this.currentEntryMap.get(String(button.closest('tr').dataset.entryId));
+        button.parentElement.querySelector('.masked-value').textContent = entry?.[button.dataset.field] || '-';
+        button.remove();
+      });
+    });
+    document.querySelectorAll('.entry-row').forEach((row) => {
+      const open = (event) => {
+        if (event.target.closest('input, button, a')) return;
+        this.openEntryDetail(row.dataset.entryId);
+      };
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') open(event);
+      });
+      row.querySelector('.entry-detail-btn')?.addEventListener('click', () => this.openEntryDetail(row.dataset.entryId));
+    });
+  }
+
+  updateEntriesBulkToolbar() {
+    const toolbar = document.getElementById('entriesBulkToolbar');
+    if (!toolbar) return;
+    toolbar.hidden = this.selectedEntryIds.size === 0;
+    document.getElementById('selectedEntriesCount').textContent = this.selectedEntryIds.size;
+  }
+
+  async downloadEntries(format = 'csv', overrides = {}, ids = []) {
+    if (!authToken()) {
+      exportLocalCSV();
+      return;
+    }
+    try {
+      const query = this.entriesQueryParams(overrides);
+      if (format === 'excel') query.set('format', 'excel');
+      if (ids.length) query.set('ids', ids.join(','));
+      const res = await fetch(`${getApiBase()}/api/admin/entries/export?${query}`, {
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      if (!res.ok) throw new Error('Dışa aktarma başarısız');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cark-katilimcilar-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xls' : 'csv'}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      this.showToast(`${format === 'excel' ? 'Excel' : 'CSV'} dosyası indiriliyor`);
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    }
+  }
+
+  async handleEntriesBulkAction(action) {
+    const ids = [...this.selectedEntryIds];
+    if (!ids.length) return;
+    if (action === 'export') {
+      await this.downloadEntries('csv', {}, ids);
+      return;
+    }
+    const labels = { delete: 'silmek', retry: "İkas'a tekrar göndermek", mark_processed: 'manuel işlendi işaretlemek' };
+    if (!confirm(`${ids.length} kaydı ${labels[action]} istediğinize emin misiniz?`)) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/admin/entries/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+        body: JSON.stringify({ ids, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Toplu işlem tamamlanamadı');
+      this.selectedEntryIds.clear();
+      await this.loadEntries();
+      this.showToast(`${data.affected || ids.length} kayıt güncellendi${data.failed ? `, ${data.failed} kayıt kontrol bekliyor` : ''}`);
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    }
+  }
+
+  async retryAllBrokenEntries() {
+    try {
+      const query = this.entriesQueryParams({ status: 'failed' });
+      query.set('page', 1);
+      query.set('limit', 500);
+      const res = await fetch(`${getApiBase()}/api/admin/entries?${query}`, { headers: { Authorization: `Bearer ${authToken()}` } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sorunlu kayıtlar alınamadı');
+      const ids = (data.entries || []).map((entry) => entry.id);
+      if (!ids.length) return this.showToast('Tekrar işlenecek kayıt yok');
+      this.selectedEntryIds = new Set(ids);
+      await this.handleEntriesBulkAction('retry');
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    }
+  }
+
+  renderPrizeDistribution(distribution) {
+    const chart = document.getElementById('entriesPrizeChart');
+    if (!chart) return;
+    if (!distribution.length) {
+      chart.innerHTML = '<div class="entries-chart-empty">Ödül verisi henüz oluşmadı.</div>';
+      return;
+    }
+    const max = Math.max(...distribution.map((item) => item.count), 1);
+    chart.innerHTML = distribution
+      .map(
+        (item) => `<div class="prize-chart-row"><div class="prize-chart-label"><strong>${escapeHtml(item.prize)}</strong><span>${item.count} toplam • ${item.todayCount} bugün</span></div><div class="prize-chart-track"><div style="width:${Math.max(4, (item.count / max) * 100)}%"></div></div></div>`,
+      )
+      .join('');
+  }
+
+  openEntryDetail(entryId) {
+    const entry = this.currentEntryMap?.get(String(entryId));
+    if (!entry) return;
+    const meta = this.entryStatusMeta(entry.couponStatus);
+    document.getElementById('entryDetailTitle').textContent = entry.name || 'İsimsiz katılımcı';
+    document.getElementById('entryDetailContent').innerHTML = `
+      <div class="entry-detail-status">${this.renderEntryStatus(entry)}</div>
+      <dl class="entry-detail-list">
+        <div><dt>Telefon</dt><dd>${escapeHtml(entry.phone) || '-'}</dd></div><div><dt>E-posta</dt><dd>${escapeHtml(entry.email) || '-'}</dd></div>
+        <div><dt>Kazandığı ödül</dt><dd>${escapeHtml(entry.prize) || '-'}</dd></div><div><dt>Kupon kodu</dt><dd>${entry.couponCode ? `<code>${escapeHtml(entry.couponCode)}</code>` : '-'}</dd></div>
+        <div><dt>Katılım tarihi</dt><dd>${entry.timestamp ? new Date(entry.timestamp).toLocaleString('tr-TR') : '-'}</dd></div><div><dt>İkas durumu</dt><dd>${meta.label}</dd></div>
+      </dl>
+      ${entry.couponError ? `<div class="entry-error-box"><strong>Hata nedeni</strong><span>${escapeHtml(entry.couponError)}</span></div>` : ''}
+      ${entry.couponStatus !== 'processed' ? `<button class="btn btn-primary entry-retry-btn" id="retryEntryCouponBtn">Kuponu tekrar gönder</button>` : ''}
+    `;
+    document.getElementById('retryEntryCouponBtn')?.addEventListener('click', () => this.retrySingleEntry(entry.id));
+    const drawer = document.getElementById('entryDetailDrawer');
+    const scrim = document.getElementById('entryDetailScrim');
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    scrim.hidden = false;
+  }
+
+  closeEntryDetail() {
+    document.getElementById('entryDetailDrawer')?.classList.remove('open');
+    document.getElementById('entryDetailDrawer')?.setAttribute('aria-hidden', 'true');
+    const scrim = document.getElementById('entryDetailScrim');
+    if (scrim) scrim.hidden = true;
+  }
+
+  async retrySingleEntry(entryId) {
+    const button = document.getElementById('retryEntryCouponBtn');
+    if (button) button.disabled = true;
+    try {
+      const res = await fetch(`${getApiBase()}/api/admin/entries/${encodeURIComponent(entryId)}/retry`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Kupon tekrar gönderilemedi');
+      this.closeEntryDetail();
+      await this.loadEntries();
+      this.showToast(data.entry?.couponStatus === 'processed' ? 'Kupon İkas’a işlendi' : 'Kupon hâlâ kontrol bekliyor', data.entry?.couponStatus === 'processed' ? 'success' : 'warning');
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  async createTestEntry() {
+    if (!confirm('Raporlara açıkça test olarak işaretlenmiş bir katılım eklensin mi?')) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/admin/entries/test`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      if (!res.ok) throw new Error('Test katılımı oluşturulamadı');
+      await this.loadEntries();
+      this.showToast('Test katılımı oluşturuldu');
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    }
+  }
+
+  async checkWidgetStatus() {
+    try {
+      const res = await fetch(`${getApiBase()}/api/admin/entries/widget-status`, { headers: { Authorization: `Bearer ${authToken()}` } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Widget durumu alınamadı');
+      const message = `${data.ready ? 'Widget hazır' : 'Kurulum eksik'} • ${data.segmentCount}/6 dilim • ${data.ikasConnected ? 'İkas bağlı' : 'İkas bağlı değil'} • ${data.domains.length} domain`;
+      this.showToast(message, data.ready ? 'success' : 'warning');
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    }
   }
 
   // --- Integration Tab ---

@@ -223,6 +223,17 @@ export async function saveWidgetConfig(storeId, data) {
 // --- Entries ---
 
 function rowToEntry(row) {
+  const derivedStatus =
+    row.coupon_status ||
+    (row.prize === null
+      ? 'pending'
+      : row.discount_type === 'noLuck'
+        ? 'processed'
+        : row.coupon_code === null
+          ? 'manual_review'
+          : row.is_local_coupon
+            ? 'failed'
+            : 'processed');
   return {
     id: row.id,
     timestamp: row.timestamp instanceof Date ? row.timestamp.toISOString() : row.timestamp,
@@ -234,7 +245,48 @@ function rowToEntry(row) {
     discountType: row.discount_type,
     discountValue: row.discount_value === null ? null : Number(row.discount_value),
     isLocalCoupon: Boolean(row.is_local_coupon),
+    couponStatus: derivedStatus,
+    couponError: row.coupon_error || null,
+    processedAt: row.processed_at instanceof Date ? row.processed_at.toISOString() : row.processed_at || null,
   };
+}
+
+const ENTRY_STATUSES = new Set(['processed', 'pending', 'failed', 'manual_review']);
+
+function buildEntryFilters({ search = '', dateFrom = '', dateTo = '', prize = '', status = '', ids = [] } = {}, startIndex = 2) {
+  const conditions = [];
+  const values = [];
+  const add = (value) => {
+    values.push(value);
+    return `$${startIndex + values.length - 1}`;
+  };
+
+  if (search.trim()) {
+    const ref = add(`%${search.trim()}%`);
+    conditions.push(`(name ILIKE ${ref} OR email ILIKE ${ref} OR phone ILIKE ${ref} OR coupon_code ILIKE ${ref})`);
+  }
+  if (dateFrom) {
+    conditions.push(`"timestamp" >= (${add(dateFrom)}::date::timestamp AT TIME ZONE 'Europe/Istanbul')`);
+  }
+  if (dateTo) {
+    conditions.push(`"timestamp" < ((${add(dateTo)}::date + 1)::timestamp AT TIME ZONE 'Europe/Istanbul')`);
+  }
+  if (prize) {
+    conditions.push(`prize = ${add(prize)}`);
+  }
+  if (ENTRY_STATUSES.has(status)) {
+    conditions.push(`COALESCE(coupon_status, CASE
+      WHEN prize IS NULL THEN 'pending'
+      WHEN discount_type = 'noLuck' THEN 'processed'
+      WHEN coupon_code IS NULL THEN 'manual_review'
+      WHEN is_local_coupon = true THEN 'failed'
+      ELSE 'processed'
+    END) = ${add(status)}`);
+  }
+  if (ids.length) {
+    conditions.push(`id = ANY(${add(ids)}::uuid[])`);
+  }
+  return { sql: conditions.length ? ` AND ${conditions.join(' AND ')}` : '', values };
 }
 
 /**
@@ -243,20 +295,37 @@ function rowToEntry(row) {
  * full history into Node just to slice it, which used to make every admin
  * panel page load scale with total lifetime entries instead of page size.
  */
-export async function getEntriesPage(storeId, { page = 1, limit = 50, search = '' } = {}) {
+export async function getEntriesPage(storeId, { page = 1, limit = 50, ...filters } = {}) {
   const offset = (page - 1) * limit;
-  const q = search ? `%${search}%` : null;
+  const where = buildEntryFilters(filters);
   const res = await query(
     `SELECT *, COUNT(*) OVER() AS total_count
      FROM entries
      WHERE store_id = $1
-       AND ($2::text IS NULL OR name ILIKE $2 OR email ILIKE $2 OR phone ILIKE $2)
+       ${where.sql}
      ORDER BY "timestamp" DESC
-     LIMIT $3 OFFSET $4`,
-    [storeId, q, limit, offset],
+     LIMIT $${where.values.length + 2} OFFSET $${where.values.length + 3}`,
+    [storeId, ...where.values, limit, offset],
   );
   const total = res.rows[0] ? Number(res.rows[0].total_count) : 0;
   return { entries: res.rows.map(rowToEntry), total };
+}
+
+export async function getFilteredEntries(storeId, filters = {}) {
+  const where = buildEntryFilters(filters);
+  const res = await query(
+    `SELECT * FROM entries WHERE store_id = $1 ${where.sql} ORDER BY "timestamp" DESC`,
+    [storeId, ...where.values],
+  );
+  return res.rows.map(rowToEntry);
+}
+
+export async function getEntryPrizes(storeId) {
+  const res = await query(
+    'SELECT DISTINCT prize FROM entries WHERE store_id = $1 AND prize IS NOT NULL ORDER BY prize',
+    [storeId],
+  );
+  return res.rows.map((row) => row.prize);
 }
 
 /**
@@ -272,7 +341,10 @@ export async function getEntryStats(storeId) {
        COUNT(*) FILTER (
          WHERE to_char("timestamp" AT TIME ZONE 'UTC', 'YYYY-MM-DD') = to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')
        ) AS today,
-       COUNT(*) FILTER (WHERE coupon_code IS NOT NULL AND is_local_coupon = true) AS broken_coupons
+       COUNT(*) FILTER (WHERE COALESCE(coupon_status, CASE WHEN is_local_coupon THEN 'failed' ELSE 'processed' END) = 'processed') AS processed,
+       COUNT(*) FILTER (WHERE COALESCE(coupon_status, CASE WHEN is_local_coupon THEN 'failed' ELSE 'processed' END) = 'failed') AS failed,
+       COUNT(*) FILTER (WHERE coupon_status = 'pending') AS pending,
+       COUNT(*) FILTER (WHERE coupon_status = 'manual_review') AS manual_review
      FROM entries
      WHERE store_id = $1`,
     [storeId],
@@ -287,11 +359,35 @@ export async function getEntryStats(storeId) {
     [storeId],
   );
 
+  const distributionRes = await query(
+    `SELECT prize, COUNT(*) AS count,
+       COUNT(*) FILTER (WHERE ("timestamp" AT TIME ZONE 'Europe/Istanbul')::date = (now() AT TIME ZONE 'Europe/Istanbul')::date) AS today_count
+     FROM entries
+     WHERE store_id = $1 AND prize IS NOT NULL
+     GROUP BY prize
+     ORDER BY COUNT(*) DESC, prize`,
+    [storeId],
+  );
+
+  const row = totals.rows[0] || {};
+  const total = Number(row.total || 0);
+  const processed = Number(row.processed || 0);
+
   return {
-    total: Number(totals.rows[0]?.total || 0),
-    today: Number(totals.rows[0]?.today || 0),
-    brokenCoupons: Number(totals.rows[0]?.broken_coupons || 0),
+    total,
+    today: Number(row.today || 0),
+    processed,
+    failed: Number(row.failed || 0),
+    pending: Number(row.pending || 0),
+    manualReview: Number(row.manual_review || 0),
+    brokenCoupons: Number(row.failed || 0),
+    conversionRate: total ? Number(((processed / total) * 100).toFixed(1)) : 0,
     mostWon: mostWonRes.rows[0]?.prize || null,
+    prizeDistribution: distributionRes.rows.map((item) => ({
+      prize: item.prize,
+      count: Number(item.count),
+      todayCount: Number(item.today_count),
+    })),
   };
 }
 
@@ -310,6 +406,58 @@ export async function findLastEntryByPhone(storeId, phone) {
 
 export async function clearEntries(storeId) {
   await query('DELETE FROM entries WHERE store_id = $1', [storeId]);
+}
+
+export async function getEntryById(storeId, entryId) {
+  const res = await query('SELECT * FROM entries WHERE store_id = $1 AND id = $2', [storeId, entryId]);
+  return res.rows[0] ? rowToEntry(res.rows[0]) : null;
+}
+
+export async function deleteEntries(storeId, ids) {
+  const res = await query('DELETE FROM entries WHERE store_id = $1 AND id = ANY($2::uuid[])', [storeId, ids]);
+  return res.rowCount;
+}
+
+export async function markEntriesProcessed(storeId, ids) {
+  const res = await query(
+    `UPDATE entries SET coupon_status = 'processed', coupon_error = NULL, is_local_coupon = false, processed_at = now()
+     WHERE store_id = $1 AND id = ANY($2::uuid[]) RETURNING *`,
+    [storeId, ids],
+  );
+  return res.rows.map(rowToEntry);
+}
+
+export async function updateEntryCoupon(storeId, entryId, { couponCode, status, error = null, isLocalCoupon = false }) {
+  const res = await query(
+    `UPDATE entries
+     SET coupon_code = COALESCE($3, coupon_code), coupon_status = $4, coupon_error = $5,
+         is_local_coupon = $6, processed_at = CASE WHEN $4 = 'processed' THEN now() ELSE processed_at END
+     WHERE store_id = $1 AND id = $2 RETURNING *`,
+    [storeId, entryId, couponCode, status, error, Boolean(isLocalCoupon)],
+  );
+  return res.rows[0] ? rowToEntry(res.rows[0]) : null;
+}
+
+export async function createTestEntry(storeId, segment) {
+  const now = new Date();
+  const res = await query(
+    `INSERT INTO entries
+       (store_id, "timestamp", name, phone, email, prize, coupon_code, discount_type, discount_value,
+        is_local_coupon, coupon_status, coupon_error)
+     VALUES ($1, $2, 'Test Katılımcı', '5550000000', $3, $4, $5, $6, $7, true, 'manual_review', $8)
+     RETURNING *`,
+    [
+      storeId,
+      now.toISOString(),
+      `test-${now.getTime()}@example.invalid`,
+      segment?.label || 'Test Ödülü',
+      `TEST-${String(now.getTime()).slice(-6)}`,
+      segment?.discountType || 'percentage',
+      Number(segment?.discountValue || 0),
+      'Test katılımı — gerçek müşteri/kupon değildir',
+    ],
+  );
+  return rowToEntry(res.rows[0]);
 }
 
 /**
@@ -343,13 +491,18 @@ export async function claimEntry(storeId, { name, phone, email }) {
 }
 
 /** Fills in the prize/coupon fields on a row reserved by claimEntry(). */
-export async function finalizeEntry(entryId, { prize, couponCode, discountType, discountValue, isLocalCoupon }) {
+export async function finalizeEntry(
+  entryId,
+  { prize, couponCode, discountType, discountValue, isLocalCoupon, couponStatus, couponError = null },
+) {
   const res = await query(
     `UPDATE entries
-     SET prize = $2, coupon_code = $3, discount_type = $4, discount_value = $5, is_local_coupon = $6
+     SET prize = $2, coupon_code = $3, discount_type = $4, discount_value = $5, is_local_coupon = $6,
+         coupon_status = $7, coupon_error = $8,
+         processed_at = CASE WHEN $7 = 'processed' THEN now() ELSE processed_at END
      WHERE id = $1
      RETURNING *`,
-    [entryId, prize, couponCode, discountType, discountValue, Boolean(isLocalCoupon)],
+    [entryId, prize, couponCode, discountType, discountValue, Boolean(isLocalCoupon), couponStatus, couponError],
   );
   return rowToEntry(res.rows[0]);
 }

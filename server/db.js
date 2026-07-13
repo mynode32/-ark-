@@ -109,11 +109,26 @@ export async function ensureSchema() {
   // local-coupon tracking existed (CREATE TABLE IF NOT EXISTS above is a
   // no-op once the table already exists).
   await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS is_local_coupon BOOLEAN NOT NULL DEFAULT false');
+  await query("ALTER TABLE entries ADD COLUMN IF NOT EXISTS coupon_status TEXT");
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS coupon_error TEXT');
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ');
+  await query(`
+    UPDATE entries
+    SET coupon_status = CASE
+      WHEN prize IS NULL THEN 'pending'
+      WHEN discount_type = 'noLuck' THEN 'processed'
+      WHEN coupon_code IS NULL THEN 'manual_review'
+      WHEN is_local_coupon = true THEN 'failed'
+      ELSE 'processed'
+    END
+    WHERE coupon_status IS NULL
+  `);
 
   await query('CREATE INDEX IF NOT EXISTS entries_store_id_idx ON entries(store_id)');
   await query('CREATE INDEX IF NOT EXISTS entries_store_phone_idx ON entries(store_id, phone)');
   await query('CREATE INDEX IF NOT EXISTS entries_store_email_idx ON entries(store_id, email)');
   await query('CREATE INDEX IF NOT EXISTS entries_store_timestamp_idx ON entries(store_id, "timestamp")');
+  await query('CREATE INDEX IF NOT EXISTS entries_store_status_idx ON entries(store_id, coupon_status)');
 
   // Lightweight change log — records *what section* changed and *when*
   // (no per-field diff, no user attribution since accounts are single-user
