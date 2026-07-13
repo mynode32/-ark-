@@ -111,10 +111,11 @@ class AdminPanel {
       demoLink.href = '#panel-preview';
       demoLink.onclick = (event) => {
         event.preventDefault();
-        const settingsTab = document.querySelector('.admin-nav a[data-tab="settings"]');
-        if (this.currentTab !== 'settings') settingsTab?.click();
+        if (this.currentTab !== 'appearance' && this.currentTab !== 'settings') {
+          document.querySelector('.admin-nav a[data-tab="appearance"]')?.click();
+        }
         window.setTimeout(() => {
-          const preview = document.getElementById('previewContainer');
+          const preview = document.getElementById('appearancePreviewContainer') || document.getElementById('previewContainer');
           preview?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           preview?.closest('.admin-card')?.classList.add('preview-highlight');
           window.setTimeout(() => preview?.closest('.admin-card')?.classList.remove('preview-highlight'), 1400);
@@ -890,6 +891,7 @@ class AdminPanel {
     const ok = await this.saveConfigToBackend(payload);
     this.render();
     this.showToast(ok ? "Backend'e kaydedildi" : 'Backend yok, lokal kaydedildi', ok ? 'success' : 'warning');
+    return ok;
   }
 
   // --- Appearance Tab ---
@@ -900,9 +902,9 @@ class AdminPanel {
 
     return `
       <div class="tab-content active" id="tab-appearance">
-        <div class="admin-grid">
-          <div>
-            <div class="admin-card" style="margin-bottom: 24px;">
+        <div class="appearance-layout">
+          <div class="appearance-controls">
+            <div class="admin-card appearance-settings-card">
               <h3>🎯 Çark Stili</h3>
               <div class="wheel-style-options" id="wheelStyleOptions" role="radiogroup" aria-label="Çark Stili">
                 <div class="wheel-style-option ${theme.wheelStyle !== 'standard' ? 'active' : ''}" data-style="premium" role="radio" tabindex="0" aria-checked="${theme.wheelStyle !== 'standard'}">
@@ -916,7 +918,7 @@ class AdminPanel {
               </div>
             </div>
 
-            <div class="admin-card" style="margin-bottom: 24px;">
+            <div class="admin-card appearance-settings-card">
               <h3>📍 Ok Konumu</h3>
               <div class="wheel-style-options" id="pointerStyleOptions" role="radiogroup" aria-label="Ok Konumu">
                 <div class="wheel-style-option ${theme.pointerStyle !== 'center' ? 'active' : ''}" data-pointer-style="top" role="radio" tabindex="0" aria-checked="${theme.pointerStyle !== 'center'}">
@@ -930,14 +932,14 @@ class AdminPanel {
               </div>
             </div>
 
-            <div class="admin-card" style="margin-bottom: 24px;">
+            <div class="admin-card appearance-settings-card">
               <h3>🎨 Renkler</h3>
               <div class="form-group">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
                   <input type="checkbox" id="theme-autoSiteTheme" ${autoOn ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#ffd700;">
                   Sitenin arka planına otomatik uyum sağla
                 </label>
-                <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:6px;">
+                <div class="appearance-help-text">
                   Açıkken pop-up'ın arka planı, widget'ın gömülü olduğu sitenin renk tonuna göre otomatik ayarlanır. Kapatırsanız aşağıda kendi sabit renklerinizi seçebilirsiniz.
                 </div>
               </div>
@@ -946,14 +948,14 @@ class AdminPanel {
                   <label>Ana Renk (vurgu)</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-primaryColor" value="${theme.primaryColor}">
-                    <span style="font-family:monospace;font-size:12px">${theme.primaryColor}</span>
+                    <span class="color-value" data-color-for="theme-primaryColor">${theme.primaryColor}</span>
                   </div>
                 </div>
                 <div class="form-group">
                   <label>İkincil Renk</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-primaryColorDark" value="${theme.primaryColorDark}">
-                    <span style="font-family:monospace;font-size:12px">${theme.primaryColorDark}</span>
+                    <span class="color-value" data-color-for="theme-primaryColorDark">${theme.primaryColorDark}</span>
                   </div>
                 </div>
               </div>
@@ -961,7 +963,7 @@ class AdminPanel {
                 <label>Ok Rengi</label>
                 <div class="color-input-wrapper">
                   <input type="color" id="theme-pointerColor" value="${theme.pointerColor}">
-                  <span style="font-family:monospace;font-size:12px">${theme.pointerColor}</span>
+                  <span class="color-value" data-color-for="theme-pointerColor">${theme.pointerColor}</span>
                 </div>
               </div>
               <div id="manualBgColors" style="display:${autoOn ? 'none' : 'block'}">
@@ -970,12 +972,14 @@ class AdminPanel {
                     <label>Arka Plan (Koyu)</label>
                     <div class="color-input-wrapper">
                       <input type="color" id="theme-bgDark" value="${theme.bgDark}">
+                      <span class="color-value" data-color-for="theme-bgDark">${theme.bgDark}</span>
                     </div>
                   </div>
                   <div class="form-group">
                     <label>Arka Plan (Orta)</label>
                     <div class="color-input-wrapper">
                       <input type="color" id="theme-bgMid" value="${theme.bgMid}">
+                      <span class="color-value" data-color-for="theme-bgMid">${theme.bgMid}</span>
                     </div>
                   </div>
                 </div>
@@ -983,12 +987,13 @@ class AdminPanel {
                   <label>Arka Plan (Açık)</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-bgLight" value="${theme.bgLight}">
+                    <span class="color-value" data-color-for="theme-bgLight">${theme.bgLight}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="admin-card">
+            <div class="admin-card appearance-settings-card">
               <h3>📐 Boyut ve Hareket</h3>
               <div class="form-group">
                 <label>Çark Boyutu</label>
@@ -1004,20 +1009,24 @@ class AdminPanel {
                   <div class="probability-value" id="theme-spinDuration-val">${(theme.spinDurationMs / 1000).toFixed(1)} sn</div>
                 </div>
               </div>
-              <div class="btn-group" style="justify-content: flex-end;">
-                <button class="btn btn-primary" id="saveAppearanceBtn">Görünümü Kaydet</button>
-              </div>
             </div>
           </div>
 
-          <div>
-            <div class="admin-card">
-              <h3>👁️ Önizleme</h3>
-              <div class="preview-container">
-                <div id="appearancePreviewContainer"></div>
+          <div class="appearance-preview-column">
+            <div class="admin-card appearance-preview-card">
+              <div class="appearance-preview-heading"><div><h3>👁️ Canlı Önizleme</h3><p>Müşterinizin göreceği mobil görünüm</p></div><span>Canlı</span></div>
+              <div class="appearance-device-frame">
+                <div class="appearance-device-bar"><i></i><i></i><i></i><span>Mağazanız</span></div>
+                <div class="preview-container appearance-preview-viewport">
+                  <div id="appearancePreviewContainer"></div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+        <div class="appearance-save-bar">
+          <div><strong>Görünüm ayarları</strong><span id="appearanceSaveStatus">Değişiklikler önizlemeye anında yansır.</span></div>
+          <button class="btn btn-primary" id="saveAppearanceBtn">Görünümü Kaydet</button>
         </div>
       </div>
     `;
@@ -1048,12 +1057,33 @@ class AdminPanel {
     // Renk seçimi anında önizlemeye yansısın — arka plan renkleri de dahil,
     // daha önce sadece ana renk/ikincil renk/ok rengi bağlıydı.
     ['theme-primaryColor', 'theme-primaryColorDark', 'theme-pointerColor', 'theme-bgDark', 'theme-bgMid', 'theme-bgLight'].forEach((id) => {
-      document.getElementById(id).addEventListener('input', () => this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm()));
+      document.getElementById(id).addEventListener('input', (event) => {
+        const value = document.querySelector(`[data-color-for="${id}"]`);
+        if (value) value.textContent = event.target.value.toUpperCase();
+        this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
+      });
     });
 
-    document.getElementById('saveAppearanceBtn').addEventListener('click', async () => {
+    const markAppearanceDirty = () => {
+      const status = document.getElementById('appearanceSaveStatus');
+      const bar = document.querySelector('.appearance-save-bar');
+      if (status) status.textContent = 'Kaydedilmemiş değişiklikler var.';
+      bar?.classList.add('dirty');
+    };
+    document.querySelector('.appearance-controls')?.addEventListener('input', markAppearanceDirty);
+    document.querySelector('.appearance-controls')?.addEventListener('change', markAppearanceDirty);
+    document.querySelector('.appearance-controls')?.addEventListener('click', (event) => {
+      if (event.target.closest('.wheel-style-option')) markAppearanceDirty();
+    });
+
+    document.getElementById('saveAppearanceBtn').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Kaydediliyor...';
       const theme = this.readAppearanceForm();
-      await this.saveAndRender({ theme });
+      const saved = await this.saveAndRender({ theme });
+      const status = document.getElementById('appearanceSaveStatus');
+      if (status) status.textContent = saved ? 'Tüm görünüm ayarları kaydedildi.' : 'Ayarlar bu tarayıcıda kaydedildi; backend bağlantısı yok.';
     });
   }
 

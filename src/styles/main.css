@@ -75,13 +75,13 @@
   width: 90%;
   max-width: 920px;
   background:
-    radial-gradient(circle at 15% -10%, rgba(var(--cark-primary-rgb), 0.1), transparent 45%),
-    radial-gradient(circle at 100% 110%, rgba(176, 0, 0, 0.1), transparent 45%),
+    radial-gradient(circle at 15% -10%, rgba(var(--cark-primary-rgb), 0.18), transparent 45%),
+    radial-gradient(circle at 100% 110%, rgba(var(--cark-primary-rgb), 0.12), transparent 45%),
     linear-gradient(
       145deg,
-      color-mix(in srgb, var(--cark-bg-dark) 95%, transparent),
-      color-mix(in srgb, var(--cark-bg-mid) 95%, transparent),
-      color-mix(in srgb, var(--cark-bg-light) 95%, transparent)
+      color-mix(in srgb, var(--cark-bg-dark) 88%, white 12%),
+      color-mix(in srgb, var(--cark-bg-mid) 86%, white 14%),
+      color-mix(in srgb, var(--cark-bg-light) 88%, var(--cark-primary) 12%)
     );
   border: 1px solid rgba(var(--cark-primary-rgb), 0.25);
   border-radius: 28px;
@@ -152,8 +152,8 @@
   justify-content: center;
   position: relative;
   background:
-    radial-gradient(circle at 50% 45%, rgba(var(--cark-primary-rgb), 0.1), transparent 62%),
-    rgba(0, 0, 0, 0.25);
+    radial-gradient(circle at 50% 45%, rgba(var(--cark-primary-rgb), 0.2), transparent 62%),
+    linear-gradient(145deg, color-mix(in srgb, var(--cark-bg-mid) 86%, white 14%), color-mix(in srgb, var(--cark-bg-light) 82%, var(--cark-primary) 18%));
   border-right: 1px solid var(--cark-glass-border);
   overflow: hidden;
 }
@@ -262,6 +262,8 @@
   flex-direction: column;
   justify-content: center;
   position: relative;
+  color: #fff;
+  background: linear-gradient(160deg, rgba(7, 12, 24, 0.78), rgba(15, 23, 42, 0.62));
 }
 
 .cark-eyebrow {
@@ -292,7 +294,7 @@
 
 .cark-subtitle {
   font-size: 15px;
-  color: var(--cark-text-muted);
+  color: rgba(255, 255, 255, 0.82);
   margin-bottom: 30px;
 }
 
@@ -304,25 +306,24 @@
 .cark-input {
   width: 100%;
   padding: 16px 16px 16px 48px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(var(--cark-primary-rgb), 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 16px;
   color: white;
   font-size: 15px;
   font-weight: 500;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
 }
 
 .cark-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.64);
 }
 
 .cark-input:focus {
-  background: rgba(0,0,0,0.5);
+  background: rgba(255, 255, 255, 0.15);
   border-color: var(--cark-primary);
   box-shadow: 
-    inset 0 2px 4px rgba(0,0,0,0.3),
     0 0 15px rgba(var(--cark-primary-rgb), 0.15),
     0 0 0 3px rgba(var(--cark-primary-rgb), 0.1);
   outline: none;
@@ -340,7 +341,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 20px;
-  opacity: 0.8;
+  opacity: 1;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
 
@@ -363,15 +364,15 @@
 .cark-checkmark {
   width: 24px;
   height: 24px;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.45);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(0,0,0,0.3);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.1);
+  box-shadow: none;
 }
 
 .cark-checkmark svg {
@@ -397,11 +398,11 @@
 .cark-checkbox-text {
   font-size: 11.5px;
   line-height: 1.5;
-  color: var(--cark-text-muted);
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .cark-policy-link {
-  color: var(--cark-primary);
+  color: color-mix(in srgb, var(--cark-primary) 70%, white 30%);
   text-decoration: underline;
   font-weight: 600;
   white-space: nowrap;
@@ -820,25 +821,73 @@
 }
 
 .cark-preview-mode .cark-wheel-section {
-  padding: 24px 20px;
+  padding: 14px 16px;
   border-right: none;
   border-bottom: 1px solid var(--cark-glass-border);
 }
 
 .cark-preview-mode .cark-canvas {
-  max-width: 340px;
-  max-height: 340px;
+  max-width: 238px;
+  max-height: 238px;
 }
 
 .cark-preview-mode .cark-form-section {
-  padding: 24px 20px;
+  padding: 18px 18px 20px;
 }
 
 .cark-preview-mode .cark-title {
-  font-size: 24px;
+  font-size: 21px;
   text-align: center;
 }
 
 .cark-preview-mode .cark-subtitle {
+  margin-bottom: 14px;
+  font-size: 12px;
   text-align: center;
+}
+
+.cark-preview-mode .cark-eyebrow {
+  margin-bottom: 9px;
+  padding: 4px 10px;
+  font-size: 9px;
+}
+
+.cark-preview-mode .cark-input-group {
+  margin-bottom: 9px;
+}
+
+.cark-preview-mode .cark-input {
+  padding: 11px 12px 11px 39px;
+  border-radius: 11px;
+  font-size: 12px;
+}
+
+.cark-preview-mode .cark-input-icon {
+  left: 13px;
+  font-size: 16px;
+}
+
+.cark-preview-mode .cark-kvkk-group {
+  margin-bottom: 12px;
+}
+
+.cark-preview-mode .cark-checkbox {
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.cark-preview-mode .cark-checkmark {
+  width: 19px;
+  height: 19px;
+  border-radius: 6px;
+}
+
+.cark-preview-mode .cark-checkbox-text {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.cark-preview-mode .cark-submit-btn {
+  padding: 11px 16px;
+  font-size: 12px;
 }
