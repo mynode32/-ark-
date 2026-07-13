@@ -736,7 +736,30 @@ select.form-input option {
   max-width: 68ch;
 }
 .segment-fixed-coupon-hint {
-  margin: -4px 0 16px;
+  margin-top: -6px;
+}
+.segment-advanced {
+  margin: 2px 0 18px;
+  border: 1px solid var(--panel-line, #e4e8f0);
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.035);
+}
+.segment-advanced summary {
+  padding: 12px 14px;
+  color: var(--panel-muted, #64748b);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  list-style-position: inside;
+}
+.segment-advanced[open] summary {
+  border-bottom: 1px solid var(--panel-line, #e4e8f0);
+}
+.segment-advanced .form-group {
+  margin: 14px 14px 10px;
+}
+.segment-advanced .segment-fixed-coupon-hint {
+  margin: 0 14px 14px;
 }
 .edit-modal:focus-visible {
   outline: 2px solid #ffd700;

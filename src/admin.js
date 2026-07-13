@@ -1117,7 +1117,7 @@ class AdminPanel {
         couponCode: '',
         ikasCampaignId: null,
         discountType: 'percentage',
-        discountValue: 10,
+        discountValue: 0,
         icon: '🎁',
       };
     }
@@ -1149,20 +1149,17 @@ class AdminPanel {
           </div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group" id="seg-val-group">
-          <label>İndirim Değeri</label>
-          <input type="number" class="form-input" id="seg-value" value="${seg.discountValue}">
-        </div>
+      <details class="segment-advanced" ${seg.couponCode ? 'open' : ''}>
+        <summary>Gelişmiş: Sabit / yedek kupon</summary>
         <div class="form-group" id="seg-coupon-group">
-          <label>✅ Sabit Kupon Kodu (Garantili)</label>
+          <label>Sabit Kupon Kodu</label>
           <input type="text" class="form-input" id="seg-coupon" value="${escapeHtml(seg.couponCode)}" placeholder="Örn: YH30 — İkas'ta zaten oluşturduğunuz bir kod">
         </div>
-      </div>
-      <div class="segment-fixed-coupon-hint">
-        İkas'ta kendiniz oluşturup test ettiğiniz bir kodu buraya yazarsanız (örn. <code>YH30</code>), her kazanan aynı kodu görür ve
-        kod doğrudan gösterilir; yeni kupon oluşturmak için İkas'a istek gönderilmez.
-      </div>
+        <div class="segment-fixed-coupon-hint">
+          Yalnızca yedek yöntem gerektiğinde kullanın. Buraya İkas'ta önceden oluşturup test ettiğiniz bir kodu yazarsanız
+          kampanyadan otomatik kod üretmek yerine her kazanana bu kod gösterilir.
+        </div>
+      </details>
       <div class="form-group">
         <label>Kuponun Toplam Kazanma Ağırlığı</label>
         <div class="probability-slider">
@@ -1190,12 +1187,8 @@ class AdminPanel {
       const campaignId = document.getElementById('seg-ikas-campaign')?.value || null;
       const selectedCampaign = this._ikasCampaigns?.find((campaign) => String(campaign.id) === String(campaignId));
       const couponCode = document.getElementById('seg-coupon')?.value.trim() || null;
-      const discountValue = parseInt(document.getElementById('seg-value')?.value, 10) || 0;
-      const label =
-        selectedCampaign?.title ||
-        couponCode ||
-        (this.editingSegmentId ? seg.label : null) ||
-        (discountValue ? `%${discountValue} İNDİRİM` : 'Kupon');
+      const discountValue = Number.isFinite(seg.discountValue) ? seg.discountValue : 0;
+      const label = selectedCampaign?.title || couponCode || (this.editingSegmentId ? seg.label : null) || 'Kupon';
       const discountType = selectedCampaign
         ? selectedCampaign.isFreeShipping
           ? 'freeShipping'
