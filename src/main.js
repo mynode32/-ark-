@@ -37,9 +37,12 @@ class CarkApp {
     // a small indicator after a short grace period beats the widget
     // appearing to simply not exist.
     const loadingTimer = setTimeout(() => showLoadingIndicator(), 1200);
-    this.config = await fetchConfig();
-    clearTimeout(loadingTimer);
-    hideLoadingIndicator();
+    try {
+      this.config = await fetchConfig();
+    } finally {
+      clearTimeout(loadingTimer);
+      hideLoadingIndicator();
+    }
     this.embedOptions = embedOptions;
 
     // Merge embed options into config
@@ -213,5 +216,5 @@ window.CarkWidget = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  window.CarkWidget.init();
+  window.CarkWidget.init().catch((error) => console.error('Çark başlatılamadı:', error.message));
 });

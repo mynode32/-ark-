@@ -8,6 +8,8 @@ export function generateEmbedCode(config, backendUrl, storeSlug) {
   CarkWidget.init({
     apiBaseUrl: "${base}",   // backend'inizin adresi
     storeSlug: "${slug}"     // mağazanızın benzersiz kimliği — segment/ayarlar buradan otomatik çekilir
+  }).catch(function (error) {
+    console.error('Çark güvenli biçimde başlatılamadı:', error.message);
   });
 </script>`;
 }
@@ -18,10 +20,10 @@ export function generateIkasGuide() {
   <h4>📋 İkas Entegrasyon Adımları</h4>
   <ol>
     <li>Backend'i bir sunucuya deploy edin (Vercel, Railway, kendi VPS'iniz)</li>
-    <li><code>server/.env</code> dosyasına İkas API bilgilerinizi girin:<br>
-      <code>IKAS_API_KEY=xxx</code><br>
-      <code>IKAS_STORE_ID=xxx</code></li>
-    <li>Backend çalışınca, admin panelde Embed Kodu'ndan script'i alın</li>
+    <li>MyStore panelinde <strong>Entegrasyon → Platform Bağlantısı</strong> alanını açın</li>
+    <li>İkas mağaza alt alan adı, Client ID ve Client Secret bilgilerini girip bağlantıyı doğrulayın</li>
+    <li>Çark Ayarları bölümünde her ödülü gerçek bir İkas kampanyasına bağlayın ve 🧪 kupon testini çalıştırın</li>
+    <li>Tüm ödüller yeşil olunca Entegrasyon bölümünden embed kodunu alın</li>
     <li>İkas mağaza panelinizde <strong>Online Mağaza → Temalar</strong> bölümüne gidin</li>
     <li>Aktif temanızda <strong>"Kodu Düzenle"</strong> butonuna tıklayın</li>
     <li><code>&lt;/body&gt;</code> etiketinin hemen üstüne embed kodunu yapıştırın</li>
@@ -31,14 +33,14 @@ export function generateIkasGuide() {
   <h4>🔗 Nasıl Çalışır?</h4>
   <ul>
     <li>Müşteri formu doldurup çarkı çevirir</li>
-    <li>Backend kazananı belirler ve İkas API'si ile gerçek kupon kodu oluşturur</li>
+    <li>Backend kazananı belirler ve <code>campaignAddCoupons</code> ile gerçek, tek kullanımlık kupon oluşturur</li>
     <li>Kupon kodu müşteriye gösterilir, sepette kullanabilir</li>
-    <li>İkas API ayarları <code>server/.env</code>'den yapılır</li>
+    <li>İkas hata verirse yerel/sahte koda düşülmez; kupon verilmeden işlem güvenli biçimde durdurulur</li>
   </ul>
 
   <h4>⚙️ İkas GraphQL API İzinleri</h4>
   <ul>
-    <li><code>coupon:create</code> - Kupon oluşturma</li>
+    <li>Kampanya listeleme ve kampanyaya kupon ekleme yetkileri</li>
     <li><code>customer:create</code> - Müşteri oluşturma</li>
   </ul>
 </div>`;

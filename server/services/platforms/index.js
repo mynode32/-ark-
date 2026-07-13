@@ -2,6 +2,7 @@ import * as ikasPlatform from './ikas.js';
 import * as manualPlatform from './manual.js';
 import { getPlatformCredentials } from '../../store.js';
 import { decryptSecret } from '../crypto.js';
+import { CouponConfigurationError } from './couponPolicy.js';
 
 /**
  * Resolves the right platform adapter for a store and pre-binds its
@@ -18,6 +19,7 @@ export async function getPlatformAdapter(storeId) {
     };
     return {
       platform: 'ikas',
+      connected: true,
       createCoupon: (args) => ikasPlatform.createCoupon(args, resolved, storeId),
       listCampaigns: () => ikasPlatform.listCampaigns(resolved, storeId),
       addCouponToCampaign: (args) => ikasPlatform.addCouponToCampaign(args, resolved, storeId),
@@ -26,8 +28,24 @@ export async function getPlatformAdapter(storeId) {
     };
   }
 
+  if (creds.platform === 'ikas') {
+    const notConnected = async () => {
+      throw new CouponConfigurationError('İkas bağlantı bilgileri eksik veya doğrulanmamış.');
+    };
+    return {
+      platform: 'ikas',
+      connected: false,
+      createCoupon: notConnected,
+      listCampaigns: async () => [],
+      addCouponToCampaign: notConnected,
+      createCustomer: async () => null,
+      testConnection: notConnected,
+    };
+  }
+
   return {
     platform: 'manual',
+    connected: true,
     createCoupon: manualPlatform.createCoupon,
     listCampaigns: manualPlatform.listCampaigns,
     addCouponToCampaign: manualPlatform.addCouponToCampaign,

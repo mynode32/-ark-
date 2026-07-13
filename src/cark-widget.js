@@ -815,9 +815,12 @@ class CarkApp {
     // period beats the widget appearing to simply not exist. Styled inline
     // since the widget's own stylesheet isn't injected until after this.
     const loadingTimer = setTimeout(() => this.showLoadingIndicator(), 1200);
-    this.config = await fetchConfig();
-    clearTimeout(loadingTimer);
-    this.hideLoadingIndicator();
+    try {
+      this.config = await fetchConfig();
+    } finally {
+      clearTimeout(loadingTimer);
+      this.hideLoadingIndicator();
+    }
     this.embedOptions = embedOptions;
 
     if (embedOptions.segments) {

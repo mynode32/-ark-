@@ -195,7 +195,26 @@ export async function saveWidgetConfig(storeId, data) {
     if (error) {
       throw Object.assign(new Error(error), { status: 400 });
     }
-    config.segments = data.segments;
+    const previousSegments = config.segments || [];
+    config.segments = data.segments.map((segment) => {
+      const safeSegment = { ...segment };
+      delete safeSegment.couponVerifiedAt;
+      delete safeSegment.couponVerifiedCampaignId;
+      const groupId = String(segment.couponGroupId || segment.id);
+      const previous = previousSegments.find((item) => String(item.couponGroupId || item.id) === groupId);
+      const verificationStillMatches =
+        previous?.couponVerifiedAt &&
+        previous?.ikasCampaignId &&
+        String(previous.ikasCampaignId) === String(segment.ikasCampaignId || '') &&
+        String(previous.couponVerifiedCampaignId || '') === String(segment.ikasCampaignId || '');
+      return verificationStillMatches
+        ? {
+            ...safeSegment,
+            couponVerifiedAt: previous.couponVerifiedAt,
+            couponVerifiedCampaignId: previous.couponVerifiedCampaignId,
+          }
+        : safeSegment;
+    });
   }
   if (data.settings) {
     config.settings = { ...config.settings, ...data.settings };
@@ -217,6 +236,21 @@ export async function saveWidgetConfig(storeId, data) {
     }
   }
 
+  return config;
+}
+
+export async function markCouponGroupVerified(storeId, couponGroupId, campaignId) {
+  const store = await findStoreById(storeId);
+  if (!store) throw new Error('Mağaza bulunamadı');
+  const verifiedAt = new Date().toISOString();
+  const groupId = String(couponGroupId);
+  const segments = (store.widgetConfig?.segments || []).map((segment) =>
+    String(segment.couponGroupId || segment.id) === groupId && String(segment.ikasCampaignId || '') === String(campaignId)
+      ? { ...segment, couponVerifiedAt: verifiedAt, couponVerifiedCampaignId: campaignId }
+      : segment,
+  );
+  const config = { ...store.widgetConfig, segments };
+  await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
   return config;
 }
 

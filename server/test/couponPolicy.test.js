@@ -1,0 +1,80 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  assessCouponHealth,
+  CouponConfigurationError,
+  CouponProvisionError,
+  provisionCouponForSegment,
+} from '../services/platforms/couponPolicy.js';
+
+const reward = {
+  id: 'reward-1',
+  couponGroupId: 'group-1',
+  label: '%10 İndirim',
+  discountType: 'percentage',
+  discountValue: 10,
+};
+
+test('İkas + campaignId + successful campaignAddCoupons returns a real coupon', async () => {
+  const calls = [];
+  const adapter = {
+    platform: 'ikas',
+    addCouponToCampaign: async (payload) => {
+      calls.push(payload);
+      return { code: 'IKAS-GERCEK-1', isLocal: false };
+    },
+  };
+  const result = await provisionCouponForSegment(adapter, { ...reward, ikasCampaignId: 'campaign-1' });
+  assert.deepEqual(result, { code: 'IKAS-GERCEK-1', isLocal: false });
+  assert.deepEqual(calls, [{ campaignId: 'campaign-1', label: '%10 İndirim' }]);
+});
+
+test('İkas + missing campaignId is blocked without generating a local coupon', async () => {
+  let called = false;
+  const adapter = { platform: 'ikas', addCouponToCampaign: async () => { called = true; } };
+  await assert.rejects(() => provisionCouponForSegment(adapter, reward), CouponConfigurationError);
+  assert.equal(called, false);
+});
+
+test('İkas adapter returning a local coupon is treated as a provisioning failure', async () => {
+  const adapter = {
+    platform: 'ikas',
+    addCouponToCampaign: async () => ({ code: 'LOCAL-FAKE', isLocal: true }),
+  };
+  await assert.rejects(
+    () => provisionCouponForSegment(adapter, { ...reward, ikasCampaignId: 'campaign-1' }),
+    CouponProvisionError,
+  );
+});
+
+test('manual mode intentionally accepts a local coupon', async () => {
+  const adapter = {
+    platform: 'manual',
+    createCoupon: async () => ({ code: 'MANUEL-1', isLocal: true }),
+  };
+  assert.deepEqual(await provisionCouponForSegment(adapter, reward), { code: 'MANUEL-1', isLocal: true });
+  assert.equal(assessCouponHealth({ segments: [reward], platform: 'manual' }).level, 'manual');
+});
+
+test('İkas health requires the current campaign to have a successful test stamp', () => {
+  const untested = assessCouponHealth({
+    segments: [{ ...reward, ikasCampaignId: 'campaign-1' }],
+    platform: 'ikas',
+    connected: true,
+  });
+  assert.equal(untested.ready, false);
+  assert.equal(untested.issues[0].reason, 'test_required');
+
+  const tested = assessCouponHealth({
+    segments: [{
+      ...reward,
+      ikasCampaignId: 'campaign-1',
+      couponVerifiedAt: new Date().toISOString(),
+      couponVerifiedCampaignId: 'campaign-1',
+    }],
+    platform: 'ikas',
+    connected: true,
+  });
+  assert.equal(tested.ready, true);
+  assert.equal(tested.level, 'healthy');
+});

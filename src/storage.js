@@ -118,13 +118,19 @@ export async function fetchConfig() {
     try {
       const res = await fetch(`${base}/api/widget/${encodeURIComponent(slug)}/config`);
       if (!res.ok) {
-        throw new Error('API hatası');
+        const body = await res.json().catch(() => ({}));
+        const error = new Error(body.error || 'Çark yapılandırması alınamadı.');
+        error.code = body.code || 'CONFIG_FETCH_FAILED';
+        throw error;
       }
       const data = await res.json();
       localStorage.setItem('carkConfig', JSON.stringify(data));
       return data;
-    } catch {
-      console.warn('Backend alınamadı, localStorage kullanılıyor');
+    } catch (error) {
+      // Embedded widgets must never fall back to stale/local prize data. That
+      // could show a coupon the connected commerce platform cannot redeem.
+      console.error('Çark backend yapılandırması alınamadı:', error.message);
+      throw error;
     }
   }
   return getLocalConfig();

@@ -1047,6 +1047,26 @@ select.form-input option { color: var(--panel-ink); background: #fff; }
 .appearance-save-bar.dirty { border-color: #c4b5fd; box-shadow: 0 14px 38px rgba(124,58,237,.19); }
 .appearance-save-bar.dirty span { color: var(--panel-primary); font-weight: 650; }
 
+/* Coupon readiness */
+.coupon-health-banner { margin-bottom: 18px; padding: 15px 17px; display: flex; gap: 12px; border: 1px solid #dbe2ea; border-radius: 13px; color: #334155; background: #f8fafc; }
+.coupon-health-banner > div { display: flex; flex-direction: column; gap: 4px; }
+.coupon-health-banner strong { color: var(--panel-ink); font-size: 13px; }
+.coupon-health-banner span, .coupon-health-banner li { font-size: 12px; line-height: 1.5; }
+.coupon-health-banner ul { margin: 4px 0 0; padding-left: 18px; }
+.coupon-health-banner.loading { border-color: #ddd6fe; background: #f5f3ff; }
+.coupon-health-banner.healthy { border-color: #bbf7d0; background: #f0fdf4; }
+.coupon-health-banner.healthy strong { color: #166534; }
+.coupon-health-banner.manual { border-color: #fde68a; background: #fffbeb; }
+.coupon-health-banner.manual strong { color: #92400e; }
+.coupon-health-banner.blocked { border-color: #fecaca; background: #fff1f2; }
+.coupon-health-banner.blocked strong, .coupon-health-banner.blocked li { color: #991b1b; }
+.segment-item.coupon-risk { border-color: #fca5a5; background: #fff1f2; box-shadow: 0 0 0 2px rgba(220,38,38,.05); }
+.coupon-health-badge { align-self: flex-start; margin-top: 5px; padding: 3px 7px; border-radius: 999px; color: #b91c1c; background: #fee2e2; font-size: 10px; font-weight: 800; }
+.embed-copy-btn:disabled { cursor: not-allowed; opacity: .5; }
+.coupon-embed-locked pre { user-select: none; filter: blur(5px); opacity: .35; }
+.coupon-embed-locked::after { content: 'Kupon sağlık kontrolü tamamlanmadan embed kodu yayınlanamaz'; position: absolute; inset: 0; padding: 54px 24px 20px; display: grid; place-items: center; color: #fff; background: rgba(15,23,42,.72); text-align: center; font-size: 13px; font-weight: 750; }
+.coupon-embed-locked .embed-copy-btn { z-index: 2; }
+
 /* Participants workspace */
 .entries-quick-actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
 .entries-quick-actions .btn { padding: 10px 14px; font-size: 12px; }

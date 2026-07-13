@@ -591,6 +591,9 @@ class AdminPanel {
     const coupons = this.getCouponTemplates();
     return `
       <div class="tab-content active" id="tab-settings">
+        <div class="coupon-health-banner loading" id="couponHealthBanner">
+          <div><strong>Kupon sağlık kontrolü yapılıyor…</strong><span>İkas ödüllerinin gerçek kampanyalara bağlı olduğu doğrulanıyor.</span></div>
+        </div>
         <div class="admin-grid">
           <div>
             <div class="admin-card">
@@ -761,15 +764,62 @@ class AdminPanel {
       } else if (!data.tested) {
         this.showToast(data.reason || 'Bu dilim test edilemez', 'warning');
       } else if (data.isLocalCoupon) {
-        this.showToast(`İkas'a kaydedilemedi — bu dilim müşteride reddedilecek kod üretir (${data.couponCode})`, 'warning');
+        this.showToast(`Manuel mod kuponu oluşturuldu: ${data.couponCode}. Bu kodu mağazanızda siz doğrulamalısınız.`, 'warning');
       } else {
         this.showToast(`Kupon başarıyla oluşturuldu: ${data.couponCode}`);
+        await this.loadCouponHealth();
       }
     } catch {
       this.showToast('Backend bağlantı hatası', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
+    }
+  }
+
+  async fetchCouponHealth() {
+    const res = await fetch(`${getApiBase()}/api/admin/coupon-health`, {
+      headers: { Authorization: `Bearer ${authToken()}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Kupon sağlık durumu alınamadı');
+    this.couponHealth = data;
+    return data;
+  }
+
+  async loadCouponHealth() {
+    const banner = document.getElementById('couponHealthBanner');
+    try {
+      const health = await this.fetchCouponHealth();
+      if (banner) {
+        banner.className = `coupon-health-banner ${health.level}`;
+        const detail = health.issues?.length
+          ? `<ul>${health.issues.map((issue) => `<li><strong>${escapeHtml(issue.label)}</strong>: ${escapeHtml(issue.message)}</li>`).join('')}</ul>`
+          : `<span>${escapeHtml(health.message)}</span>`;
+        banner.innerHTML = `<div><strong>${health.ready ? 'Yayına hazır' : health.level === 'manual' ? 'Manuel kupon modu' : 'Yayın güvenlik nedeniyle durduruldu'}</strong>${detail}</div>`;
+      }
+
+      const riskyGroups = new Set((health.issues || []).map((issue) => String(issue.couponGroupId)));
+      document.querySelectorAll('.segment-item').forEach((row) => {
+        const risky = riskyGroups.has(String(row.dataset.id));
+        row.classList.toggle('coupon-risk', risky);
+        let badge = row.querySelector('.coupon-health-badge');
+        if (risky && !badge) {
+          badge = document.createElement('span');
+          badge.className = 'coupon-health-badge';
+          badge.textContent = 'Aksiyon gerekli';
+          row.querySelector('.segment-info')?.appendChild(badge);
+        } else if (!risky) {
+          badge?.remove();
+        }
+      });
+      return health;
+    } catch (error) {
+      if (banner) {
+        banner.className = 'coupon-health-banner blocked';
+        banner.innerHTML = `<div><strong>Kupon durumu doğrulanamadı</strong><span>${escapeHtml(error.message)}</span></div>`;
+      }
+      return null;
     }
   }
 
@@ -806,6 +856,7 @@ class AdminPanel {
   }
 
   setupSettingsListeners() {
+    this.loadCouponHealth();
     document.getElementById('segmentList').addEventListener('click', async (e) => {
       const editBtn = e.target.closest('.edit-btn');
       const moveBtn = e.target.closest('.move-btn');
@@ -1924,7 +1975,12 @@ class AdminPanel {
       const res = await fetch(`${getApiBase()}/api/admin/entries/widget-status`, { headers: { Authorization: `Bearer ${authToken()}` } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Widget durumu alınamadı');
-      const message = `${data.ready ? 'Widget hazır' : 'Kurulum eksik'} • ${data.segmentCount}/6 dilim • ${data.ikasConnected ? 'İkas bağlı' : 'İkas bağlı değil'} • ${data.domains.length} domain`;
+      const couponState = data.couponHealth?.ready
+        ? 'kuponlar doğrulandı'
+        : data.couponHealth?.level === 'manual'
+          ? 'manuel kupon modu'
+          : `${data.couponHealth?.issues?.length || 0} kupon aksiyon bekliyor`;
+      const message = `${data.ready ? 'Widget hazır' : 'Kurulum eksik'} • ${data.segmentCount}/6 dilim • ${data.ikasConnected ? 'İkas bağlı' : 'İkas bağlı değil'} • ${couponState} • ${data.domains.length} domain`;
       this.showToast(message, data.ready ? 'success' : 'warning');
     } catch (error) {
       this.showToast(error.message, 'error');
@@ -1944,8 +2000,11 @@ class AdminPanel {
             <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">
               Bu kodu mağaza temanızda <code>&lt;/body&gt;</code> etiketinden hemen önce ekleyin.
             </p>
-            <div class="embed-code">
-              <button class="btn btn-secondary embed-copy-btn" id="copyEmbedBtn">Kopyala</button>
+            <div class="coupon-health-banner loading" id="integrationCouponHealth">
+              <div><strong>Yayın hazırlığı kontrol ediliyor…</strong><span>Embed kodu yalnızca güvenli kupon yapılandırmasında kopyalanabilir.</span></div>
+            </div>
+            <div class="embed-code coupon-embed-locked" id="couponEmbedCode">
+              <button class="btn btn-secondary embed-copy-btn" id="copyEmbedBtn" disabled>Kopyala</button>
               <pre id="embedCodeText" style="margin:0;font-family:inherit;">${embedCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
             </div>
           </div>
@@ -2009,7 +2068,12 @@ class AdminPanel {
   }
 
   setupIntegrationListeners() {
+    this.loadIntegrationCouponHealth();
     document.getElementById('copyEmbedBtn')?.addEventListener('click', () => {
+      if (!this.couponHealth?.ready) {
+        this.showToast('Önce kupon sağlık kontrolündeki sorunları düzeltin', 'error');
+        return;
+      }
       navigator.clipboard.writeText(document.getElementById('embedCodeText').textContent).then(() => {
         this.showToast('Embed kodu kopyalandı');
       });
@@ -2066,6 +2130,7 @@ class AdminPanel {
             this.showToast('Platform ayarları kaydedildi');
           }
           this.loadPlatformCredentials();
+          this.loadIntegrationCouponHealth();
         } else {
           const data = await res.json().catch(() => ({}));
           this.showToast(data.error || 'Kaydedilemedi', 'error');
@@ -2076,6 +2141,30 @@ class AdminPanel {
     });
 
     document.getElementById('saveBillingInfoBtn')?.addEventListener('click', () => this.saveBillingInfo());
+  }
+
+  async loadIntegrationCouponHealth() {
+    const banner = document.getElementById('integrationCouponHealth');
+    const copyButton = document.getElementById('copyEmbedBtn');
+    const embedCode = document.getElementById('couponEmbedCode');
+    try {
+      const health = await this.fetchCouponHealth();
+      if (copyButton) copyButton.disabled = !health.ready;
+      embedCode?.classList.toggle('coupon-embed-locked', !health.ready);
+      if (banner) {
+        banner.className = `coupon-health-banner ${health.level}`;
+        banner.innerHTML = health.ready
+          ? `<div><strong>Embed kodu yayına hazır</strong><span>${escapeHtml(health.message)}</span></div>`
+          : `<div><strong>Embed kodu kilitli</strong><span>${escapeHtml(health.message)} Çark Ayarları bölümünde kırmızı ödülleri kampanyaya bağlayıp test edin.</span></div>`;
+      }
+    } catch (error) {
+      if (copyButton) copyButton.disabled = true;
+      embedCode?.classList.add('coupon-embed-locked');
+      if (banner) {
+        banner.className = 'coupon-health-banner blocked';
+        banner.innerHTML = `<div><strong>Yayın durumu alınamadı</strong><span>${escapeHtml(error.message)}</span></div>`;
+      }
+    }
   }
 
   async loadBillingInfo() {

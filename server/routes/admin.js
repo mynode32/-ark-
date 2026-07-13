@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
   getWidgetConfig,
   saveWidgetConfig,
+  markCouponGroupVerified,
   getEntriesPage,
   getFilteredEntries,
   getEntryPrizes,
@@ -27,6 +28,7 @@ import {
   softDeleteStore,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
+import { assessCouponHealth, CouponConfigurationError, provisionCouponForSegment } from '../services/platforms/couponPolicy.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
 import { encryptSecret } from '../services/crypto.js';
 
@@ -39,6 +41,18 @@ adminRouter.use(adminAuth);
 // accidental spam-clicking, not abuse (this route is already auth-only).
 const testCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
 const retryCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+
+async function couponHealthForStore(storeId, widgetConfig = null) {
+  const [config, adapter] = await Promise.all([
+    widgetConfig ? Promise.resolve(widgetConfig) : getWidgetConfig(storeId),
+    getPlatformAdapter(storeId),
+  ]);
+  return assessCouponHealth({
+    segments: config?.segments || [],
+    platform: adapter.platform,
+    connected: adapter.connected,
+  });
+}
 
 function entryFilters(queryParams) {
   return {
@@ -232,7 +246,8 @@ async function retryEntryCoupon(storeId, entryId) {
       isLocalCoupon: true,
     });
   }
-  if (segment.couponCode) {
+  const adapter = await getPlatformAdapter(storeId);
+  if (segment.couponCode && adapter.platform !== 'ikas') {
     return updateEntryCoupon(storeId, entryId, {
       couponCode: segment.couponCode,
       status: 'processed',
@@ -241,7 +256,6 @@ async function retryEntryCoupon(storeId, entryId) {
     });
   }
 
-  const adapter = await getPlatformAdapter(storeId);
   if (adapter.platform !== 'ikas') {
     return updateEntryCoupon(storeId, entryId, {
       couponCode: entry.couponCode,
@@ -252,25 +266,19 @@ async function retryEntryCoupon(storeId, entryId) {
   }
 
   try {
-    const coupon = segment.ikasCampaignId
-      ? await adapter.addCouponToCampaign({ campaignId: segment.ikasCampaignId, label: segment.label })
-      : await adapter.createCoupon({
-          label: segment.label,
-          discountType: segment.discountType,
-          discountValue: segment.discountValue,
-        });
+    const coupon = await provisionCouponForSegment(adapter, segment);
     return updateEntryCoupon(storeId, entryId, {
       couponCode: coupon.code,
-      status: coupon.isLocal ? 'failed' : 'processed',
-      error: coupon.isLocal ? 'İkas kuponu tekrar oluşturulamadı' : null,
-      isLocalCoupon: coupon.isLocal,
+      status: 'processed',
+      error: null,
+      isLocalCoupon: false,
     });
   } catch (error) {
     return updateEntryCoupon(storeId, entryId, {
       couponCode: entry.couponCode,
       status: 'failed',
       error: error.message || 'İkas kuponu tekrar oluşturulamadı',
-      isLocalCoupon: true,
+      isLocalCoupon: false,
     });
   }
 }
@@ -287,13 +295,19 @@ adminRouter.get('/entries/widget-status', asyncHandler(async (req, res) => {
     findStoreById(req.storeId),
     getPlatformCredentials(req.storeId),
   ]);
+  const couponHealth = await couponHealthForStore(req.storeId, widgetConfig);
   res.json({
-    ready: Boolean(widgetConfig?.segments?.length === 6 && store?.allowedDomains?.length),
+    ready: Boolean(widgetConfig?.segments?.length === 6 && store?.allowedDomains?.length && couponHealth.ready),
     segmentCount: widgetConfig?.segments?.length || 0,
     domains: store?.allowedDomains || [],
     platform: credentials.platform,
     ikasConnected: credentials.platform === 'ikas' && Boolean(credentials.ikasClientId && credentials.ikasStoreId),
+    couponHealth,
   });
+}));
+
+adminRouter.get('/coupon-health', asyncHandler(async (req, res) => {
+  res.json(await couponHealthForStore(req.storeId));
 }));
 
 adminRouter.post('/entries/bulk', retryCouponLimiter, asyncHandler(async (req, res) => {
@@ -374,20 +388,23 @@ adminRouter.post('/segments/:segmentId/test-coupon', testCouponLimiter, asyncHan
 
   let couponCode = segment.couponCode || null;
   let isLocalCoupon = false;
-  if (!couponCode) {
-    const adapter = await getPlatformAdapter(req.storeId);
-    const coupon = segment.ikasCampaignId
-      ? await adapter.addCouponToCampaign({ campaignId: segment.ikasCampaignId, label: segment.label })
-      : await adapter.createCoupon({
-          label: segment.label,
-          discountType: segment.discountType,
-          discountValue: segment.discountValue,
-        });
+  const adapter = await getPlatformAdapter(req.storeId);
+  if (adapter.platform === 'ikas') {
+    if (!segment.ikasCampaignId) {
+      throw new CouponConfigurationError('Önce bu ödülü bir İkas kampanyasına bağlayın.');
+    }
+    const coupon = await provisionCouponForSegment(adapter, segment);
     couponCode = coupon.code;
-    isLocalCoupon = coupon.isLocal;
+
+    const groupId = String(segment.couponGroupId || segment.id);
+    await markCouponGroupVerified(req.storeId, groupId, segment.ikasCampaignId);
+  } else if (!couponCode) {
+    const coupon = await provisionCouponForSegment(adapter, segment);
+    couponCode = coupon.code;
+    isLocalCoupon = true;
   }
 
-  res.json({ tested: true, couponCode, isLocalCoupon });
+  res.json({ tested: true, couponCode, isLocalCoupon, couponHealth: await couponHealthForStore(req.storeId) });
 }));
 
 /**

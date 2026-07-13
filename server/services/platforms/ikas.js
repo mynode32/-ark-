@@ -2,6 +2,7 @@ import { config } from '../../config.js';
 import { generateCouponCode } from './couponCode.js';
 import { getCachedIkasToken, saveCachedIkasToken } from '../../store.js';
 import { encryptSecret, decryptSecret } from '../crypto.js';
+import { CouponConfigurationError, CouponProvisionError } from './couponPolicy.js';
 
 // storeId -> { token, expiresAt } — fast in-process cache, backed by an
 // encrypted copy in Postgres (see getCachedIkasToken/saveCachedIkasToken) so
@@ -66,61 +67,8 @@ export async function testConnection(creds, storeId) {
   }
 }
 
-export async function createCoupon({ label, discountType, discountValue }, creds, storeId) {
-  let token;
-  try {
-    token = await getAccessToken(creds, storeId);
-  } catch (e) {
-    console.error('[İkas] Token alınamadı:', e.message);
-  }
-
-  if (!token) {
-    return { code: generateCouponCode(label), isLocal: true };
-  }
-
-  try {
-    const response = await fetch(config.ikas.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        query: `
-          mutation CreateCoupon($input: CouponInput!) {
-            createCoupon(input: $input) {
-              coupon { code }
-            }
-          }
-        `,
-        variables: {
-          input: {
-            code: generateCouponCode(label),
-            discountType: discountType === 'percentage' ? 'PERCENTAGE' : discountType === 'fixed' ? 'FIXED_AMOUNT' : 'FREE_SHIPPING',
-            discountValue: discountValue,
-            usageLimit: 1,
-            isActive: true,
-            startsAt: new Date().toISOString(),
-            endsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-        },
-      }),
-    });
-
-    const data = await response.json();
-    if (data.errors) {
-      console.error('[İkas] API hatası:', data.errors);
-      return { code: generateCouponCode(label), isLocal: true };
-    }
-
-    const createdCode = data.data?.createCoupon?.coupon?.code;
-    if (!createdCode) {
-      console.error('[İkas] Beklenmeyen yanıt (kupon kodu dönmedi):', JSON.stringify(data));
-      return { code: generateCouponCode(label), isLocal: true };
-    }
-
-    return { code: createdCode, isLocal: false };
-  } catch (err) {
-    console.error('[İkas] Bağlantı hatası:', err.message);
-    return { code: generateCouponCode(label), isLocal: true };
-  }
+export async function createCoupon() {
+  throw new CouponConfigurationError('İkas ödülü mevcut bir kampanyaya bağlanmalıdır.');
 }
 
 /**
@@ -182,6 +130,9 @@ export async function listCampaigns(creds, storeId) {
  * (a campaign/discount rule the store owner already built in the İkas dashboard).
  */
 export async function addCouponToCampaign({ campaignId, label }, creds, storeId) {
+  if (!campaignId) {
+    throw new CouponConfigurationError('İkas kampanya kimliği eksik.');
+  }
   const code = generateCouponCode(label);
 
   let token;
@@ -189,10 +140,11 @@ export async function addCouponToCampaign({ campaignId, label }, creds, storeId)
     token = await getAccessToken(creds, storeId);
   } catch (e) {
     console.error('[İkas] Token alınamadı:', e.message);
+    throw new CouponProvisionError('İkas bağlantısı doğrulanamadı; kupon verilmedi.', e);
   }
 
   if (!token) {
-    return { code, isLocal: true };
+    throw new CouponProvisionError('İkas bağlantı bilgileri eksik; kupon verilmedi.');
   }
 
   try {
@@ -221,19 +173,20 @@ export async function addCouponToCampaign({ campaignId, label }, creds, storeId)
     const data = await response.json();
     if (data.errors) {
       console.error('[İkas] Kampanyaya kupon eklenemedi:', JSON.stringify(data.errors));
-      return { code, isLocal: true };
+      throw new CouponProvisionError('İkas kampanyasına kupon eklenemedi; kupon verilmedi.');
     }
 
     const savedCode = data.data?.campaignAddCoupons?.[0]?.code;
     if (!savedCode) {
       console.error('[İkas] Beklenmeyen yanıt (kampanyaya kupon eklenemedi):', JSON.stringify(data));
-      return { code, isLocal: true };
+      throw new CouponProvisionError('İkas kuponu doğrulanamadı; kupon verilmedi.');
     }
 
     return { code: savedCode, isLocal: false };
   } catch (err) {
+    if (err instanceof CouponProvisionError || err instanceof CouponConfigurationError) throw err;
     console.error('[İkas] Kupon ekleme bağlantı hatası:', err.message);
-    return { code, isLocal: true };
+    throw new CouponProvisionError('İkas servisine ulaşılamadı; kupon verilmedi.', err);
   }
 }
 

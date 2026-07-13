@@ -11,6 +11,7 @@ import {
   PLAN_SPIN_LIMITS,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
+import { assessCouponHealth, provisionCouponForSegment } from '../services/platforms/couponPolicy.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { sendQuotaExceededEmail } from '../services/email.js';
 
@@ -123,6 +124,18 @@ widgetRouter.use('/:storeSlug', (req, res, next) => {
  */
 widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
   const config = await getWidgetConfig(req.store.id);
+  const adapter = await getPlatformAdapter(req.store.id);
+  const couponHealth = assessCouponHealth({
+    segments: config.segments,
+    platform: adapter.platform,
+    connected: adapter.connected,
+  });
+  if (!couponHealth.ready) {
+    return res.status(409).json({
+      error: 'Çark kupon ayarları tamamlanana kadar geçici olarak kullanılamıyor.',
+      code: 'COUPON_CONFIGURATION_REQUIRED',
+    });
+  }
   const limit = PLAN_SPIN_LIMITS[req.store.planType] ?? PLAN_SPIN_LIMITS.free;
   const currentCount = await getMonthlySpinCount(req.store.id);
   res.json({
@@ -176,6 +189,20 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Bu mağaza için çark henüz yapılandırılmamış.' });
     }
 
+    const adapter = await getPlatformAdapter(storeId);
+    const couponHealth = assessCouponHealth({
+      segments: activeSegments,
+      platform: adapter.platform,
+      connected: adapter.connected,
+    });
+    if (!couponHealth.ready) {
+      console.error(`[Spin] [${req.store.slug}] Kupon sağlık kontrolü başarısız: ${couponHealth.message}`);
+      return res.status(409).json({
+        error: 'Bu kampanya kupon ayarları tamamlanana kadar geçici olarak kullanılamıyor.',
+        code: 'COUPON_CONFIGURATION_REQUIRED',
+      });
+    }
+
     // Atomically check-and-reserve the "one spin per phone/email" rule so
     // concurrent requests can't both slip past the check before either has
     // written its row.
@@ -196,25 +223,33 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
       }
     }
 
-    let couponCode = winner.couponCode || null;
-    // A fixed code (couponCode already set) is one the store owner typed in
-    // after verifying it themselves in İkas — treat it as real, not a
-    // fallback. Only the auto-create-in-İkas path below can produce a local
-    // (unregistered) fake code.
+    let couponCode = adapter.platform === 'ikas' ? null : winner.couponCode || null;
+    // Fixed codes are accepted only in manual mode. İkas always mints a fresh
+    // one-time code through the verified campaign; a typed code is not proof
+    // that checkout will accept it.
     let isLocalCoupon = false;
-    const adapter = await getPlatformAdapter(storeId);
-
     // Create/attach a coupon if winner has a discount type and no fixed code was set
     if (winner.discountType !== 'noLuck' && !couponCode) {
-      const coupon = winner.ikasCampaignId
-        ? await adapter.addCouponToCampaign({ campaignId: winner.ikasCampaignId, label: winner.label })
-        : await adapter.createCoupon({
-            label: winner.label,
-            discountType: winner.discountType,
-            discountValue: winner.discountValue,
-          });
-      couponCode = coupon.code;
-      isLocalCoupon = coupon.isLocal;
+      try {
+        const coupon = await provisionCouponForSegment(adapter, winner);
+        couponCode = coupon.code;
+        isLocalCoupon = coupon.isLocal;
+      } catch (couponError) {
+        await finalizeEntry(claimed.id, {
+          prize: winner.label,
+          couponCode: null,
+          discountType: winner.discountType,
+          discountValue: winner.discountValue,
+          isLocalCoupon: false,
+          couponStatus: 'failed',
+          couponError: couponError.message || 'Kupon üretilemedi',
+        });
+        console.error(`[Spin] [${req.store.slug}] Gerçek kupon üretilemedi:`, couponError.message);
+        return res.status(couponError.status || 503).json({
+          error: 'Kupon şu anda oluşturulamadı. Mağaza yetkilisi bilgilendirildi; lütfen daha sonra tekrar deneyin.',
+          code: couponError.code || 'COUPON_PROVISION_FAILED',
+        });
+      }
     }
 
     // Optional: create customer on the connected platform (no-op in manual mode,
