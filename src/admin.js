@@ -553,41 +553,76 @@ class AdminPanel {
 
   // --- Settings Tab ---
 
+  getCouponTemplates() {
+    const groups = new Map();
+    (this.config.segments || []).forEach((segment) => {
+      const groupId = String(segment.couponGroupId || `coupon-${segment.id}`);
+      if (!groups.has(groupId)) {
+        groups.set(groupId, { ...segment, couponGroupId: groupId, probability: 0, sliceCount: 0 });
+      }
+      const template = groups.get(groupId);
+      template.probability += Number(segment.probability || 0);
+      template.sliceCount += 1;
+    });
+    return [...groups.values()];
+  }
+
+  distributeCouponsToSixSlices(templates) {
+    if (!templates.length) return [];
+    const counts = new Map();
+    for (let index = 0; index < 6; index += 1) {
+      const groupId = templates[index % templates.length].couponGroupId;
+      counts.set(groupId, (counts.get(groupId) || 0) + 1);
+    }
+    return Array.from({ length: 6 }, (_, index) => {
+      const template = templates[index % templates.length];
+      const copyCount = counts.get(template.couponGroupId) || 1;
+      const { sliceCount, ...coupon } = template;
+      return {
+        ...coupon,
+        id: `${template.couponGroupId}-slice-${index + 1}`,
+        probability: Number((Number(template.probability || 1) / copyCount).toFixed(3)),
+      };
+    });
+  }
+
   renderSettingsTab() {
+    const coupons = this.getCouponTemplates();
     return `
       <div class="tab-content active" id="tab-settings">
         <div class="admin-grid">
           <div>
             <div class="admin-card">
-              <h3>🎯 Çark Dilimleri</h3>
+              <h3>🎟️ Çark Dilimlerine Yerleşecek Kuponlar</h3>
               <div class="segment-list" id="segmentList">
-                ${this.config.segments
+                ${coupons
                   .map(
                     (seg, idx) => `
-                  <div class="segment-item" data-id="${seg.id}">
+                  <div class="segment-item" data-id="${seg.couponGroupId}">
                     <div class="segment-color" style="background:${seg.color}"></div>
                     <div class="segment-info">
                       <div class="segment-label" style="color:${seg.textColor || '#fff'}">${escapeHtml(seg.icon)} ${escapeHtml(seg.label)}</div>
-                      <div class="segment-meta">Kazanma Şansı: %${seg.probability} ${seg.couponCode ? `• Kod: ${escapeHtml(seg.couponCode)}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
+                      <div class="segment-meta">Çarkta ${seg.sliceCount} dilim • Kazanma ağırlığı: %${Number(seg.probability.toFixed(1))} ${seg.couponCode ? `• Kod: ${escapeHtml(seg.couponCode)}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
                     </div>
                     <div class="segment-actions">
-                      <button class="move-btn" data-dir="up" data-id="${seg.id}" title="Yukarı taşı" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
-                      <button class="move-btn" data-dir="down" data-id="${seg.id}" title="Aşağı taşı" ${idx === this.config.segments.length - 1 ? 'disabled' : ''}>⬇️</button>
+                      <button class="move-btn" data-dir="up" data-id="${seg.couponGroupId}" title="Yukarı taşı" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
+                      <button class="move-btn" data-dir="down" data-id="${seg.couponGroupId}" title="Aşağı taşı" ${idx === coupons.length - 1 ? 'disabled' : ''}>⬇️</button>
                       ${
                         seg.discountType !== 'noLuck'
-                          ? `<button class="test-coupon-btn" data-id="${seg.id}" title="Bu dilim gerçek bir müşteri kazanmadan İkas'ta kupon üretebiliyor mu test et">🧪</button>`
+                          ? `<button class="test-coupon-btn" data-id="${escapeHtml(seg.id)}" title="Bu kupon gerçek bir müşteri kazanmadan İkas'ta üretilebiliyor mu test et">🧪</button>`
                           : ''
                       }
-                      <button class="edit-btn" data-id="${seg.id}" title="Düzenle">✏️</button>
-                      <button class="delete-btn" data-id="${seg.id}" title="Çark tam olarak 6 dilimden oluşur, silinemez" disabled>🗑️</button>
+                      <button class="edit-btn" data-id="${seg.couponGroupId}" title="Kuponu düzenle">✏️</button>
+                      <button class="delete-btn" data-id="${seg.couponGroupId}" title="Kuponu sil" ${coupons.length <= 1 ? 'disabled' : ''}>🗑️</button>
                     </div>
                   </div>
                 `,
                   )
                   .join('')}
               </div>
+              <button class="add-segment-btn" id="addCouponBtn" ${coupons.length >= 6 ? 'disabled' : ''}>+ Yeni Kupon Tanıt</button>
               <p style="font-size:12px;color:var(--text-muted,#888);margin:10px 0 0;">
-                Çark tam olarak 6 dilimden oluşacak şekilde sabitlenmiştir — dilim eklenemez veya silinemez, yalnızca içerikleri (başlık, renk, indirim, kupon) düzenlenebilir.
+                Sol tarafta yalnızca tanıttığınız kuponlar görünür. Sistem bu kuponları Çarkın 6 fiziksel dilimine mümkün olduğunca eşit dağıtır. Örneğin 3 kupon tanımlarsanız her kupon Çarkta 2 dilime yerleşir.
               </p>
             </div>
           </div>
@@ -774,21 +809,32 @@ class AdminPanel {
       const editBtn = e.target.closest('.edit-btn');
       const moveBtn = e.target.closest('.move-btn');
       const testBtn = e.target.closest('.test-coupon-btn');
+      const deleteBtn = e.target.closest('.delete-btn');
       if (editBtn) {
         this.openSegmentModal(editBtn.dataset.id);
       } else if (moveBtn && !moveBtn.disabled) {
-        const idx = this.config.segments.findIndex((s) => String(s.id) === String(moveBtn.dataset.id));
+        const templates = this.getCouponTemplates();
+        const idx = templates.findIndex((s) => String(s.couponGroupId) === String(moveBtn.dataset.id));
         const swapWith = moveBtn.dataset.dir === 'up' ? idx - 1 : idx + 1;
-        if (idx >= 0 && swapWith >= 0 && swapWith < this.config.segments.length) {
-          const segments = [...this.config.segments];
-          [segments[idx], segments[swapWith]] = [segments[swapWith], segments[idx]];
-          this.config.segments = segments;
+        if (idx >= 0 && swapWith >= 0 && swapWith < templates.length) {
+          [templates[idx], templates[swapWith]] = [templates[swapWith], templates[idx]];
+          this.config.segments = this.distributeCouponsToSixSlices(templates);
           this.saveAndRender({ segments: this.config.segments });
         }
       } else if (testBtn) {
         await this.testSegmentCoupon(testBtn);
+      } else if (deleteBtn && !deleteBtn.disabled) {
+        const templates = this.getCouponTemplates();
+        const coupon = templates.find((item) => item.couponGroupId === deleteBtn.dataset.id);
+        if (!coupon || !confirm(`"${coupon.label}" kuponu silinsin mi? Kalan kuponlar 6 dilime yeniden dağıtılacak.`)) return;
+        this.config.segments = this.distributeCouponsToSixSlices(
+          templates.filter((item) => item.couponGroupId !== deleteBtn.dataset.id),
+        );
+        await this.saveAndRender({ segments: this.config.segments });
       }
     });
+
+    document.getElementById('addCouponBtn')?.addEventListener('click', () => this.openSegmentModal(null));
 
     const triggerSelect = document.getElementById('setting-triggerType');
     if (triggerSelect) {
@@ -1058,10 +1104,12 @@ class AdminPanel {
 
   openSegmentModal(id) {
     this.editingSegmentId = id;
-    let seg = id ? this.config.segments.find((s) => String(s.id) === String(id)) : null;
+    const templates = this.getCouponTemplates();
+    let seg = id ? templates.find((s) => String(s.couponGroupId) === String(id)) : null;
     if (!seg) {
       const colors = ['#1E3A8A', '#9F1239', '#065F46', '#B8860B', '#6B21A8', '#92400E', '#831843'];
       seg = {
+        couponGroupId: `coupon-${generateId()}`,
         label: 'Yeni Ödül',
         color: colors[Math.floor(Math.random() * colors.length)],
         textColor: '#FFFFFF',
@@ -1076,7 +1124,7 @@ class AdminPanel {
 
     document.getElementById('editModalContent').innerHTML = `
       <div class="form-group">
-        <label>Dilim Metni</label>
+        <label>Kupon / Ödül Adı</label>
         <input type="text" class="form-input" id="seg-label" value="${escapeHtml(seg.label)}">
       </div>
       <div class="form-row">
@@ -1138,7 +1186,7 @@ class AdminPanel {
         </div>
       </div>
       <div class="form-group">
-        <label>Kazanma Olasılığı (Ağırlık)</label>
+        <label>Kuponun Toplam Kazanma Ağırlığı</label>
         <div class="probability-slider">
           <input type="range" id="seg-prob" min="1" max="100" value="${seg.probability}">
           <div class="probability-value" id="seg-prob-val">${seg.probability}</div>
@@ -1179,7 +1227,8 @@ class AdminPanel {
 
     document.getElementById('saveSegBtn').addEventListener('click', async () => {
       const updated = {
-        id: this.editingSegmentId || generateId(),
+        id: seg.id || generateId(),
+        couponGroupId: seg.couponGroupId,
         label: document.getElementById('seg-label').value || 'Yeni Ödül',
         icon: document.getElementById('seg-icon').value || '',
         color: document.getElementById('seg-color').value || '#1E3A8A',
@@ -1191,14 +1240,21 @@ class AdminPanel {
         probability: parseInt(document.getElementById('seg-prob').value) || 10,
       };
 
+      const couponTemplates = this.getCouponTemplates();
       if (this.editingSegmentId) {
-        const idx = this.config.segments.findIndex((s) => String(s.id) === String(this.editingSegmentId));
+        const idx = couponTemplates.findIndex((s) => String(s.couponGroupId) === String(this.editingSegmentId));
         if (idx !== -1) {
-          this.config.segments[idx] = updated;
+          couponTemplates[idx] = { ...updated, sliceCount: couponTemplates[idx].sliceCount };
         }
       } else {
-        this.config.segments.push(updated);
+        if (couponTemplates.length >= 6) {
+          this.showToast('En fazla 6 farklı kupon tanıtabilirsiniz', 'error');
+          return;
+        }
+        couponTemplates.push({ ...updated, sliceCount: 0 });
       }
+
+      this.config.segments = this.distributeCouponsToSixSlices(couponTemplates);
 
       this.closeModal('editModal');
       await this.saveAndRender({ segments: this.config.segments });

@@ -334,6 +334,7 @@ body {
   color: #ffd700;
   background: rgba(255, 215, 0, 0.05);
 }
+.add-segment-btn:disabled { opacity: .45; cursor: not-allowed; border-style: solid; }
 
 /* Form inputs */
 .form-group {
