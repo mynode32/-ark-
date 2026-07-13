@@ -36,7 +36,7 @@ export class ModalManager {
       <div class="cark-overlay">
         <div class="cark-modal">
           <button class="cark-close-btn" aria-label="Kapat" title="Kapatırsanız 1 saat boyunca tekrar açılmaz">&times;</button>
-          
+
           <div class="cark-content">
             <!-- Çark Section -->
             <div class="cark-wheel-section">
@@ -48,13 +48,13 @@ export class ModalManager {
 
             <!-- Form Section -->
             <div class="cark-form-section">
-              
+
               <!-- Form View -->
               <div class="cark-form-view">
                 <span class="cark-eyebrow">✨ Sana Özel Davet</span>
                 <h2 class="cark-title">Çarkı Çevir<br>Hediyeni Kazan!</h2>
                 <p class="cark-subtitle">Hemen çarkı çevir, birbirinden güzel indirimleri kap</p>
-                
+
                 <form class="cark-form" novalidate>
                   <div class="cark-input-group">
                     <input type="text" class="cark-input" id="cark-name" placeholder="Ad Soyad" required>
@@ -68,7 +68,7 @@ export class ModalManager {
                     <input type="email" class="cark-input" id="cark-email" placeholder="ornek@email.com" required>
                     <span class="cark-input-icon">✉️</span>
                   </div>
-                  
+
                   <div class="cark-kvkk-group">
                     <label class="cark-checkbox">
                       <input type="checkbox" id="cark-kvkk1">

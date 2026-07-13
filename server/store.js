@@ -38,6 +38,13 @@ const GENERIC_DEFAULT_CONFIG = {
     wheelSize: 330,
     spinDurationMs: 7000,
     autoSiteTheme: true,
+    backgroundMode: 'auto',
+    popupOpacity: 0.82,
+    backdropBlur: 18,
+    overlayOpacity: 0.55,
+    popupLayout: 'compact',
+    inputTheme: 'auto',
+    backgroundImageUrl: '',
     primaryColor: '#FFD700',
     primaryColorDark: '#FFA502',
     pointerColor: '#FF4757',
@@ -127,6 +134,29 @@ export async function getWidgetConfig(storeId) {
 // src/wheel.js) — segment count is locked, not configurable per store.
 export const REQUIRED_SEGMENT_COUNT = 6;
 const MAX_DISCOUNT_VALUE = { percentage: 100, fixed: 100000, freeShipping: 100000, noLuck: 0 };
+const THEME_MODES = new Set(['auto', 'darkGlass', 'lightGlass', 'solid', 'image']);
+
+function sanitizeTheme(input = {}) {
+  const theme = { ...input };
+  if (!THEME_MODES.has(theme.backgroundMode)) delete theme.backgroundMode;
+  if (!['compact', 'wide'].includes(theme.popupLayout)) delete theme.popupLayout;
+  if (!['auto', 'dark', 'light'].includes(theme.inputTheme)) delete theme.inputTheme;
+  const clampThemeNumber = (key, min, max) => {
+    const value = Number(theme[key]);
+    if (Number.isFinite(value)) theme[key] = Math.min(max, Math.max(min, value));
+    else delete theme[key];
+  };
+  clampThemeNumber('popupOpacity', 0.55, 1);
+  clampThemeNumber('backdropBlur', 0, 32);
+  clampThemeNumber('overlayOpacity', 0.15, 0.85);
+  if (typeof theme.backgroundImageUrl === 'string') {
+    theme.backgroundImageUrl = theme.backgroundImageUrl.trim().slice(0, 2048);
+    if (theme.backgroundImageUrl && !/^https?:\/\//i.test(theme.backgroundImageUrl)) theme.backgroundImageUrl = '';
+  } else {
+    delete theme.backgroundImageUrl;
+  }
+  return theme;
+}
 
 /** Returns an error message, or null if `segments` is safe to persist. */
 export function validateSegments(segments) {
@@ -226,7 +256,7 @@ export async function saveWidgetConfig(storeId, data) {
     config.embed = { ...config.embed, ...data.embed };
   }
   if (data.theme) {
-    config.theme = { ...config.theme, ...data.theme };
+    config.theme = { ...config.theme, ...sanitizeTheme(data.theme) };
   }
   await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
 

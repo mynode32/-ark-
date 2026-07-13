@@ -949,7 +949,9 @@ class AdminPanel {
 
   renderAppearanceTab() {
     const theme = { ...DEFAULT_CONFIG.theme, ...(this.config.theme || {}) };
-    const autoOn = theme.autoSiteTheme !== false;
+    const backgroundMode = theme.backgroundMode || (theme.autoSiteTheme !== false ? 'auto' : 'solid');
+    const popupOpacity = Math.round((theme.popupOpacity ?? 0.82) * 100);
+    const overlayOpacity = Math.round((theme.overlayOpacity ?? 0.55) * 100);
 
     return `
       <div class="tab-content active" id="tab-appearance">
@@ -986,12 +988,16 @@ class AdminPanel {
             <div class="admin-card appearance-settings-card">
               <h3>🎨 Renkler</h3>
               <div class="form-group">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-                  <input type="checkbox" id="theme-autoSiteTheme" ${autoOn ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;accent-color:#ffd700;">
-                  Sitenin arka planına otomatik uyum sağla
-                </label>
+                <label>Arka Plan Modu</label>
+                <select class="form-input" id="theme-backgroundMode">
+                  <option value="auto" ${backgroundMode === 'auto' ? 'selected' : ''}>✨ Otomatik uyum</option>
+                  <option value="darkGlass" ${backgroundMode === 'darkGlass' ? 'selected' : ''}>🌑 Koyu cam</option>
+                  <option value="lightGlass" ${backgroundMode === 'lightGlass' ? 'selected' : ''}>☀️ Açık cam</option>
+                  <option value="solid" ${backgroundMode === 'solid' ? 'selected' : ''}>🎨 Düz renk</option>
+                  <option value="image" ${backgroundMode === 'image' ? 'selected' : ''}>🖼️ Görselli arka plan</option>
+                </select>
                 <div class="appearance-help-text">
-                  Açıkken pop-up'ın arka planı, widget'ın gömülü olduğu sitenin renk tonuna göre otomatik ayarlanır. Kapatırsanız aşağıda kendi sabit renklerinizi seçebilirsiniz.
+                  Otomatik uyum, sitenin gerçek arka plan parlaklığını ölçerek açık veya koyu cam görünümünü kendisi seçer.
                 </div>
               </div>
               <div class="form-row">
@@ -1017,7 +1023,13 @@ class AdminPanel {
                   <span class="color-value" data-color-for="theme-pointerColor">${theme.pointerColor}</span>
                 </div>
               </div>
-              <div id="manualBgColors" style="display:${autoOn ? 'none' : 'block'}">
+              <div id="imageBgControl" style="display:${backgroundMode === 'image' ? 'block' : 'none'}">
+                <div class="form-group">
+                  <label>Kampanya Görseli URL’si</label>
+                  <input type="url" class="form-input" id="theme-backgroundImageUrl" value="${escapeHtml(theme.backgroundImageUrl || '')}" placeholder="https://.../kampanya.jpg">
+                </div>
+              </div>
+              <div id="manualBgColors" style="display:${backgroundMode === 'solid' ? 'block' : 'none'}">
                 <div class="form-row">
                   <div class="form-group">
                     <label>Arka Plan (Koyu)</label>
@@ -1039,6 +1051,46 @@ class AdminPanel {
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-bgLight" value="${theme.bgLight}">
                     <span class="color-value" data-color-for="theme-bgLight">${theme.bgLight}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="appearance-glass-controls">
+                <div class="form-group">
+                  <label>Popup Şeffaflığı</label>
+                  <div class="probability-slider">
+                    <input type="range" id="theme-popupOpacity" min="55" max="100" step="1" value="${popupOpacity}">
+                    <div class="probability-value" id="theme-popupOpacity-val">%${popupOpacity}</div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Arka Plan Bulanıklığı</label>
+                  <div class="probability-slider">
+                    <input type="range" id="theme-backdropBlur" min="0" max="32" step="1" value="${theme.backdropBlur ?? 18}">
+                    <div class="probability-value" id="theme-backdropBlur-val">${theme.backdropBlur ?? 18}px</div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Overlay Karartma Oranı</label>
+                  <div class="probability-slider">
+                    <input type="range" id="theme-overlayOpacity" min="15" max="85" step="1" value="${overlayOpacity}">
+                    <div class="probability-value" id="theme-overlayOpacity-val">%${overlayOpacity}</div>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Popup Görünümü</label>
+                    <select class="form-input" id="theme-popupLayout">
+                      <option value="compact" ${theme.popupLayout !== 'wide' ? 'selected' : ''}>Kompakt</option>
+                      <option value="wide" ${theme.popupLayout === 'wide' ? 'selected' : ''}>Geniş</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Input Teması</label>
+                    <select class="form-input" id="theme-inputTheme">
+                      <option value="auto" ${!['dark', 'light'].includes(theme.inputTheme) ? 'selected' : ''}>Otomatik</option>
+                      <option value="dark" ${theme.inputTheme === 'dark' ? 'selected' : ''}>Koyu input</option>
+                      <option value="light" ${theme.inputTheme === 'light' ? 'selected' : ''}>Açık input</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -1087,12 +1139,34 @@ class AdminPanel {
     this.setupStyleOptionGroup('wheelStyleOptions');
     this.setupStyleOptionGroup('pointerStyleOptions');
 
-    const autoCheckbox = document.getElementById('theme-autoSiteTheme');
+    const backgroundMode = document.getElementById('theme-backgroundMode');
     const manualBgColors = document.getElementById('manualBgColors');
-    autoCheckbox.addEventListener('change', () => {
-      manualBgColors.style.display = autoCheckbox.checked ? 'none' : 'block';
+    const imageBgControl = document.getElementById('imageBgControl');
+    backgroundMode.addEventListener('change', () => {
+      manualBgColors.style.display = backgroundMode.value === 'solid' ? 'block' : 'none';
+      imageBgControl.style.display = backgroundMode.value === 'image' ? 'block' : 'none';
       this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
     });
+
+    [
+      ['theme-popupOpacity', 'theme-popupOpacity-val', (value) => `%${value}`],
+      ['theme-backdropBlur', 'theme-backdropBlur-val', (value) => `${value}px`],
+      ['theme-overlayOpacity', 'theme-overlayOpacity-val', (value) => `%${value}`],
+    ].forEach(([inputId, valueId, format]) => {
+      document.getElementById(inputId).addEventListener('input', (event) => {
+        document.getElementById(valueId).textContent = format(event.target.value);
+        this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm());
+      });
+    });
+
+    ['theme-popupLayout', 'theme-inputTheme'].forEach((id) => {
+      document.getElementById(id).addEventListener('change', () =>
+        this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm()),
+      );
+    });
+    document.getElementById('theme-backgroundImageUrl').addEventListener('input', () =>
+      this.renderLivePreview('appearancePreviewContainer', this.readAppearanceForm()),
+    );
 
     const wheelSizeInput = document.getElementById('theme-wheelSize');
     wheelSizeInput.addEventListener('input', (e) => {
@@ -1169,7 +1243,14 @@ class AdminPanel {
     return {
       wheelStyle: document.querySelector('#wheelStyleOptions .wheel-style-option.active')?.dataset.style || 'premium',
       pointerStyle: document.querySelector('#pointerStyleOptions .wheel-style-option.active')?.dataset.pointerStyle || 'top',
-      autoSiteTheme: document.getElementById('theme-autoSiteTheme').checked,
+      backgroundMode: document.getElementById('theme-backgroundMode').value,
+      autoSiteTheme: document.getElementById('theme-backgroundMode').value === 'auto',
+      popupOpacity: parseInt(document.getElementById('theme-popupOpacity').value, 10) / 100,
+      backdropBlur: parseInt(document.getElementById('theme-backdropBlur').value, 10),
+      overlayOpacity: parseInt(document.getElementById('theme-overlayOpacity').value, 10) / 100,
+      popupLayout: document.getElementById('theme-popupLayout').value,
+      inputTheme: document.getElementById('theme-inputTheme').value,
+      backgroundImageUrl: document.getElementById('theme-backgroundImageUrl').value.trim(),
       primaryColor: document.getElementById('theme-primaryColor').value,
       primaryColorDark: document.getElementById('theme-primaryColorDark').value,
       pointerColor: document.getElementById('theme-pointerColor').value,

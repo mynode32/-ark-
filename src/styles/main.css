@@ -717,7 +717,113 @@
    (thelood.com.tr-inspired), as opposed to the default Premium look's
    gradients/glows. Scoped under .cark-style-standard so Premium is
    completely untouched. */
-.cark-style-standard .cark-modal {
+/* Smart host-theme and compact glass modes */
+.cark-bg-auto .cark-overlay,
+.cark-bg-dark-glass .cark-overlay,
+.cark-bg-light-glass .cark-overlay,
+.cark-bg-image .cark-overlay {
+  background: rgba(0, 0, 0, var(--cark-overlay-opacity, .55));
+  -webkit-backdrop-filter: blur(3px) saturate(108%);
+  backdrop-filter: blur(3px) saturate(108%);
+}
+.cark-layout-compact .cark-modal { max-width: 860px; }
+.cark-layout-compact .cark-content { min-height: 0; }
+.cark-layout-compact .cark-wheel-section { flex: 0 0 52%; padding: 22px 18px; }
+.cark-layout-compact .cark-form-section { flex: 0 0 48%; padding: 30px 28px; }
+.cark-layout-compact .cark-canvas { max-width: min(400px, 100%); max-height: 400px; }
+.cark-layout-compact .cark-title { font-size: 28px; margin-bottom: 9px; }
+.cark-layout-compact .cark-subtitle { margin-bottom: 20px; line-height: 1.45; }
+.cark-layout-compact .cark-input-group { margin-bottom: 11px; }
+.cark-layout-compact .cark-input { padding-top: 13px; padding-bottom: 13px; }
+.cark-layout-compact .cark-kvkk-group { margin-bottom: 16px; }
+.cark-layout-compact .cark-checkbox { gap: 9px; margin-bottom: 8px; }
+.cark-layout-compact .cark-checkmark { width: 21px; height: 21px; border-radius: 7px; }
+.cark-layout-compact .cark-checkbox-text { font-size: 10.5px; line-height: 1.4; }
+.cark-layout-compact .cark-submit-btn { padding: 14px; font-size: 15px; }
+.cark-layout-wide .cark-modal { max-width: 1040px; }
+.cark-bg-auto .cark-modal,
+.cark-bg-dark-glass .cark-modal {
+  background: rgba(12, 16, 27, var(--cark-popup-opacity, .82));
+  -webkit-backdrop-filter: blur(var(--cark-backdrop-blur, 18px)) saturate(120%);
+  backdrop-filter: blur(var(--cark-backdrop-blur, 18px)) saturate(120%);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .45), inset 0 1px rgba(255,255,255,.16);
+}
+.cark-bg-light-glass .cark-modal,
+.cark-bg-auto.cark-host-light .cark-modal {
+  color: #111827;
+  background: rgba(250, 252, 255, var(--cark-popup-opacity, .82));
+  border-color: rgba(255,255,255,.78);
+  -webkit-backdrop-filter: blur(var(--cark-backdrop-blur, 18px)) saturate(125%);
+  backdrop-filter: blur(var(--cark-backdrop-blur, 18px)) saturate(125%);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24), inset 0 1px rgba(255,255,255,.8);
+}
+.cark-bg-image .cark-modal {
+  background:
+    linear-gradient(rgba(8, 12, 24, .76), rgba(8, 12, 24, var(--cark-popup-opacity, .82))),
+    var(--cark-background-image) center / cover no-repeat;
+  -webkit-backdrop-filter: blur(var(--cark-backdrop-blur, 18px)) saturate(120%);
+  backdrop-filter: blur(var(--cark-backdrop-blur, 18px)) saturate(120%);
+}
+.cark-bg-auto .cark-wheel-section,
+.cark-bg-dark-glass .cark-wheel-section,
+.cark-bg-light-glass .cark-wheel-section,
+.cark-bg-image .cark-wheel-section {
+  background: radial-gradient(circle at 50% 45%, rgba(var(--cark-primary-rgb), .16), transparent 64%), rgba(255,255,255,.035);
+}
+.cark-bg-auto .cark-form-section,
+.cark-bg-dark-glass .cark-form-section,
+.cark-bg-light-glass .cark-form-section,
+.cark-bg-image .cark-form-section { background: rgba(5, 9, 18, .18); }
+.cark-bg-light-glass .cark-form-section,
+.cark-bg-auto.cark-host-light .cark-form-section { color: #111827; background: rgba(255,255,255,.2); }
+.cark-bg-light-glass .cark-subtitle,
+.cark-bg-auto.cark-host-light .cark-subtitle,
+.cark-bg-light-glass .cark-checkbox-text,
+.cark-bg-auto.cark-host-light .cark-checkbox-text { color: rgba(15,23,42,.78); }
+.cark-bg-light-glass .cark-title,
+.cark-bg-auto.cark-host-light .cark-title {
+  background: linear-gradient(135deg, var(--cark-primary-dark), var(--cark-primary), #111827);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.cark-bg-light-glass .cark-close-btn,
+.cark-bg-auto.cark-host-light .cark-close-btn { color: #111827; background: rgba(255,255,255,.55); border-color: rgba(15,23,42,.14); }
+.cark-bg-light-glass .cark-policy-link,
+.cark-bg-auto.cark-host-light .cark-policy-link { color: color-mix(in srgb, var(--cark-primary-dark) 75%, #111827 25%); }
+.cark-bg-light-glass .cark-result-prize,
+.cark-bg-auto.cark-host-light .cark-result-prize { color: #111827; }
+.cark-bg-light-glass .cark-coupon-box,
+.cark-bg-auto.cark-host-light .cark-coupon-box { background: rgba(255,255,255,.58); border-color: var(--cark-primary-dark); }
+.cark-bg-light-glass .cark-coupon-label,
+.cark-bg-auto.cark-host-light .cark-coupon-label { color: #475569; }
+.cark-input-light .cark-input {
+  color: #111827;
+  background: rgba(255,255,255,.72);
+  border-color: rgba(100,116,139,.3);
+  box-shadow: 0 1px 3px rgba(15,23,42,.08);
+}
+.cark-input-light .cark-input::placeholder { color: rgba(71,85,105,.72); }
+.cark-input-light .cark-checkmark { background: rgba(255,255,255,.7); border-color: rgba(71,85,105,.4); }
+.cark-input-dark .cark-input { color: #fff; background: rgba(4,8,18,.38); border-color: rgba(255,255,255,.25); }
+.cark-input-dark .cark-input::placeholder { color: rgba(255,255,255,.66); }
+
+@media (max-width: 768px) {
+  .cark-layout-compact .cark-modal,
+  .cark-layout-wide .cark-modal { width: 94%; max-height: 92vh; border-radius: 22px; }
+  .cark-layout-compact .cark-wheel-section,
+  .cark-layout-wide .cark-wheel-section { flex: none; padding: 16px 14px 12px; }
+  .cark-layout-compact .cark-form-section,
+  .cark-layout-wide .cark-form-section { flex: none; padding: 20px 18px 22px; }
+  .cark-layout-compact .cark-canvas,
+  .cark-layout-wide .cark-canvas { max-width: 245px; max-height: 245px; }
+  .cark-layout-compact .cark-title { font-size: 24px; }
+  .cark-bg-auto .cark-modal,
+  .cark-bg-dark-glass .cark-modal { background: rgba(12, 16, 27, .94); }
+  .cark-bg-light-glass .cark-modal,
+  .cark-bg-auto.cark-host-light .cark-modal { background: rgba(250, 252, 255, .95); }
+}
+
+.cark-style-standard.cark-bg-solid .cark-modal {
   background: color-mix(in srgb, var(--cark-bg-dark) 97%, transparent);
   border-color: var(--cark-glass-border);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
@@ -729,11 +835,11 @@
   opacity: 0.5;
 }
 
-.cark-style-standard .cark-wheel-section {
+.cark-style-standard.cark-bg-solid .cark-wheel-section {
   background: rgba(0, 0, 0, 0.2);
 }
 
-.cark-style-standard .cark-wheel-section::before {
+.cark-style-standard.cark-bg-solid .cark-wheel-section::before {
   display: none;
 }
 

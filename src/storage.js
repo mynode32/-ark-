@@ -93,6 +93,13 @@ export const DEFAULT_CONFIG = {
     // Off by default — the premium black/red identity is a deliberate brand
     // choice and shouldn't be diluted by adapting to the host site's colors.
     autoSiteTheme: false,
+    backgroundMode: 'solid',
+    popupOpacity: 0.82,
+    backdropBlur: 18,
+    overlayOpacity: 0.55,
+    popupLayout: 'compact',
+    inputTheme: 'auto',
+    backgroundImageUrl: '',
     primaryColor: '#FF1E1E',
     primaryColorDark: '#B00000',
     pointerColor: '#FF1E1E',

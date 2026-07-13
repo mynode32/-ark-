@@ -13,14 +13,29 @@ function parseRgb(colorStr) {
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
-function findHostBackgroundColor() {
-  let el = document.body;
+function findHostBackgroundColor(rootEl) {
+  let el = rootEl?.parentElement || document.body;
   while (el) {
-    const rgb = parseRgb(getComputedStyle(el).backgroundColor);
+    const style = getComputedStyle(el);
+    const rgb = parseRgb(style.backgroundColor);
     if (rgb) return rgb;
+    if (style.backgroundImage && style.backgroundImage !== 'none') {
+      const textRgb = parseRgb(style.color);
+      if (textRgb) return relativeLuminance(textRgb) > 0.5 ? [22, 26, 34] : [248, 250, 252];
+    }
     el = el.parentElement;
   }
+  const htmlRgb = parseRgb(getComputedStyle(document.documentElement).backgroundColor);
+  if (htmlRgb) return htmlRgb;
   return null;
+}
+
+function relativeLuminance([r, g, b]) {
+  const channels = [r, g, b].map((value) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
 }
 
 function rgbToHsl([r, g, b]) {
@@ -50,24 +65,41 @@ function rgbToHsl([r, g, b]) {
   return [h * 360, s, l];
 }
 
-/** Host sitenin arka plan rengini okuyup ondan koyu/doygun bir tema türetir.
- *  Renksiz (gri/siyah/beyaz) bir arka planda anlamlı bir ton çıkaramayacağı
- *  için `null` döner ve çağıran taraf varsayılan/manuel temayı korur. */
-function deriveSiteTheme() {
-  const rgb = findHostBackgroundColor();
-  if (!rgb) return null;
+/** Host sitenin arka plan rengini okuyup erişilebilir açık/koyu cam temasını
+ *  türetir. Gri, siyah ve beyaz zeminler de luminance hesabına dahildir. */
+function deriveSiteTheme(rootEl) {
+  const rgb = findHostBackgroundColor(rootEl) || [255, 255, 255];
 
   const [hue, sat] = rgbToHsl(rgb);
-  if (sat < 0.06) return null;
+  const isLight = relativeLuminance(rgb) >= 0.48;
+  const neutral = sat < 0.06;
 
-  const s = Math.min(55, Math.max(sat * 100, 30));
+  const s = neutral ? 8 : Math.min(55, Math.max(sat * 100, 24));
   const h = hue.toFixed(1);
 
   return {
-    bgDark: `hsl(${h} ${s.toFixed(0)}% 9%)`,
-    bgMid: `hsl(${h} ${s.toFixed(0)}% 19%)`,
-    bgLight: `hsl(${h} ${(s * 0.9).toFixed(0)}% 15%)`,
+    isLight,
+    mode: isLight ? 'light' : 'dark',
+    bgDark: isLight ? `hsl(${h} ${(s * 0.45).toFixed(0)}% 98%)` : `hsl(${h} ${s.toFixed(0)}% 9%)`,
+    bgMid: isLight ? `hsl(${h} ${(s * 0.6).toFixed(0)}% 94%)` : `hsl(${h} ${s.toFixed(0)}% 17%)`,
+    bgLight: isLight ? `hsl(${h} ${(s * 0.7).toFixed(0)}% 91%)` : `hsl(${h} ${(s * 0.9).toFixed(0)}% 14%)`,
   };
+}
+
+function clamp(value, min, max, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
+function safeImageUrl(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(value, window.location.href);
+    if (!['http:', 'https:', 'data:'].includes(url.protocol)) return '';
+    return `url("${url.href.replace(/["\\]/g, '\\$&')}")`;
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -99,12 +131,36 @@ export function applyWidgetTheme(rootEl, theme = {}) {
   if (theme.primaryColorDark) rootEl.style.setProperty('--cark-primary-dark', theme.primaryColorDark);
   if (theme.pointerColor) rootEl.style.setProperty('--cark-pointer-color', theme.pointerColor);
 
-  const autoSiteTheme = theme.autoSiteTheme !== false;
-  const site = autoSiteTheme ? deriveSiteTheme() : null;
+  const requestedMode = theme.backgroundMode || (theme.autoSiteTheme !== false ? 'auto' : 'solid');
+  const backgroundMode = ['auto', 'darkGlass', 'lightGlass', 'solid', 'image'].includes(requestedMode)
+    ? requestedMode
+    : 'auto';
+  const site = deriveSiteTheme(rootEl);
+  const resolvedGlassMode =
+    backgroundMode === 'auto' ? site.mode : backgroundMode === 'lightGlass' ? 'light' : 'dark';
+  const inputMode = theme.inputTheme === 'light' || theme.inputTheme === 'dark' ? theme.inputTheme : resolvedGlassMode;
 
-  const bgDark = site?.bgDark || theme.bgDark;
-  const bgMid = site?.bgMid || theme.bgMid;
-  const bgLight = site?.bgLight || theme.bgLight;
+  ['auto', 'dark-glass', 'light-glass', 'solid', 'image'].forEach((mode) => {
+    rootEl.classList.remove(`cark-bg-${mode}`);
+  });
+  rootEl.classList.add(`cark-bg-${backgroundMode === 'darkGlass' ? 'dark-glass' : backgroundMode === 'lightGlass' ? 'light-glass' : backgroundMode}`);
+  rootEl.classList.toggle('cark-host-light', resolvedGlassMode === 'light');
+  rootEl.classList.toggle('cark-host-dark', resolvedGlassMode !== 'light');
+  rootEl.classList.toggle('cark-layout-wide', theme.popupLayout === 'wide');
+  rootEl.classList.toggle('cark-layout-compact', theme.popupLayout !== 'wide');
+  rootEl.classList.toggle('cark-input-light', inputMode === 'light');
+  rootEl.classList.toggle('cark-input-dark', inputMode !== 'light');
+
+  rootEl.style.setProperty('--cark-popup-opacity', clamp(theme.popupOpacity, 0.55, 1, 0.82));
+  rootEl.style.setProperty('--cark-backdrop-blur', `${clamp(theme.backdropBlur, 0, 32, 18)}px`);
+  rootEl.style.setProperty('--cark-overlay-opacity', clamp(theme.overlayOpacity, 0.15, 0.85, 0.55));
+  const image = safeImageUrl(theme.backgroundImageUrl);
+  rootEl.style.setProperty('--cark-background-image', image || 'none');
+
+  const useSiteColors = backgroundMode === 'auto';
+  const bgDark = useSiteColors ? site.bgDark : theme.bgDark;
+  const bgMid = useSiteColors ? site.bgMid : theme.bgMid;
+  const bgLight = useSiteColors ? site.bgLight : theme.bgLight;
 
   if (bgDark) rootEl.style.setProperty('--cark-bg-dark', bgDark);
   if (bgMid) rootEl.style.setProperty('--cark-bg-mid', bgMid);

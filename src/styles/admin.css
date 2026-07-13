@@ -1031,6 +1031,8 @@ select.form-input option { color: var(--panel-ink); background: #fff; }
 .appearance-settings-card .wheel-style-title { font-size: 13px; }
 .appearance-settings-card .wheel-style-desc { margin-top: 2px; font-size: 11px; }
 .appearance-help-text { margin-top: 6px; color: var(--panel-muted); font-size: 11px; line-height: 1.5; }
+.appearance-glass-controls { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e8eaf0; }
+.appearance-glass-controls .probability-value { min-width: 58px; }
 .color-value { color: #64748b; font: 650 11px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .appearance-preview-column { min-width: 0; }
 .appearance-preview-card { position: sticky; top: 104px; padding: 18px; }
