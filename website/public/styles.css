@@ -117,12 +117,12 @@ h1 em { color: var(--violet); font-style: normal; }
 .section-heading > p:last-child, .integration-grid > div > p:last-child, .contact-grid > div > p:last-child { color: var(--muted); }
 .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
 .feature-grid article { position: relative; min-height: 280px; padding: 30px; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #fff; transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), border-color .3s ease, box-shadow .3s ease; }
-.feature-grid article::before { content: ""; position: absolute; z-index: 1; top: 0; right: 0; left: 0; height: 3px; background: linear-gradient(90deg, #EF9F27, #D85A30); opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+.feature-grid article::before { content: ""; position: absolute; z-index: 1; top: 0; right: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--violet), var(--violet-dark)); opacity: 0; pointer-events: none; transition: opacity .3s ease; }
 .feature-grid article:hover,
-.motion-ready .feature-grid article.reveal-on-scroll.is-visible:hover { transform: translateY(-6px); border-color: rgba(239, 159, 39, .58); box-shadow: 0 12px 32px rgba(239, 159, 39, .18), 0 4px 12px rgba(216, 90, 48, .1); }
+.motion-ready .feature-grid article.reveal-on-scroll.is-visible:hover { transform: translateY(-6px); border-color: rgba(124, 58, 237, .46); box-shadow: 0 12px 32px rgba(124, 58, 237, .17), 0 4px 12px rgba(91, 33, 182, .1); }
 .feature-grid article:hover::before { opacity: 1; }
 .feature-grid article > span { display: inline-grid; width: 42px; height: 42px; place-items: center; margin-bottom: 40px; border-radius: 12px; color: var(--violet); background: #ede9fe; font-size: 12px; font-weight: 850; transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), color .3s ease, background-color .3s ease; }
-.feature-grid article:hover > span { color: #412402; background: #EF9F27; transform: scale(1.1); }
+.feature-grid article:hover > span { color: #fff; background: var(--violet); transform: scale(1.1); }
 .feature-grid h3 { font-size: 19px; line-height: 1.25; }
 .feature-grid p { color: var(--muted); font-size: 14px; }
 .section-dark { color: #fff; background: var(--ink); }
