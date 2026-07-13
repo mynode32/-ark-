@@ -1123,15 +1123,17 @@ class AdminPanel {
     }
 
     document.getElementById('editModalContent').innerHTML = `
-      <div class="form-group">
-        <label>Kupon / Ödül Adı</label>
-        <input type="text" class="form-input" id="seg-label" value="${escapeHtml(seg.label)}">
+      <div class="form-group" id="seg-ikas-campaign-group">
+        <label>İkas Kampanyasından Otomatik Oluştur</label>
+        <select class="form-input" id="seg-ikas-campaign">
+          <option value="">Yok</option>
+        </select>
+        <div id="seg-ikas-campaign-hint" class="segment-campaign-hint">
+          İkas'ta kuponu bulunan bir kampanya seçin. Kazanıldığında bu kampanyaya otomatik tek kullanımlık kod eklenir.
+          Sabit kupon kodu girerseniz öncelik sabit koddadır.
+        </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label>İkon (Emoji)</label>
-          <input type="text" class="form-input" id="seg-icon" value="${escapeHtml(seg.icon)}" maxlength="2">
-        </div>
         <div class="form-group">
           <label>Arkaplan Rengi</label>
           <div class="color-input-wrapper">
@@ -1139,8 +1141,6 @@ class AdminPanel {
             <span style="font-family:monospace;font-size:12px">${seg.color}</span>
           </div>
         </div>
-      </div>
-      <div class="form-row">
         <div class="form-group">
           <label>Yazı Rengi</label>
           <div class="color-input-wrapper">
@@ -1148,42 +1148,20 @@ class AdminPanel {
             <span style="font-family:monospace;font-size:12px">${seg.textColor || '#FFFFFF'}</span>
           </div>
         </div>
-        <div class="form-group">
-          <label>İndirim Tipi</label>
-          <select class="form-input" id="seg-type">
-            <option value="percentage" ${seg.discountType === 'percentage' ? 'selected' : ''}>Yüzdelik (%)</option>
-            <option value="fixed" ${seg.discountType === 'fixed' ? 'selected' : ''}>Sabit Tutar (₺)</option>
-            <option value="freeShipping" ${seg.discountType === 'freeShipping' ? 'selected' : ''}>Ücretsiz Kargo</option>
-            <option value="noLuck" ${seg.discountType === 'noLuck' ? 'selected' : ''}>Boş/Pas</option>
-          </select>
-        </div>
       </div>
       <div class="form-row">
-        <div class="form-group" id="seg-val-group" style="display:${['freeShipping', 'noLuck'].includes(seg.discountType) ? 'none' : 'block'}">
+        <div class="form-group" id="seg-val-group">
           <label>İndirim Değeri</label>
           <input type="number" class="form-input" id="seg-value" value="${seg.discountValue}">
         </div>
-        <div class="form-group" id="seg-coupon-group" style="display:${seg.discountType === 'noLuck' ? 'none' : 'block'}">
+        <div class="form-group" id="seg-coupon-group">
           <label>✅ Sabit Kupon Kodu (Garantili)</label>
           <input type="text" class="form-input" id="seg-coupon" value="${escapeHtml(seg.couponCode)}" placeholder="Örn: YH30 — İkas'ta zaten oluşturduğunuz bir kod">
         </div>
       </div>
-      <div style="font-size:12px;color:var(--text-muted,#888);margin:-8px 0 16px;">
+      <div class="segment-fixed-coupon-hint">
         İkas'ta kendiniz oluşturup test ettiğiniz bir kodu buraya yazarsanız (örn. <code>YH30</code>), her kazanan aynı kodu görür ve
-        kod hiçbir zaman "sahte/kayıtsız" olmaz — çünkü hiçbir yeni kupon oluşturma denemesi yapılmaz, İkas'a hiç istek atılmaz.
-      </div>
-      <div class="form-group" id="seg-ikas-campaign-group" style="display:${seg.discountType === 'noLuck' ? 'none' : 'block'}">
-        <label>⚠️ İkas Kampanyasından Otomatik Oluştur (opsiyonel, sadece yukarısı boşsa kullanılır)</label>
-        <select class="form-input" id="seg-ikas-campaign">
-          <option value="">Yok</option>
-        </select>
-        <div id="seg-ikas-campaign-hint" style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">
-          Kazanan bu dilime denk geldiğinde, bu kampanyaya otomatik yeni bir tek kullanımlık kupon kodu eklenir. Sadece
-          İkas'ta zaten kuponu olan kampanyalar listelenir. <strong>Dikkat:</strong> kampanyanın İkas'taki "hangi ürünlerde geçerli"
-          ayarı kısıtlıysa (örn. sadece belirli bir koleksiyon), oluşan kod İkas'a başarıyla kaydedilse bile o kısıtlama dışındaki
-          ürünlerde ödeme sayfasında reddedilir — bu, İkas kampanya ayarından kaynaklanır, buradan düzeltilemez. Garantili sonuç
-          için yukarıdaki sabit kod alanını kullanmanızı öneririz.
-        </div>
+        kod doğrudan gösterilir; yeni kupon oluşturmak için İkas'a istek gönderilmez.
       </div>
       <div class="form-group">
         <label>Kuponun Toplam Kazanma Ağırlığı</label>
@@ -1204,39 +1182,38 @@ class AdminPanel {
       document.getElementById('seg-prob-val').textContent = e.target.value;
     });
 
-    document.getElementById('seg-type').addEventListener('change', (e) => {
-      const valGroup = document.getElementById('seg-val-group');
-      const couponGroup = document.getElementById('seg-coupon-group');
-      const campaignGroup = document.getElementById('seg-ikas-campaign-group');
-      const isNoLuck = e.target.value === 'noLuck';
-      const isFree = e.target.value === 'freeShipping';
-      if (valGroup) {
-        valGroup.style.display = isNoLuck || isFree ? 'none' : 'block';
-      }
-      if (couponGroup) {
-        couponGroup.style.display = isNoLuck ? 'none' : 'block';
-      }
-      if (campaignGroup) {
-        campaignGroup.style.display = isNoLuck ? 'none' : 'block';
-      }
-    });
-
     this.populateIkasCampaignSelect(seg.ikasCampaignId);
 
     document.getElementById('cancelSegBtn').addEventListener('click', () => this.closeModal('editModal'));
 
     document.getElementById('saveSegBtn').addEventListener('click', async () => {
+      const campaignId = document.getElementById('seg-ikas-campaign')?.value || null;
+      const selectedCampaign = this._ikasCampaigns?.find((campaign) => String(campaign.id) === String(campaignId));
+      const couponCode = document.getElementById('seg-coupon')?.value.trim() || null;
+      const discountValue = parseInt(document.getElementById('seg-value')?.value, 10) || 0;
+      const label =
+        selectedCampaign?.title ||
+        couponCode ||
+        (this.editingSegmentId ? seg.label : null) ||
+        (discountValue ? `%${discountValue} İNDİRİM` : 'Kupon');
+      const discountType = selectedCampaign
+        ? selectedCampaign.isFreeShipping
+          ? 'freeShipping'
+          : 'percentage'
+        : seg.discountType === 'noLuck' && couponCode
+          ? 'percentage'
+          : seg.discountType || 'percentage';
       const updated = {
         id: seg.id || generateId(),
         couponGroupId: seg.couponGroupId,
-        label: document.getElementById('seg-label').value || 'Yeni Ödül',
-        icon: document.getElementById('seg-icon').value || '',
+        label,
+        icon: seg.icon || '',
         color: document.getElementById('seg-color').value || '#1E3A8A',
         textColor: document.getElementById('seg-textcolor').value || '#FFFFFF',
-        discountType: document.getElementById('seg-type').value || 'percentage',
-        discountValue: parseInt(document.getElementById('seg-value')?.value) || 0,
-        couponCode: document.getElementById('seg-coupon')?.value || null,
-        ikasCampaignId: document.getElementById('seg-ikas-campaign')?.value || null,
+        discountType,
+        discountValue,
+        couponCode,
+        ikasCampaignId: campaignId,
         probability: parseInt(document.getElementById('seg-prob').value) || 10,
       };
 

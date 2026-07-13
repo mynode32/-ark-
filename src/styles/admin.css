@@ -722,6 +722,22 @@ select.form-input option {
   transform: translateY(20px);
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+#editModal .edit-modal {
+  max-width: 640px;
+}
+.segment-campaign-hint,
+.segment-fixed-coupon-hint {
+  color: var(--panel-muted, #64748b);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.segment-campaign-hint {
+  margin-top: 6px;
+  max-width: 68ch;
+}
+.segment-fixed-coupon-hint {
+  margin: -4px 0 16px;
+}
 .edit-modal:focus-visible {
   outline: 2px solid #ffd700;
   outline-offset: -2px;
