@@ -281,6 +281,8 @@ body {
 }
 .segment-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 .segment-actions button {
@@ -976,6 +978,8 @@ textarea.admin-text-input { height: auto; padding-block: 12px; }
 .segment-info .segment-label { color: var(--panel-ink) !important; }
 .segment-info .segment-meta, .wheel-style-option .wheel-style-desc, .preview-stats, .empty-state, .integration-guide p, .integration-guide ol, .integration-guide ul { color: var(--panel-muted); }
 .segment-actions button { color: #64748b; background: #eef1f6; }
+.segment-actions .test-coupon-btn { width: auto; min-width: 78px; padding: 0 10px; color: #5b21b6; background: #ede9fe; font-size: 11px; font-weight: 800; }
+.segment-actions .test-coupon-btn:hover { color: #fff; background: #7c3aed; }
 .add-segment-btn { border-color: #cbd5e1; color: var(--panel-muted); }
 .add-segment-btn:hover { border-color: var(--panel-primary); color: var(--panel-primary); background: #f6f3ff; }
 .form-group label { color: #475569; font-weight: 650; }

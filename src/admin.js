@@ -613,7 +613,7 @@ class AdminPanel {
                       <button class="move-btn" data-dir="down" data-id="${seg.couponGroupId}" title="Aşağı taşı" ${idx === coupons.length - 1 ? 'disabled' : ''}>⬇️</button>
                       ${
                         seg.discountType !== 'noLuck'
-                          ? `<button class="test-coupon-btn" data-id="${escapeHtml(seg.id)}" title="Bu kupon gerçek bir müşteri kazanmadan İkas'ta üretilebiliyor mu test et">🧪</button>`
+                          ? `<button class="test-coupon-btn" data-id="${escapeHtml(seg.id)}" title="İkas kampanyasına gerçek bir test kuponu ekle">🧪 Test Et</button>`
                           : ''
                       }
                       <button class="edit-btn" data-id="${seg.couponGroupId}" title="Kuponu düzenle">✏️</button>
@@ -1207,11 +1207,11 @@ class AdminPanel {
       <div class="form-group" id="seg-ikas-campaign-group">
         <label>İkas Kampanyasından Otomatik Oluştur</label>
         <select class="form-input" id="seg-ikas-campaign">
-          <option value="">Yok</option>
+          <option value="">İkas kampanyası seçin</option>
         </select>
         <div id="seg-ikas-campaign-hint" class="segment-campaign-hint">
-          İkas'ta kuponu bulunan bir kampanya seçin. Kazanıldığında bu kampanyaya otomatik tek kullanımlık kod eklenir.
-          Sabit kupon kodu girerseniz öncelik sabit koddadır.
+          İkas Builder'da hazırladığınız kampanyayı seçin. Kazanıldığında bu kampanyaya otomatik, tek kullanımlık gerçek kupon eklenir.
+          Kaydettikten sonra kupon satırındaki “🧪 Test Et” butonuna basmanız gerekir.
         </div>
       </div>
       <div class="form-row">
@@ -1237,8 +1237,8 @@ class AdminPanel {
           <input type="text" class="form-input" id="seg-coupon" value="${escapeHtml(seg.couponCode)}" placeholder="Örn: YH30 — İkas'ta zaten oluşturduğunuz bir kod">
         </div>
         <div class="segment-fixed-coupon-hint">
-          Yalnızca yedek yöntem gerektiğinde kullanın. Buraya İkas'ta önceden oluşturup test ettiğiniz bir kodu yazarsanız
-          kampanyadan otomatik kod üretmek yerine her kazanana bu kod gösterilir.
+          Bu alan yalnızca Manuel Mod içindir. İkas bağlıyken güvenlik nedeniyle sabit kod kullanılmaz;
+          yukarıdaki kampanyadan her kazanana yeni ve tek kullanımlık kod oluşturulur.
         </div>
       </details>
       <div class="form-group">
@@ -1367,9 +1367,9 @@ class AdminPanel {
       }
       if (hint) {
         hint.innerHTML =
-          'Kuponu olan bir İkas kampanyası bulunamadı (kuponsuz kampanyalar burada listelenmez). ' +
+          'Kuponu olan bir İkas kampanyası bulunamadı. Önce İkas panelinde bir kampanya oluşturup kampanyaya en az bir kupon tanımlayın; ardından ' +
           '<a href="#" id="retryIkasCampaigns" style="color:var(--cark-primary,#ffd700);text-decoration:underline;">tekrar dene</a>. ' +
-          'Yoksa İkas Builder\'da kampanyanıza bir kupon kodu ekleyip buradan seçebilir, ya da (önerilen) yukarıya sabit bir kupon kodu girebilirsiniz.';
+          'İkas bağlantınızın Entegrasyon bölümünde doğrulandığından da emin olun.';
         const retryLink = document.getElementById('retryIkasCampaigns');
         if (retryLink) {
           retryLink.addEventListener('click', (e) => {
