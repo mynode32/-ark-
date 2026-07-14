@@ -138,10 +138,42 @@ class AdminPanel {
       sidebarToggle.setAttribute('aria-expanded', String(open));
     });
     sidebarScrim?.addEventListener('click', closeSidebar);
+    this.setupSupportWidget();
 
     this.setupTabs();
     this.setupModalEscapeHandling();
     this.render();
+  }
+
+  setupSupportWidget() {
+    const widget = document.getElementById('supportWidget');
+    const trigger = document.getElementById('supportTrigger');
+    const popover = document.getElementById('supportPopover');
+    const closeButton = document.getElementById('supportClose');
+    if (!widget || !trigger || !popover || trigger.dataset.ready === 'true') return;
+    trigger.dataset.ready = 'true';
+
+    const setOpen = (open) => {
+      popover.hidden = !open;
+      trigger.setAttribute('aria-expanded', String(open));
+      widget.classList.toggle('open', open);
+      if (open) closeButton?.focus();
+    };
+
+    trigger.addEventListener('click', () => setOpen(popover.hidden));
+    closeButton?.addEventListener('click', () => {
+      setOpen(false);
+      trigger.focus();
+    });
+    document.addEventListener('click', (event) => {
+      if (!popover.hidden && !widget.contains(event.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !popover.hidden) {
+        setOpen(false);
+        trigger.focus();
+      }
+    });
   }
 
   showAuthForm(mode) {

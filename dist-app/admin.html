@@ -10,10 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-Dcr21ZFA.js"></script>
+  <script type="module" crossorigin src="/assets/admin-lc0EjFbt.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/main-4bIoqzF2.js">
   <link rel="stylesheet" crossorigin href="/assets/main-BCAIdQyv.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-CdWEy5h8.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-LWsarctQ.css">
 </head>
 <body>
   <div class="admin-password-overlay" id="adminPasswordOverlay">
@@ -104,6 +104,26 @@
       <main id="admin-main"></main>
       <footer class="panel-footer"><span>© <span id="panelYear"></span> MyStore Çark</span><a href="/mystore/">Satış sitesine dön</a></footer>
     </div>
+  </div>
+
+  <div class="support-widget" id="supportWidget">
+    <section class="support-popover" id="supportPopover" aria-labelledby="supportTitle" hidden>
+      <div class="support-popover-head">
+        <div class="support-agent-mark" aria-hidden="true">M</div>
+        <div><span>MyStore Destek</span><strong id="supportTitle">Nasıl yardımcı olabiliriz?</strong></div>
+        <button type="button" class="support-close" id="supportClose" aria-label="Destek penceresini kapat">&times;</button>
+      </div>
+      <p class="support-intro">Kurulum, kuponlar veya çark ayarlarıyla ilgili ihtiyacınız olan kanalı seçin.</p>
+      <nav class="support-options" aria-label="Destek seçenekleri">
+        <a href="/mystore/#contact" target="_blank" rel="noopener"><span class="support-option-icon">✦</span><span><strong>Destek talebi bırak</strong><small>Bilgilerinizi iletin, size dönüş yapalım</small></span><b>→</b></a>
+        <a href="/mystore/kurulum-rehberi.html" target="_blank" rel="noopener"><span class="support-option-icon">?</span><span><strong>Kurulum rehberi</strong><small>Adım adım kurulumu inceleyin</small></span><b>→</b></a>
+        <a href="/mystore/#faq" target="_blank" rel="noopener"><span class="support-option-icon">☷</span><span><strong>Sık sorulan sorular</strong><small>Hızlı yanıtları görüntüleyin</small></span><b>→</b></a>
+      </nav>
+      <div class="support-availability"><i></i><span>Destek taleplerine en kısa sürede dönüş yapıyoruz.</span></div>
+    </section>
+    <button type="button" class="support-trigger" id="supportTrigger" aria-expanded="false" aria-controls="supportPopover">
+      <span class="support-trigger-icon" aria-hidden="true">💬</span><span>Destek</span>
+    </button>
   </div>
 
   <div class="toast" id="toast">Kaydedildi</div>

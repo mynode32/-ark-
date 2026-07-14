@@ -1144,6 +1144,33 @@ select.form-input option { color: var(--panel-ink); background: #fff; }
 .entry-error-box { margin: 18px 0; padding: 13px; display: flex; flex-direction: column; gap: 5px; border: 1px solid #fecaca; border-radius: 10px; color: #991b1b; background: #fff7f7; font-size: 12px; }
 .entry-retry-btn { width: 100%; margin-top: 8px; }
 
+/* Floating support entry point */
+.support-widget { position: fixed; right: 24px; bottom: 22px; z-index: 1040; display: flex; align-items: flex-end; flex-direction: column; gap: 12px; }
+.support-trigger { min-width: 118px; height: 48px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; color: #fff; background: linear-gradient(135deg, #7c3aed, #5b21b6); box-shadow: 0 14px 35px rgba(91,33,182,.32); cursor: pointer; font: 750 13px Inter, sans-serif; transition: transform .2s ease, box-shadow .2s ease; }
+.support-trigger:hover { transform: translateY(-2px); box-shadow: 0 18px 42px rgba(91,33,182,.4); }
+.support-trigger:focus-visible, .support-close:focus-visible, .support-options a:focus-visible { outline: 3px solid rgba(124,58,237,.28); outline-offset: 3px; }
+.support-trigger-icon { display: grid; place-items: center; font-size: 17px; }
+.support-popover { width: min(360px, calc(100vw - 28px)); overflow: hidden; border: 1px solid #e8e2f5; border-radius: 20px; background: #fff; box-shadow: 0 25px 70px rgba(35,20,70,.22); transform-origin: right bottom; animation: supportIn .18s ease-out; }
+.support-popover[hidden] { display: none; }
+@keyframes supportIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.support-popover-head { padding: 19px 18px; display: grid; grid-template-columns: 42px 1fr 28px; align-items: center; gap: 11px; color: #fff; background: linear-gradient(135deg, #6d28d9, #8b5cf6); }
+.support-agent-mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.35); border-radius: 13px; background: rgba(255,255,255,.16); font: 800 17px Outfit, sans-serif; }
+.support-popover-head div:nth-child(2) { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.support-popover-head span { color: rgba(255,255,255,.75); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.support-popover-head strong { font: 700 16px Outfit, sans-serif; }
+.support-close { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; color: #fff; background: rgba(255,255,255,.12); cursor: pointer; font-size: 22px; line-height: 1; }
+.support-intro { margin: 0; padding: 17px 18px 10px; color: #64748b; font-size: 12px; line-height: 1.55; }
+.support-options { padding: 4px 10px 12px; display: grid; gap: 5px; }
+.support-options a { padding: 11px 9px; display: grid; grid-template-columns: 38px 1fr 18px; align-items: center; gap: 10px; border-radius: 12px; color: #172033; text-decoration: none; transition: background .16s ease, transform .16s ease; }
+.support-options a:hover { background: #f6f3ff; transform: translateX(2px); }
+.support-option-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: #6d28d9; background: #ede9fe; font-size: 15px; font-weight: 800; }
+.support-options a > span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.support-options strong { font-size: 12px; }
+.support-options small { overflow: hidden; color: #7b8496; font-size: 10px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.support-options b { color: #8b5cf6; font-size: 16px; }
+.support-availability { padding: 12px 17px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #eeeaf6; color: #6b7280; background: #fbfaff; font-size: 10px; }
+.support-availability i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.13); }
+
 @media (max-width: 1180px) {
   .appearance-layout { grid-template-columns: 1fr; }
   .appearance-preview-card { position: static; }
@@ -1194,4 +1221,7 @@ select.form-input option { color: var(--panel-ink); background: #fff; }
   .appearance-layout { padding-bottom: 128px; }
   .appearance-save-bar { right: 14px; bottom: 8px; left: 14px; align-items: stretch; flex-direction: column; }
   .appearance-save-bar .btn { width: 100%; min-width: 0; }
+  .support-widget { right: 14px; bottom: 14px; }
+  .support-trigger { min-width: 50px; width: 50px; padding: 0; }
+  .support-trigger > span:last-child { display: none; }
 }
