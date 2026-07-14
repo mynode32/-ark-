@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { findStoreById } from '../store.js';
+import { subscriptionAccess } from '../services/subscriptionAccess.js';
 
 export async function adminAuth(req, res, next) {
   // Bearer header only — a token accepted via ?token=... ends up in server
@@ -22,8 +23,19 @@ export async function adminAuth(req, res, next) {
       return res.status(401).json({ error: 'Yetkisiz erişim' });
     }
     req.storeId = payload.storeId;
+    req.store = store;
+    req.subscriptionAccess = subscriptionAccess(store);
     next();
   } catch {
     return res.status(401).json({ error: 'Yetkisiz erişim' });
   }
+}
+
+export function requireActiveSubscription(req, res, next) {
+  if (req.subscriptionAccess?.allowed) return next();
+  return res.status(402).json({
+    error: 'Ücretsiz deneme süreniz doldu. Devam etmek için bir abonelik seçin.',
+    code: req.subscriptionAccess?.reason || 'SUBSCRIPTION_REQUIRED',
+    subscriptionEndsAt: req.subscriptionAccess?.endsAt || null,
+  });
 }

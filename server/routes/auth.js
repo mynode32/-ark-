@@ -60,6 +60,7 @@ function publicStore(store) {
     isOnboarded: store.isOnboarded,
     planType: store.planType,
     subscriptionStatus: store.subscriptionStatus,
+    subscriptionEndsAt: store.subscriptionEndsAt,
     emailVerifiedAt: store.emailVerifiedAt,
   };
 }

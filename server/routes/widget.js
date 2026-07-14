@@ -14,6 +14,7 @@ import { getPlatformAdapter } from '../services/platforms/index.js';
 import { assessCouponHealth, provisionCouponForSegment } from '../services/platforms/couponPolicy.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { sendQuotaExceededEmail } from '../services/email.js';
+import { subscriptionAccess } from '../services/subscriptionAccess.js';
 
 export const widgetRouter = Router();
 
@@ -107,6 +108,15 @@ widgetRouter.use('/:storeSlug', (req, res, next) => {
 });
 
 widgetRouter.use('/:storeSlug', (req, res, next) => {
+  const access = subscriptionAccess(req.store);
+  if (!access.allowed) {
+    return res.status(402).json({
+      error: access.reason === 'FREE_TRIAL_EXPIRED'
+        ? 'Mağazanın ücretsiz deneme süresi sona erdi.'
+        : 'Abonelik sona erdi.',
+      code: access.reason,
+    });
+  }
   const { subscriptionStatus, subscriptionEndsAt } = req.store;
   const expired = subscriptionEndsAt && new Date(subscriptionEndsAt) < new Date();
   if (subscriptionStatus === 'canceled' && expired) {

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { superAdminAuth } from '../middleware/superAdminAuth.js';
-import { getSuperAdminOverview } from '../store.js';
+import { getSuperAdminOverview, getSuperAdminStoreDetail } from '../store.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
 export const superAdminRouter = Router();
@@ -40,3 +40,9 @@ superAdminRouter.get('/overview', superAdminAuth, asyncHandler(async (req, res) 
   res.json(await getSuperAdminOverview());
 }));
 
+superAdminRouter.get('/stores/:storeId', superAdminAuth, asyncHandler(async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.storeId)) return res.status(400).json({ error: 'Geçersiz mağaza kimliği' });
+  const detail = await getSuperAdminStoreDetail(req.params.storeId);
+  if (!detail) return res.status(404).json({ error: 'Mağaza bulunamadı' });
+  res.json(detail);
+}));

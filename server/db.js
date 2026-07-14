@@ -149,6 +149,15 @@ export async function ensureSchema() {
   await query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS plan_type TEXT NOT NULL DEFAULT 'free'");
   await query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'trialing'");
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ');
+  // Free accounts get one hour from registration. Backfill older trial rows
+  // deterministically from their own creation time so a restart cannot renew them.
+  await query(`
+    UPDATE stores
+    SET subscription_ends_at = created_at + interval '1 hour'
+    WHERE plan_type = 'free'
+      AND subscription_status = 'trialing'
+      AND subscription_ends_at IS NULL
+  `);
   await query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS allowed_domains JSONB NOT NULL DEFAULT '[]'");
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN NOT NULL DEFAULT false');
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ');

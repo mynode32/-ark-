@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { adminAuth } from '../middleware/auth.js';
+import { adminAuth, requireActiveSubscription } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
   getWidgetConfig,
@@ -36,6 +36,13 @@ export const adminRouter = Router();
 
 // All admin routes require auth; adminAuth sets req.storeId from the JWT
 adminRouter.use(adminAuth);
+
+// Süresi dolan mağaza verilerini görebilir; ayar, kupon ve katılımcı
+// kayıtlarını değiştiremez. Hesap silme ve ödeme akışı erişilebilir kalır.
+adminRouter.use((req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/account') return next();
+  return requireActiveSubscription(req, res, next);
+});
 
 // Each test-coupon call can create a real İkas coupon — throttled to blunt
 // accidental spam-clicking, not abuse (this route is already auth-only).

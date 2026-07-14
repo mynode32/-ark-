@@ -95,8 +95,8 @@ export const CURRENT_TERMS_VERSION = '2026-07-12';
 export async function createStore({ slug, name, email, passwordHash, widgetConfig }) {
   const res = await query(
     `INSERT INTO stores
-       (slug, name, email, password_hash, widget_config, terms_accepted_at, terms_version)
-     VALUES ($1, $2, $3, $4, $5, now(), $6)
+       (slug, name, email, password_hash, widget_config, terms_accepted_at, terms_version, subscription_ends_at)
+     VALUES ($1, $2, $3, $4, $5, now(), $6, now() + interval '1 hour')
      RETURNING *`,
     [slug, name, email, passwordHash, JSON.stringify(widgetConfig), CURRENT_TERMS_VERSION],
   );
@@ -123,17 +123,29 @@ export async function getSuperAdminOverview() {
     query(`
       SELECT
         COUNT(*) FILTER (WHERE deleted_at IS NULL) AS total_stores,
-        COUNT(*) FILTER (WHERE deleted_at IS NULL AND subscription_status IN ('active', 'trialing')) AS active_stores,
+        COUNT(*) FILTER (WHERE deleted_at IS NULL AND subscription_status = 'active' AND (subscription_ends_at IS NULL OR subscription_ends_at > now())) AS paid_stores,
+        COUNT(*) FILTER (WHERE deleted_at IS NULL AND subscription_status = 'trialing' AND subscription_ends_at > now()) AS trial_stores,
+        COUNT(*) FILTER (WHERE deleted_at IS NULL AND subscription_ends_at IS NOT NULL AND subscription_ends_at <= now()) AS expired_stores,
         COUNT(*) FILTER (WHERE deleted_at IS NULL AND is_onboarded = true) AS onboarded_stores,
         COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted_stores
       FROM stores
     `),
     query(`
-      SELECT id, slug, name, plan_type, subscription_status, is_onboarded,
-             email_verified_at, created_at
-      FROM stores
-      WHERE deleted_at IS NULL
-      ORDER BY created_at DESC
+      SELECT s.id, s.slug, s.name, s.plan_type, s.subscription_status, s.subscription_ends_at,
+             s.is_onboarded, s.email_verified_at, s.created_at, s.allowed_domains,
+             COUNT(DISTINCT e.id)::int AS entry_count,
+             COUNT(DISTINCT e.id) FILTER (WHERE e.timestamp >= now() - interval '24 hours')::int AS entries_24h,
+             COUNT(DISTINCT e.id) FILTER (WHERE e.coupon_status = 'failed')::int AS failed_coupons,
+             MAX(e.timestamp) AS last_spin_at,
+             MAX(c.changed_at) AS last_config_at,
+             BOOL_OR(p.platform = 'ikas' AND p.ikas_client_id IS NOT NULL AND p.ikas_store_id IS NOT NULL) AS ikas_connected
+      FROM stores s
+      LEFT JOIN entries e ON e.store_id = s.id
+      LEFT JOIN config_changes c ON c.store_id = s.id
+      LEFT JOIN store_platform_credentials p ON p.store_id = s.id
+      WHERE s.deleted_at IS NULL
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
       LIMIT 500
     `),
   ]);
@@ -141,7 +153,9 @@ export async function getSuperAdminOverview() {
   return {
     summary: {
       totalStores: Number(summary.total_stores || 0),
-      activeStores: Number(summary.active_stores || 0),
+      paidStores: Number(summary.paid_stores || 0),
+      trialStores: Number(summary.trial_stores || 0),
+      expiredStores: Number(summary.expired_stores || 0),
       onboardedStores: Number(summary.onboarded_stores || 0),
       deletedStores: Number(summary.deleted_stores || 0),
     },
@@ -151,10 +165,56 @@ export async function getSuperAdminOverview() {
       name: row.name,
       planType: row.plan_type,
       subscriptionStatus: row.subscription_status,
+      subscriptionEndsAt: row.subscription_ends_at,
       isOnboarded: Boolean(row.is_onboarded),
       emailVerified: Boolean(row.email_verified_at),
       createdAt: row.created_at,
+      domainCount: Array.isArray(row.allowed_domains) ? row.allowed_domains.length : 0,
+      entryCount: Number(row.entry_count || 0),
+      entries24h: Number(row.entries_24h || 0),
+      failedCoupons: Number(row.failed_coupons || 0),
+      lastSpinAt: row.last_spin_at,
+      lastConfigAt: row.last_config_at,
+      ikasConnected: Boolean(row.ikas_connected),
     })),
+  };
+}
+
+export async function getSuperAdminStoreDetail(storeId) {
+  const [storeResult, activityResult, billingResult, prizeResult] = await Promise.all([
+    query(`SELECT s.id, s.slug, s.name, s.email, s.plan_type, s.subscription_status,
+                  s.subscription_ends_at, s.created_at, s.is_onboarded, s.email_verified_at,
+                  s.allowed_domains, p.platform,
+                  (p.ikas_client_id IS NOT NULL AND p.ikas_store_id IS NOT NULL) AS ikas_connected
+           FROM stores s LEFT JOIN store_platform_credentials p ON p.store_id = s.id
+           WHERE s.id = $1 AND s.deleted_at IS NULL`, [storeId]),
+    query(`SELECT changed_at AS at, 'config' AS type, section, summary
+           FROM config_changes WHERE store_id = $1
+           UNION ALL
+           SELECT timestamp AS at, 'spin' AS type, prize AS section,
+                  CASE WHEN coupon_status = 'failed' THEN 'Kupon başarısız' ELSE coupon_status END AS summary
+           FROM entries WHERE store_id = $1
+           ORDER BY at DESC LIMIT 40`, [storeId]),
+    query(`SELECT amount, currency, status, plan_type, period_start, period_end, created_at
+           FROM billing_history WHERE store_id = $1 ORDER BY created_at DESC LIMIT 20`, [storeId]),
+    query(`SELECT prize, COUNT(*)::int AS count,
+                  COUNT(*) FILTER (WHERE coupon_status = 'failed')::int AS failed
+           FROM entries WHERE store_id = $1 GROUP BY prize ORDER BY count DESC LIMIT 20`, [storeId]),
+  ]);
+  const row = storeResult.rows[0];
+  if (!row) return null;
+  return {
+    store: {
+      id: row.id, slug: row.slug, name: row.name, email: row.email,
+      planType: row.plan_type, subscriptionStatus: row.subscription_status,
+      subscriptionEndsAt: row.subscription_ends_at, createdAt: row.created_at,
+      isOnboarded: Boolean(row.is_onboarded), emailVerified: Boolean(row.email_verified_at),
+      allowedDomains: row.allowed_domains || [], platform: row.platform || 'manual',
+      ikasConnected: Boolean(row.ikas_connected),
+    },
+    activity: activityResult.rows,
+    billing: billingResult.rows,
+    prizes: prizeResult.rows.map((item) => ({ prize: item.prize, count: Number(item.count), failed: Number(item.failed) })),
   };
 }
 

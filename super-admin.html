@@ -24,11 +24,13 @@
       </form>
     </section>
     <section class="super-dashboard" id="superDashboard" hidden>
-      <header><div><p>MyStore / Süper Admin</p><h1>Sistem Özeti</h1></div><button id="superLogout" class="ghost">Çıkış Yap</button></header>
+      <header><div><p>MyStore / Süper Admin</p><h1>Operasyon Merkezi</h1><span id="lastUpdated"></span></div><div class="header-actions"><button id="refreshOverview" class="ghost">↻ Yenile</button><button id="exportStores" class="ghost">CSV İndir</button><button id="superLogout" class="ghost">Çıkış Yap</button></div></header>
       <div class="super-stats" id="superStats"></div>
-      <section class="super-card"><div class="super-card-head"><div><h2>Mağazalar</h2><p>En son oluşturulan 500 aktif mağaza</p></div><input id="storeSearch" type="search" placeholder="Mağaza veya slug ara"></div><div class="table-wrap"><table><thead><tr><th>Mağaza</th><th>Plan</th><th>Durum</th><th>Kurulum</th><th>E-posta</th><th>Oluşturulma</th></tr></thead><tbody id="storeRows"></tbody></table></div></section>
+      <section class="super-card"><div class="super-card-head"><div><h2>Mağazalar</h2><p>Canlı kullanım, kupon sağlığı ve abonelik takibi</p></div><div class="filters"><input id="storeSearch" type="search" placeholder="Mağaza veya slug ara"><select id="statusFilter"><option value="">Tüm durumlar</option><option value="active">Aktif ücretli</option><option value="trialing">Denemede</option><option value="expired">Süresi dolmuş</option></select><select id="connectionFilter"><option value="">Tüm bağlantılar</option><option value="ikas">İkas bağlı</option><option value="manual">İkas bağlı değil</option></select></div></div><div class="table-wrap"><table><thead><tr><th>Mağaza</th><th>Plan / Süre</th><th>Aktivite</th><th>Kupon</th><th>Bağlantı</th><th>Son İşlem</th><th></th></tr></thead><tbody id="storeRows"></tbody></table></div></section>
     </section>
   </main>
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <aside class="store-drawer" id="storeDrawer" hidden><button class="drawer-close" id="drawerClose" aria-label="Kapat">×</button><div id="storeDetail"></div></aside>
   <script type="module" src="/src/super-admin.js"></script>
 </body>
 </html>
