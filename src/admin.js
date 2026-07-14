@@ -838,7 +838,7 @@ class AdminPanel {
   async saveConfigToBackend(payload) {
     const base = getApiBase();
     if (!base) {
-      return false;
+      throw new Error('Backend adresi yapılandırılmamış');
     }
     try {
       const res = await fetch(`${base}/api/admin/config`, {
@@ -849,9 +849,17 @@ class AdminPanel {
         },
         body: JSON.stringify(payload),
       });
-      return res.ok;
-    } catch {
-      return false;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('Oturum süresi dolmuş. Çıkış yapıp tekrar giriş yapın.');
+        throw new Error(data.error || `Backend kaydı başarısız (${res.status})`);
+      }
+      return data;
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new Error('Backend bağlantısı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.');
+      }
+      throw error;
     }
   }
 
@@ -937,12 +945,21 @@ class AdminPanel {
   }
 
   async saveAndRender(payload) {
+    const previous = Object.fromEntries(Object.keys(payload).map((key) => [key, this.config[key]]));
     Object.assign(this.config, payload);
-    saveConfigToLocal(this.config);
-    const ok = await this.saveConfigToBackend(payload);
-    this.render();
-    this.showToast(ok ? "Backend'e kaydedildi" : 'Backend yok, lokal kaydedildi', ok ? 'success' : 'warning');
-    return ok;
+    try {
+      await this.saveConfigToBackend(payload);
+      saveConfigToLocal(this.config);
+      this.render();
+      this.showToast("Backend'e kaydedildi", 'success');
+      return true;
+    } catch (error) {
+      Object.assign(this.config, previous);
+      saveConfigToLocal(this.config);
+      this.render();
+      this.showToast(`Kaydedilemedi: ${error.message}`, 'error');
+      return false;
+    }
   }
 
   // --- Appearance Tab ---
@@ -1349,7 +1366,10 @@ class AdminPanel {
       const campaignId = document.getElementById('seg-ikas-campaign')?.value || null;
       const selectedCampaign = this._ikasCampaigns?.find((campaign) => String(campaign.id) === String(campaignId));
       const couponCode = document.getElementById('seg-coupon')?.value.trim() || null;
-      const discountValue = Number.isFinite(seg.discountValue) ? seg.discountValue : 0;
+      // The actual discount comes from the selected İkas campaign. Carrying an
+      // old segment value (for example fixed ₺150) into a percentage campaign
+      // made backend validation reject the entire save as an invalid %150.
+      const discountValue = selectedCampaign ? 0 : Number.isFinite(seg.discountValue) ? seg.discountValue : 0;
       const label = selectedCampaign?.title || couponCode || (this.editingSegmentId ? seg.label : null) || 'Kupon';
       const discountType = selectedCampaign
         ? selectedCampaign.isFreeShipping
@@ -1448,7 +1468,7 @@ class AdminPanel {
       }
       if (hint) {
         hint.innerHTML =
-          'İkas kampanyası bulunamadı. Önce İkas panelinde bir kampanya oluşturun; ardından ' +
+          'Kuponu olan bir İkas kampanyası bulunamadı. Önce İkas panelinde kampanyaya en az bir kupon ekleyin; ardından ' +
           '<a href="#" id="retryIkasCampaigns" style="color:var(--cark-primary,#ffd700);text-decoration:underline;">tekrar dene</a>. ' +
           'İkas bağlantınızın Entegrasyon bölümünde doğrulandığından da emin olun.';
         const retryLink = document.getElementById('retryIkasCampaigns');
@@ -1467,7 +1487,7 @@ class AdminPanel {
     campaigns.forEach((c) => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = `${c.title}${c.hasCoupon ? ' • Kuponlu' : ' • Kupon eklenebilir'}`;
+      opt.textContent = `${c.title} • Kuponlu`;
       if (String(c.id) === String(selectedId)) {
         opt.selected = true;
       }

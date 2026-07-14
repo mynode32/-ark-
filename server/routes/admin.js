@@ -361,9 +361,10 @@ adminRouter.get('/entries/:entryId', asyncHandler(async (req, res) => {
 adminRouter.get('/ikas/campaigns', asyncHandler(async (req, res) => {
   const adapter = await getPlatformAdapter(req.storeId);
   const campaigns = await adapter.listCampaigns();
-  // Return every İkas campaign. Campaigns without an existing coupon are also
-  // valid: the required test flow verifies campaignAddCoupons before publish.
-  res.json({ campaigns });
+  // The wheel only offers campaigns that are already configured for coupons
+  // in İkas. Pagination in the adapter ensures this includes every matching
+  // campaign, not merely the first 100 records.
+  res.json({ campaigns: campaigns.filter((campaign) => campaign.hasCoupon) });
 }));
 
 /**
