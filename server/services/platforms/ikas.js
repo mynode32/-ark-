@@ -88,37 +88,54 @@ export async function listCampaigns(creds, storeId) {
   }
 
   try {
-    const response = await fetch(config.ikas.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(8000),
-      body: JSON.stringify({
-        query: `
-          query ListCampaign($pagination: PaginationInput) {
-            listCampaign(pagination: $pagination) {
-              data {
-                id
-                title
-                type
-                hasCoupon
-                isFreeShipping
-                usageLimit
-                usageCount
+    const campaigns = [];
+    const limit = 100;
+    let page = 1;
+    let hasNext = true;
+
+    // İkas list endpoints are page-based. Walk every page so stores with more
+    // than 100 campaigns do not silently lose older coupons in the selector.
+    while (hasNext && page <= 100) {
+      const response = await fetch(config.ikas.apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(8000),
+        body: JSON.stringify({
+          query: `
+            query ListCampaign($pagination: PaginationInput) {
+              listCampaign(pagination: $pagination) {
+                data {
+                  id
+                  title
+                  type
+                  hasCoupon
+                  isFreeShipping
+                  usageLimit
+                  usageCount
+                }
+                hasNext
+                page
+                limit
               }
             }
-          }
-        `,
-        variables: { pagination: { limit: 100 } },
-      }),
-    });
+          `,
+          variables: { pagination: { limit, page } },
+        }),
+      });
 
-    const data = await response.json();
-    if (data.errors) {
-      console.error('[İkas] Kampanya listesi alınamadı:', JSON.stringify(data.errors));
-      return [];
+      const data = await response.json();
+      if (data.errors) {
+        console.error('[İkas] Kampanya listesi alınamadı:', JSON.stringify(data.errors));
+        return [];
+      }
+
+      const result = data.data?.listCampaign;
+      campaigns.push(...(result?.data || []));
+      hasNext = Boolean(result?.hasNext);
+      page += 1;
     }
 
-    return data.data?.listCampaign?.data || [];
+    return campaigns;
   } catch (err) {
     console.error('[İkas] Kampanya listesi bağlantı hatası:', err.message);
     return [];

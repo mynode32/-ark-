@@ -1448,7 +1448,7 @@ class AdminPanel {
       }
       if (hint) {
         hint.innerHTML =
-          'Kuponu olan bir İkas kampanyası bulunamadı. Önce İkas panelinde bir kampanya oluşturup kampanyaya en az bir kupon tanımlayın; ardından ' +
+          'İkas kampanyası bulunamadı. Önce İkas panelinde bir kampanya oluşturun; ardından ' +
           '<a href="#" id="retryIkasCampaigns" style="color:var(--cark-primary,#ffd700);text-decoration:underline;">tekrar dene</a>. ' +
           'İkas bağlantınızın Entegrasyon bölümünde doğrulandığından da emin olun.';
         const retryLink = document.getElementById('retryIkasCampaigns');
@@ -1467,7 +1467,7 @@ class AdminPanel {
     campaigns.forEach((c) => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.title;
+      opt.textContent = `${c.title}${c.hasCoupon ? ' • Kuponlu' : ' • Kupon eklenebilir'}`;
       if (String(c.id) === String(selectedId)) {
         opt.selected = true;
       }

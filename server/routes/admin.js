@@ -361,11 +361,9 @@ adminRouter.get('/entries/:entryId', asyncHandler(async (req, res) => {
 adminRouter.get('/ikas/campaigns', asyncHandler(async (req, res) => {
   const adapter = await getPlatformAdapter(req.storeId);
   const campaigns = await adapter.listCampaigns();
-  // Only campaigns that already have a coupon registered in İkas are offered —
-  // attaching a segment to a coupon-less campaign would mean minting a brand
-  // new code on every spin, which is exactly the failure-prone path we're
-  // steering store owners away from (see isLocalCoupon).
-  res.json({ campaigns: campaigns.filter((c) => c.hasCoupon) });
+  // Return every İkas campaign. Campaigns without an existing coupon are also
+  // valid: the required test flow verifies campaignAddCoupons before publish.
+  res.json({ campaigns });
 }));
 
 /**
