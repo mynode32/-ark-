@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyStore | Süper Admin</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="/mystore/assets/logo-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/super-admin.css">
+</head>
+<body>
+  <main class="super-shell">
+    <section class="super-login" id="superLogin">
+      <div class="super-brand"><img src="/mystore/assets/logo-mark.svg" alt="" width="42" height="42"><span>mystore</span><small>Süper Admin</small></div>
+      <form id="superLoginForm">
+        <p>EKİP ERİŞİMİ</p><h1>Yönetim merkezine giriş</h1><span>Bu alan yalnızca yetkili MyStore ekibi içindir.</span>
+        <label>E-posta<input id="superEmail" type="email" autocomplete="username" required></label>
+        <label>Şifre<input id="superPassword" type="password" autocomplete="current-password" required></label>
+        <div class="super-error" id="superLoginError" role="alert"></div>
+        <button type="submit">Giriş Yap</button>
+      </form>
+    </section>
+    <section class="super-dashboard" id="superDashboard" hidden>
+      <header><div><p>MyStore / Süper Admin</p><h1>Sistem Özeti</h1></div><button id="superLogout" class="ghost">Çıkış Yap</button></header>
+      <div class="super-stats" id="superStats"></div>
+      <section class="super-card"><div class="super-card-head"><div><h2>Mağazalar</h2><p>En son oluşturulan 500 aktif mağaza</p></div><input id="storeSearch" type="search" placeholder="Mağaza veya slug ara"></div><div class="table-wrap"><table><thead><tr><th>Mağaza</th><th>Plan</th><th>Durum</th><th>Kurulum</th><th>E-posta</th><th>Oluşturulma</th></tr></thead><tbody id="storeRows"></tbody></table></div></section>
+    </section>
+  </main>
+  <script type="module" src="/src/super-admin.js"></script>
+</body>
+</html>

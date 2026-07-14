@@ -12,6 +12,7 @@ import cron from 'node-cron';
 import { renewSubscriptions } from './jobs/renewSubscriptions.js';
 import { purgeDeletedStores } from './jobs/purgeDeletedStores.js';
 import { contactRouter } from './routes/contact.js';
+import { superAdminRouter } from './routes/superAdmin.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -25,6 +26,9 @@ app.use(express.json({ limit: '256kb' }));
 // aynı backend üzerinden /mystore altında canlı önizleme sunar.
 app.get(['/mystore/panel', '/mystore/panel/'], (req, res) => {
   res.sendFile(resolve(__dirname, '..', 'dist-app', 'admin.html'));
+});
+app.get(['/mystore/super-admin', '/mystore/super-admin/'], (req, res) => {
+  res.sendFile(resolve(__dirname, '..', 'dist-app', 'super-admin.html'));
 });
 app.use('/mystore', express.static(resolve(__dirname, '..', 'website', 'public')));
 app.use('/legal', express.static(resolve(__dirname, '..', 'website', 'public', 'legal')));
@@ -45,6 +49,7 @@ app.use('/api/widget', widgetRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api/contact', contactRouter);
+app.use('/api/super-admin', superAdminRouter);
 
 // Health check — actually pings the DB so a broken connection shows up here
 // instead of every tenant's requests failing with no external signal.

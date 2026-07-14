@@ -1,12 +1,9 @@
 import {
-  getLocalConfig,
-  saveConfigToLocal,
-  getLocalEntries,
-  clearLocalEntries,
-  exportLocalCSV,
   generateId,
   DEFAULT_CONFIG,
 } from './storage.js';
+import { readAdminConfigCache, writeAdminConfigCache } from './adminCache.js';
+import { campaignDiscountMetadata, describeDiscount } from './campaignDiscount.js';
 import { generateEmbedCode, generateIkasGuide } from './embed.js';
 import { ModalManager } from './modal.js';
 import { WheelEngine } from './wheel.js';
@@ -39,7 +36,7 @@ function escapeHtml(value) {
 
 class AdminPanel {
   constructor() {
-    this.config = getLocalConfig();
+    this.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     this.store = null;
     this.currentTab = 'settings';
     this.editingSegmentId = null;
@@ -70,12 +67,12 @@ class AdminPanel {
         if (res.ok) {
           const data = await res.json();
           this.store = data.store;
+          await this.loadFromBackend({ render: false });
           if (!this.store.isOnboarded) {
             this.showOnboarding();
             return;
           }
           this.showContent();
-          await this.loadFromBackend();
           return;
         }
       } catch {
@@ -143,35 +140,44 @@ class AdminPanel {
     this.setupTabs();
     this.setupModalEscapeHandling();
     this.render();
+    if (this._configLoadError) {
+      this.showToast(`Backend ayarları alınamadı: ${this._configLoadError}`, 'error');
+    }
   }
 
   setupSupportWidget() {
     const widget = document.getElementById('supportWidget');
     const trigger = document.getElementById('supportTrigger');
+    const headerTrigger = document.getElementById('supportHeaderTrigger');
     const popover = document.getElementById('supportPopover');
     const closeButton = document.getElementById('supportClose');
     if (!widget || !trigger || !popover || trigger.dataset.ready === 'true') return;
     trigger.dataset.ready = 'true';
 
-    const setOpen = (open) => {
+    let activeTrigger = trigger;
+    const setOpen = (open, source = 'floating') => {
+      if (open) activeTrigger = source === 'header' ? headerTrigger : trigger;
       popover.hidden = !open;
       trigger.setAttribute('aria-expanded', String(open));
+      headerTrigger?.setAttribute('aria-expanded', String(open));
       widget.classList.toggle('open', open);
+      widget.classList.toggle('header-open', open && source === 'header');
       if (open) closeButton?.focus();
     };
 
     trigger.addEventListener('click', () => setOpen(popover.hidden));
+    headerTrigger?.addEventListener('click', () => setOpen(popover.hidden, 'header'));
     closeButton?.addEventListener('click', () => {
       setOpen(false);
-      trigger.focus();
+      activeTrigger?.focus();
     });
     document.addEventListener('click', (event) => {
-      if (!popover.hidden && !widget.contains(event.target)) setOpen(false);
+      if (!popover.hidden && !widget.contains(event.target) && !headerTrigger?.contains(event.target)) setOpen(false);
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !popover.hidden) {
         setOpen(false);
-        trigger.focus();
+        activeTrigger?.focus();
       }
     });
   }
@@ -263,12 +269,12 @@ class AdminPanel {
         }
         saveAuthToken(data.token, isRegister || document.getElementById('authRememberMe').checked);
         this.store = data.store;
+        await this.loadFromBackend({ render: false });
         if (!this.store.isOnboarded) {
           this.showOnboarding();
           return;
         }
         this.showContent();
-        await this.loadFromBackend();
       } catch {
         showError('Backend bağlantı hatası');
       } finally {
@@ -383,6 +389,7 @@ class AdminPanel {
   logout() {
     clearAuthToken();
     this.store = null;
+    this.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     document.getElementById('adminContent').style.display = 'none';
     this.showAuthForm('login');
   }
@@ -469,19 +476,38 @@ class AdminPanel {
     });
   }
 
-  async loadFromBackend() {
+  cacheConfig() {
+    if (!this.store?.id) return;
+    try {
+      writeAdminConfigCache(localStorage, this.store.id, this.config);
+    } catch {
+      /* Cache failure must never affect the backend-backed admin panel. */
+    }
+  }
+
+  async loadFromBackend({ render = true } = {}) {
     const base = getApiBase();
     try {
       const res = await fetch(`${base}/api/admin/config`, {
         headers: { Authorization: `Bearer ${authToken()}` },
       });
-      if (res.ok) {
-        this.config = await res.json();
-        saveConfigToLocal(this.config);
-        this.render();
-      }
-    } catch {
-      /* ignore */
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Ayarlar alınamadı (${res.status})`);
+      this.config = data;
+      this._configLoadError = null;
+      this.cacheConfig();
+      if (render) this.render();
+      return true;
+    } catch (error) {
+      // A cache is scoped to the authenticated store. It can keep the panel
+      // readable during a transient outage without ever leaking another
+      // tenant's configuration into this account.
+      const fallback = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      if (this.store?.name) fallback.settings.storeName = this.store.name;
+      this.config = readAdminConfigCache(localStorage, this.store?.id, fallback);
+      this._configLoadError = error.message;
+      if (render) this.render();
+      return false;
     }
   }
 
@@ -638,7 +664,7 @@ class AdminPanel {
                     <div class="segment-color" style="background:${seg.color}"></div>
                     <div class="segment-info">
                       <div class="segment-label" style="color:${seg.textColor || '#fff'}">${escapeHtml(String(seg.icon || '').replace(/🎁[\uFE0E\uFE0F]?/gu, '').trim())}${String(seg.icon || '').replace(/🎁[\uFE0E\uFE0F]?/gu, '').trim() ? ' ' : ''}${escapeHtml(seg.label)}</div>
-                      <div class="segment-meta">Çarkta ${seg.sliceCount} dilim • Kazanma ağırlığı: %${Number(seg.probability.toFixed(1))} ${seg.couponCode ? `• Kod: ${escapeHtml(seg.couponCode)}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
+                      <div class="segment-meta">Çarkta ${seg.sliceCount} dilim • Kazanma ağırlığı: %${Number(seg.probability.toFixed(1))} ${seg.couponCode ? `• Kod: ${escapeHtml(seg.couponCode)}` : ''} ${seg.ikasCampaignId ? `• ${escapeHtml(describeDiscount(seg) || 'İkas kampanyasına bağlı')}` : ''}</div>
                     </div>
                     <div class="segment-actions">
                       <button class="move-btn" data-dir="up" data-id="${seg.couponGroupId}" title="Yukarı taşı" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
@@ -889,7 +915,9 @@ class AdminPanel {
       return data;
     } catch (error) {
       if (error instanceof TypeError) {
-        throw new Error('Backend bağlantısı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.');
+        throw new Error('Backend bağlantısı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.', {
+          cause: error,
+        });
       }
       throw error;
     }
@@ -981,13 +1009,13 @@ class AdminPanel {
     Object.assign(this.config, payload);
     try {
       await this.saveConfigToBackend(payload);
-      saveConfigToLocal(this.config);
+      this.cacheConfig();
       this.render();
       this.showToast("Backend'e kaydedildi", 'success');
       return true;
     } catch (error) {
       Object.assign(this.config, previous);
-      saveConfigToLocal(this.config);
+      this.cacheConfig();
       this.render();
       this.showToast(`Kaydedilemedi: ${error.message}`, 'error');
       return false;
@@ -1398,18 +1426,12 @@ class AdminPanel {
       const campaignId = document.getElementById('seg-ikas-campaign')?.value || null;
       const selectedCampaign = this._ikasCampaigns?.find((campaign) => String(campaign.id) === String(campaignId));
       const couponCode = document.getElementById('seg-coupon')?.value.trim() || null;
-      // The actual discount comes from the selected İkas campaign. Carrying an
-      // old segment value (for example fixed ₺150) into a percentage campaign
-      // made backend validation reject the entire save as an invalid %150.
-      const discountValue = selectedCampaign ? 0 : Number.isFinite(seg.discountValue) ? seg.discountValue : 0;
       const label = selectedCampaign?.title || couponCode || (this.editingSegmentId ? seg.label : null) || 'Kupon';
-      const discountType = selectedCampaign
-        ? selectedCampaign.isFreeShipping
-          ? 'freeShipping'
-          : 'percentage'
-        : seg.discountType === 'noLuck' && couponCode
-          ? 'percentage'
-          : seg.discountType || 'percentage';
+      // İkas owns the real amount/rate. Never turn a missing API value into a
+      // misleading 0 TL/%0, and never carry an old segment amount into a newly
+      // selected campaign.
+      const normalizedSegment = seg.discountType === 'noLuck' && couponCode ? { ...seg, discountType: 'percentage' } : seg;
+      const { discountType, discountValue } = campaignDiscountMetadata(selectedCampaign, normalizedSegment);
       const updated = {
         id: seg.id || generateId(),
         couponGroupId: seg.couponGroupId,
@@ -1696,13 +1718,14 @@ class AdminPanel {
         return;
       }
       const base = getApiBase();
-      if (authToken()) {
-        await fetch(`${base}/api/admin/entries`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${authToken()}` },
-        });
-      } else {
-        clearLocalEntries();
+      const res = await fetch(`${base}/api/admin/entries`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        this.showToast(data.error || 'Katılımcılar silinemedi', 'error');
+        return;
       }
       this.entriesPage = 1;
       this.loadEntries();
@@ -1730,9 +1753,9 @@ class AdminPanel {
     container.innerHTML = '<div class="entries-loading-state"><div class="entries-spinner"></div><span>Katılımcılar yükleniyor...</span></div>';
 
     let entries;
-    let stats = { total: 0, today: 0, processed: 0, failed: 0, conversionRate: 0, mostWon: '-', prizeDistribution: [] };
-    let entriesTotal = 0;
-    let prizes = [];
+    let stats;
+    let entriesTotal;
+    let prizes;
 
     if (authToken()) {
       try {
@@ -1758,18 +1781,8 @@ class AdminPanel {
         return;
       }
     } else {
-      entries = getLocalEntries();
-      const today = new Date().toISOString().split('T')[0];
-      stats.total = entries.length;
-      stats.today = entries.filter((e) => e.timestamp?.startsWith(today)).length;
-      const prizes = entries.map((e) => e.prize).filter(Boolean);
-      if (prizes.length > 0) {
-        const counts = prizes.reduce((acc, p) => {
-          acc[p] = (acc[p] || 0) + 1;
-          return acc;
-        }, {});
-        stats.mostWon = Object.keys(counts).reduce((a, b) => (counts[a] > counts[b] ? a : b));
-      }
+      container.innerHTML = '<div class="entries-error-state"><strong>Oturum bulunamadı</strong><span>Katılımcı verilerini görmek için tekrar giriş yapın.</span></div>';
+      return;
     }
 
     this.currentEntries = entries;
@@ -1955,7 +1968,7 @@ class AdminPanel {
 
   async downloadEntries(format = 'csv', overrides = {}, ids = []) {
     if (!authToken()) {
-      exportLocalCSV();
+      this.showToast('Dışa aktarmak için tekrar giriş yapın', 'error');
       return;
     }
     try {

@@ -71,7 +71,8 @@ function publicStore(store) {
  */
 authRouter.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { storeName, email, password, termsAccepted } = req.body;
+    const { storeName, password, termsAccepted } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
 
     if (!storeName || !email || !password) {
       return res.status(400).json({ error: 'Mağaza adı, e-posta ve şifre zorunludur' });
@@ -101,7 +102,7 @@ authRouter.post('/register', registerLimiter, async (req, res) => {
 
     const store = await createStore({
       slug,
-      name: storeName,
+      name: storeName.trim(),
       email,
       passwordHash,
       widgetConfig: defaultConfigFor(storeName),
@@ -123,7 +124,8 @@ authRouter.post('/register', registerLimiter, async (req, res) => {
  */
 authRouter.post('/login', loginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const password = req.body.password;
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     if (!email || !password) {
       return res.status(400).json({ error: 'E-posta ve şifre zorunludur' });
     }

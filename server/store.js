@@ -118,6 +118,46 @@ export async function findStoreById(id) {
   return rowToStore(res.rows[0]);
 }
 
+export async function getSuperAdminOverview() {
+  const [summaryResult, storesResult] = await Promise.all([
+    query(`
+      SELECT
+        COUNT(*) FILTER (WHERE deleted_at IS NULL) AS total_stores,
+        COUNT(*) FILTER (WHERE deleted_at IS NULL AND subscription_status IN ('active', 'trialing')) AS active_stores,
+        COUNT(*) FILTER (WHERE deleted_at IS NULL AND is_onboarded = true) AS onboarded_stores,
+        COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted_stores
+      FROM stores
+    `),
+    query(`
+      SELECT id, slug, name, plan_type, subscription_status, is_onboarded,
+             email_verified_at, created_at
+      FROM stores
+      WHERE deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 500
+    `),
+  ]);
+  const summary = summaryResult.rows[0] || {};
+  return {
+    summary: {
+      totalStores: Number(summary.total_stores || 0),
+      activeStores: Number(summary.active_stores || 0),
+      onboardedStores: Number(summary.onboarded_stores || 0),
+      deletedStores: Number(summary.deleted_stores || 0),
+    },
+    stores: storesResult.rows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      planType: row.plan_type,
+      subscriptionStatus: row.subscription_status,
+      isOnboarded: Boolean(row.is_onboarded),
+      emailVerified: Boolean(row.email_verified_at),
+      createdAt: row.created_at,
+    })),
+  };
+}
+
 export async function slugExists(slug) {
   const res = await query('SELECT 1 FROM stores WHERE slug = $1', [slug]);
   return res.rowCount > 0;
@@ -517,7 +557,7 @@ export async function createTestEntry(storeId, segment) {
       segment?.label || 'Test Ödülü',
       `TEST-${String(now.getTime()).slice(-6)}`,
       segment?.discountType || 'percentage',
-      Number(segment?.discountValue || 0),
+      segment?.discountValue == null ? null : Number(segment.discountValue),
       'Test katılımı — gerçek müşteri/kupon değildir',
     ],
   );

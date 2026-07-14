@@ -54,6 +54,10 @@ export const config = {
   backendBaseUrl:
     env.BACKEND_BASE_URL || process.env.BACKEND_BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`,
   contactAdminKey: env.CONTACT_ADMIN_KEY || process.env.CONTACT_ADMIN_KEY || '',
+  superAdmin: {
+    email: (env.SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase(),
+    passwordHash: env.SUPER_ADMIN_PASSWORD_HASH || process.env.SUPER_ADMIN_PASSWORD_HASH || '',
+  },
   iyzico: {
     apiKey: env.IYZICO_API_KEY || process.env.IYZICO_API_KEY || '',
     secretKey: env.IYZICO_SECRET_KEY || process.env.IYZICO_SECRET_KEY || '',
