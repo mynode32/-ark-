@@ -184,7 +184,7 @@ export class WheelEngine {
 
       // Gift-box icons take up valuable space beside coupon labels. Keep other
       // prize icons, but omit the generic gift box so coupon text can breathe.
-      const icon = seg.icon === '🎁' ? '' : seg.icon || '';
+      const icon = String(seg.icon || '').replace(/🎁[\uFE0E\uFE0F]?/gu, '').trim();
       if (icon) {
         ctx.font = '22px sans-serif';
         ctx.fillText(icon, r * 0.35, 0);

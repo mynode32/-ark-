@@ -605,7 +605,7 @@ class AdminPanel {
                   <div class="segment-item" data-id="${seg.couponGroupId}">
                     <div class="segment-color" style="background:${seg.color}"></div>
                     <div class="segment-info">
-                      <div class="segment-label" style="color:${seg.textColor || '#fff'}">${escapeHtml(seg.icon)} ${escapeHtml(seg.label)}</div>
+                      <div class="segment-label" style="color:${seg.textColor || '#fff'}">${escapeHtml(String(seg.icon || '').replace(/🎁[\uFE0E\uFE0F]?/gu, '').trim())}${String(seg.icon || '').replace(/🎁[\uFE0E\uFE0F]?/gu, '').trim() ? ' ' : ''}${escapeHtml(seg.label)}</div>
                       <div class="segment-meta">Çarkta ${seg.sliceCount} dilim • Kazanma ağırlığı: %${Number(seg.probability.toFixed(1))} ${seg.couponCode ? `• Kod: ${escapeHtml(seg.couponCode)}` : ''} ${seg.ikasCampaignId ? '• İkas kampanyasına bağlı' : ''}</div>
                     </div>
                     <div class="segment-actions">
@@ -1280,7 +1280,7 @@ class AdminPanel {
         ikasCampaignId: null,
         discountType: 'percentage',
         discountValue: 0,
-        icon: '🎁',
+        icon: '',
       };
     }
 
@@ -1362,7 +1362,7 @@ class AdminPanel {
         id: seg.id || generateId(),
         couponGroupId: seg.couponGroupId,
         label,
-        icon: seg.icon || '',
+        icon: String(seg.icon || '').replace(/🎁[\uFE0E\uFE0F]?/gu, '').trim(),
         color: document.getElementById('seg-color').value || '#1E3A8A',
         textColor: document.getElementById('seg-textcolor').value || '#FFFFFF',
         discountType,

@@ -7,7 +7,7 @@ import { encryptSecret } from './services/crypto.js';
 // / carbon-gray palette so adjacent slices stay readable at a glance.
 const GENERIC_DEFAULT_CONFIG = {
   segments: [
-    { id: 1, label: '%10 İNDİRİM', color: '#D2001F', textColor: '#FFFFFF', probability: 25, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 10, icon: '🎁' },
+    { id: 1, label: '%10 İNDİRİM', color: '#D2001F', textColor: '#FFFFFF', probability: 25, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 10, icon: '' },
     { id: 2, label: 'Kargo Bedava', color: '#1C1C1E', textColor: '#FFFFFF', probability: 20, couponCode: null, ikasCampaignId: null, discountType: 'freeShipping', discountValue: 0, icon: '🚚' },
     { id: 3, label: '%15 İNDİRİM', color: '#48484A', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'percentage', discountValue: 15, icon: '⭐' },
     { id: 4, label: '50₺ İNDİRİM', color: '#8B0000', textColor: '#FFFFFF', probability: 15, couponCode: null, ikasCampaignId: null, discountType: 'fixed', discountValue: 50, icon: '💰' },

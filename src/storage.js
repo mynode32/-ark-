@@ -11,7 +11,7 @@ export const DEFAULT_CONFIG = {
       couponCode: null,
       discountType: 'percentage',
       discountValue: 10,
-      icon: '🎁',
+      icon: '',
     },
     {
       id: 2,
