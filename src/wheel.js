@@ -182,14 +182,18 @@ export class WheelEngine {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Icon at 38% radius
-      ctx.font = '22px sans-serif';
-      ctx.fillText(seg.icon || '', r * 0.35, 0);
+      // Gift-box icons take up valuable space beside coupon labels. Keep other
+      // prize icons, but omit the generic gift box so coupon text can breathe.
+      const icon = seg.icon === '🎁' ? '' : seg.icon || '';
+      if (icon) {
+        ctx.font = '22px sans-serif';
+        ctx.fillText(icon, r * 0.35, 0);
+      }
 
       // Label at 65% radius — auto-shrunk (and truncated as a last resort) so text
       // can never run past the wheel's edge no matter how long the label is
       const label = seg.label || '';
-      const textCenterR = r * 0.65;
+      const textCenterR = icon ? r * 0.65 : r * 0.55;
       const maxLabelWidth = Math.max(20, 2 * (r - 8 - textCenterR));
       let fontSize = 16;
       ctx.font = `800 ${fontSize}px 'Outfit', sans-serif`;
