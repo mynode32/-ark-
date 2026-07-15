@@ -6,10 +6,10 @@ değiştirin, üstüne eklemeyin).
 
 ```html
 <!-- Çark Çevir Kazan Widget -->
-<script src="https://cark-backend.onrender.com/dist/cark-widget.js"></script>
+<script src="https://ark-0ntz.onrender.com/dist/cark-widget.js"></script>
 <script>
   CarkWidget.init({
-    apiBaseUrl: "https://cark-backend.onrender.com",
+    apiBaseUrl: "https://ark-0ntz.onrender.com",
     storeSlug: "yhmoda"
   });
 </script>
@@ -30,5 +30,5 @@ Admin panelinden embed kodu alırken **mutlaka** şu adresi kullanın (sonundaki
 `?apiUrl=...` kısmı olmadan kod her zaman placeholder üretir):
 
 ```
-http://localhost:3000/admin.html?apiUrl=https://cark-backend.onrender.com
+http://localhost:3000/admin.html?apiUrl=https://ark-0ntz.onrender.com
 ```

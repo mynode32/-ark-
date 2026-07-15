@@ -109,7 +109,7 @@ export const DEFAULT_CONFIG = {
   },
 };
 
-export const getApiUrl = () => window.CARK_API_URL || 'https://cark-backend.onrender.com';
+export const getApiUrl = () => window.CARK_API_URL || window.location.origin;
 export const getStoreSlug = () => window.CARK_STORE_SLUG || '';
 
 function getApiBase() {

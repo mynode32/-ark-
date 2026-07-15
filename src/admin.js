@@ -11,7 +11,7 @@ import { applyWidgetTheme } from './siteTheme.js';
 import './styles/main.css';
 
 function getApiBase() {
-  return window.CARK_API_URL || 'https://cark-backend.onrender.com';
+  return window.CARK_API_URL || window.location.origin;
 }
 
 function authToken() {

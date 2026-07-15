@@ -1,4 +1,4 @@
-const API_BASE = window.CARK_API_URL || 'https://cark-backend.onrender.com';
+const API_BASE = window.CARK_API_URL || window.location.origin;
 const TOKEN_KEY = 'mystore_super_admin_token';
 const loginView = document.getElementById('superLogin');
 const dashboard = document.getElementById('superDashboard');
