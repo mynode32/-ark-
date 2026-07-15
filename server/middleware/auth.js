@@ -39,3 +39,11 @@ export function requireActiveSubscription(req, res, next) {
     subscriptionEndsAt: req.subscriptionAccess?.endsAt || null,
   });
 }
+
+export function requireVerifiedEmail(req, res, next) {
+  if (req.store?.emailVerifiedAt) return next();
+  return res.status(403).json({
+    error: 'Bu işlem için önce e-posta adresinizi doğrulayın.',
+    code: 'EMAIL_VERIFICATION_REQUIRED',
+  });
+}

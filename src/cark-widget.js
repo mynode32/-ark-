@@ -907,6 +907,7 @@ const WIDGET_CSS = `
 .cark-style-standard .cark-cta-btn::after {
   display: none;
 }
+.cark-sound-toggle{position:absolute;right:16px;top:16px;width:38px;height:38px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(15,23,42,.62);color:#fff;cursor:pointer;z-index:4;font-size:17px;backdrop-filter:blur(8px)}
 `;
 
 class CarkApp {
@@ -920,7 +921,7 @@ class CarkApp {
     // on screen to show for it — a small indicator after a short grace
     // period beats the widget appearing to simply not exist. Styled inline
     // since the widget's own stylesheet isn't injected until after this.
-    const loadingTimer = setTimeout(() => this.showLoadingIndicator(), 1200);
+    const loadingTimer = setTimeout(() => this.showLoadingIndicator(), 500);
     try {
       this.config = await fetchConfig();
     } finally {
@@ -945,6 +946,17 @@ class CarkApp {
     applyWidgetTheme(document.getElementById('cark-widget-root'), this.config.theme || {});
 
     this.wheel = new WheelEngine(els.canvas, this.config);
+    const soundKey = `cark_sound_${window.CARK_STORE_SLUG || 'default'}`;
+    const savedSound = localStorage.getItem(soundKey);
+    this.wheel.soundEnabled = this.config.settings.soundEnabled !== false && savedSound !== 'off';
+    const soundButton = document.createElement('button');
+    soundButton.type = 'button';
+    soundButton.className = 'cark-sound-toggle';
+    soundButton.setAttribute('aria-label', 'Çark sesini aç veya kapat');
+    const renderSound = () => { soundButton.textContent = this.wheel.soundEnabled ? '🔊' : '🔇'; soundButton.setAttribute('aria-pressed', String(this.wheel.soundEnabled)); };
+    renderSound();
+    soundButton.addEventListener('click', () => { this.wheel.soundEnabled = !this.wheel.soundEnabled; localStorage.setItem(soundKey, this.wheel.soundEnabled ? 'on' : 'off'); renderSound(); });
+    els.modal.appendChild(soundButton);
     this.confetti = new Confetti(els.modal);
 
     this.formMgr = new FormManager(els.form, this.config, {

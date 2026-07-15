@@ -21,6 +21,7 @@ const GENERIC_DEFAULT_CONFIG = {
     triggerType: 'delay',
     triggerDelay: 3000,
     triggerScrollPercent: 50,
+    soundEnabled: true,
   },
   kvkk: {
     etiText:
@@ -36,7 +37,7 @@ const GENERIC_DEFAULT_CONFIG = {
     wheelStyle: 'premium', // 'premium' | 'standard' — bkz. src/wheel.js render()
     pointerStyle: 'top', // 'top' | 'center' — bkz. src/wheel.js _drawCenterPointerPetal
     wheelSize: 330,
-    spinDurationMs: 7000,
+    spinDurationMs: 4200,
     autoSiteTheme: true,
     backgroundMode: 'auto',
     popupOpacity: 0.82,
@@ -76,6 +77,7 @@ function rowToStore(row) {
     createdAt: row.created_at,
     planType: row.plan_type,
     subscriptionStatus: row.subscription_status,
+    subscriptionStartsAt: row.subscription_starts_at,
     subscriptionEndsAt: row.subscription_ends_at,
     allowedDomains: row.allowed_domains || [],
     isOnboarded: Boolean(row.is_onboarded),
@@ -131,7 +133,7 @@ export async function getSuperAdminOverview() {
       FROM stores
     `),
     query(`
-      SELECT s.id, s.slug, s.name, s.plan_type, s.subscription_status, s.subscription_ends_at,
+      SELECT s.id, s.slug, s.name, s.plan_type, s.subscription_status, s.subscription_starts_at, s.subscription_ends_at,
              s.is_onboarded, s.email_verified_at, s.created_at, s.allowed_domains,
              COUNT(DISTINCT e.id)::int AS entry_count,
              COUNT(DISTINCT e.id) FILTER (WHERE e.timestamp >= now() - interval '24 hours')::int AS entries_24h,
@@ -165,6 +167,7 @@ export async function getSuperAdminOverview() {
       name: row.name,
       planType: row.plan_type,
       subscriptionStatus: row.subscription_status,
+      subscriptionStartsAt: row.subscription_starts_at,
       subscriptionEndsAt: row.subscription_ends_at,
       isOnboarded: Boolean(row.is_onboarded),
       emailVerified: Boolean(row.email_verified_at),
@@ -183,7 +186,7 @@ export async function getSuperAdminOverview() {
 export async function getSuperAdminStoreDetail(storeId) {
   const [storeResult, activityResult, billingResult, prizeResult] = await Promise.all([
     query(`SELECT s.id, s.slug, s.name, s.email, s.plan_type, s.subscription_status,
-                  s.subscription_ends_at, s.created_at, s.is_onboarded, s.email_verified_at,
+                  s.subscription_starts_at, s.subscription_ends_at, s.created_at, s.is_onboarded, s.email_verified_at,
                   s.allowed_domains, p.platform,
                   (p.ikas_client_id IS NOT NULL AND p.ikas_store_id IS NOT NULL) AS ikas_connected
            FROM stores s LEFT JOIN store_platform_credentials p ON p.store_id = s.id
@@ -207,6 +210,7 @@ export async function getSuperAdminStoreDetail(storeId) {
     store: {
       id: row.id, slug: row.slug, name: row.name, email: row.email,
       planType: row.plan_type, subscriptionStatus: row.subscription_status,
+      subscriptionStartsAt: row.subscription_starts_at,
       subscriptionEndsAt: row.subscription_ends_at, createdAt: row.created_at,
       isOnboarded: Boolean(row.is_onboarded), emailVerified: Boolean(row.email_verified_at),
       allowedDomains: row.allowed_domains || [], platform: row.platform || 'manual',
@@ -235,6 +239,7 @@ export async function getWidgetConfig(storeId) {
 export const REQUIRED_SEGMENT_COUNT = 6;
 const MAX_DISCOUNT_VALUE = { percentage: 100, fixed: 100000, freeShipping: 100000, noLuck: 0 };
 const THEME_MODES = new Set(['auto', 'darkGlass', 'lightGlass', 'solid', 'image']);
+export const FREE_PALETTE = ['#D2001F', '#1C1C1E', '#48484A', '#8B0000', '#0A0A0A', '#6E6E73'];
 
 function sanitizeTheme(input = {}) {
   const theme = { ...input };
@@ -314,7 +319,7 @@ export async function getConfigHistory(storeId, limit = 30) {
   }));
 }
 
-export async function saveWidgetConfig(storeId, data) {
+export async function saveWidgetConfig(storeId, data, { pro = false } = {}) {
   const store = await findStoreById(storeId);
   if (!store) {
     throw new Error('Mağaza bulunamadı');
@@ -324,6 +329,9 @@ export async function saveWidgetConfig(storeId, data) {
     const error = validateSegments(data.segments);
     if (error) {
       throw Object.assign(new Error(error), { status: 400 });
+    }
+    if (!pro && data.segments.some((segment) => !FREE_PALETTE.includes(String(segment.color).toUpperCase()))) {
+      throw Object.assign(new Error('Özel dilim renkleri Pro plana özeldir. Ücretsiz paletteki renkleri kullanın.'), { status: 403, code: 'PRO_FEATURE_REQUIRED' });
     }
     const previousSegments = config.segments || [];
     config.segments = data.segments.map((segment) => {
@@ -356,7 +364,17 @@ export async function saveWidgetConfig(storeId, data) {
     config.embed = { ...config.embed, ...data.embed };
   }
   if (data.theme) {
-    config.theme = { ...config.theme, ...sanitizeTheme(data.theme) };
+    const safeTheme = sanitizeTheme(data.theme);
+    if (!pro) {
+      const proKeys = ['backgroundImageUrl', 'primaryColor', 'primaryColorDark', 'pointerColor', 'bgDark', 'bgMid', 'bgLight'];
+      const changesProKey = proKeys.some((key) => key in safeTheme && safeTheme[key] !== config.theme?.[key]);
+      if (changesProKey || (safeTheme.wheelStyle && safeTheme.wheelStyle !== 'standard')) {
+        throw Object.assign(new Error('Özel renkler, görselli arka plan ve Premium çark stili Pro plana özeldir.'), { status: 403, code: 'PRO_FEATURE_REQUIRED' });
+      }
+      safeTheme.wheelStyle = 'standard';
+      safeTheme.backgroundImageUrl = '';
+    }
+    config.theme = { ...config.theme, ...safeTheme };
   }
   await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
 
@@ -793,6 +811,25 @@ export async function updateStorePassword(storeId, passwordHash) {
 
 export async function markEmailVerified(storeId) {
   await query('UPDATE stores SET email_verified_at = now() WHERE id = $1', [storeId]);
+}
+
+export async function updateStorePlan(storeId, { planType, subscriptionStatus, subscriptionStartsAt, subscriptionEndsAt }) {
+  const allowedPlans = new Set(['free', 'pro']);
+  const allowedStatuses = new Set(['trialing', 'active', 'past_due', 'canceled']);
+  if (!allowedPlans.has(planType) || !allowedStatuses.has(subscriptionStatus)) {
+    throw Object.assign(new Error('Geçersiz plan veya abonelik durumu'), { status: 400 });
+  }
+  const endsAt = subscriptionEndsAt ? new Date(subscriptionEndsAt) : null;
+  const startsAt = subscriptionStartsAt ? new Date(subscriptionStartsAt) : new Date();
+  if (!endsAt || Number.isNaN(endsAt.getTime()) || Number.isNaN(startsAt.getTime()) || endsAt <= startsAt) {
+    throw Object.assign(new Error('Plan bitiş tarihi başlangıç tarihinden sonra olmalıdır'), { status: 400 });
+  }
+  const result = await query(`UPDATE stores SET plan_type = $2, subscription_status = $3,
+    subscription_starts_at = $4, subscription_ends_at = $5 WHERE id = $1 AND deleted_at IS NULL RETURNING *`,
+    [storeId, planType, subscriptionStatus, startsAt.toISOString(), endsAt.toISOString()]);
+  if (!result.rowCount) throw Object.assign(new Error('Mağaza bulunamadı'), { status: 404 });
+  await logConfigChange(storeId, 'plan', `${planType} planı ${subscriptionStatus} olarak güncellendi`);
+  return rowToStore(result.rows[0]);
 }
 
 export async function setOnboarded(storeId) {

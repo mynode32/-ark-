@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { adminAuth, requireActiveSubscription } from '../middleware/auth.js';
+import { adminAuth, requireActiveSubscription, requireVerifiedEmail } from '../middleware/auth.js';
+import { hasProAccess } from '../services/subscriptionAccess.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
   getWidgetConfig,
@@ -42,6 +43,13 @@ adminRouter.use(adminAuth);
 adminRouter.use((req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/account') return next();
   return requireActiveSubscription(req, res, next);
+});
+
+// Hesap ve doğrulama durumunu okumak serbesttir; mağaza verisini değiştiren
+// kritik işlemler doğrulanmış bir e-posta gerektirir.
+adminRouter.use((req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/account') return next();
+  return requireVerifiedEmail(req, res, next);
 });
 
 // Each test-coupon call can create a real İkas coupon — throttled to blunt
@@ -99,7 +107,7 @@ adminRouter.get('/config', asyncHandler(async (req, res) => {
  * Update widget configuration
  */
 adminRouter.put('/config', asyncHandler(async (req, res) => {
-  const updated = await saveWidgetConfig(req.storeId, req.body);
+  const updated = await saveWidgetConfig(req.storeId, req.body, { pro: hasProAccess(req.store) });
   res.json(updated);
 }));
 

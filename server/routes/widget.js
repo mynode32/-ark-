@@ -96,6 +96,9 @@ const resolveStore = asyncHandler(async (req, res, next) => {
     return res.status(404).json({ error: 'Mağaza bulunamadı' });
   }
   req.store = store;
+  if (!store.emailVerifiedAt) {
+    return res.status(403).json({ error: 'Mağaza e-posta doğrulamasını tamamlamadı.', code: 'STORE_EMAIL_UNVERIFIED' });
+  }
   next();
 });
 

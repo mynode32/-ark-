@@ -89,7 +89,7 @@ export const DEFAULT_CONFIG = {
     wheelStyle: 'premium', // 'premium' | 'standard' — bkz. src/wheel.js render()
     pointerStyle: 'top', // 'top' | 'center' — bkz. src/wheel.js _drawCenterPointerPetal
     wheelSize: 330,
-    spinDurationMs: 7000,
+    spinDurationMs: 4200,
     // Off by default — the premium black/red identity is a deliberate brand
     // choice and shouldn't be diluted by adapting to the host site's colors.
     autoSiteTheme: false,

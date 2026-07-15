@@ -68,7 +68,7 @@ class AdminPanel {
           const data = await res.json();
           this.store = data.store;
           await this.loadFromBackend({ render: false });
-          if (!this.store.isOnboarded) {
+          if (!this.store.isOnboarded && this.store.emailVerifiedAt) {
             this.showOnboarding();
             return;
           }
@@ -97,6 +97,24 @@ class AdminPanel {
     const nameEl = document.getElementById('adminStoreName');
     if (nameEl && this.store) {
       nameEl.textContent = this.store.name;
+    }
+    const planEl = document.querySelector('.store-identity span');
+    if (planEl && this.store) {
+      const activePro = this.store.planType === 'pro' && this.store.subscriptionStatus === 'active' && (!this.store.subscriptionEndsAt || new Date(this.store.subscriptionEndsAt) > new Date());
+      planEl.textContent = activePro ? `Pro plan · ${this.store.subscriptionEndsAt ? new Date(this.store.subscriptionEndsAt).toLocaleDateString('tr-TR') : 'süresiz'}` : 'Ücretsiz plan';
+    }
+    document.getElementById('emailVerificationBanner')?.remove();
+    if (this.store && !this.store.emailVerifiedAt) {
+      const banner = document.createElement('div');
+      banner.id = 'emailVerificationBanner';
+      banner.className = 'email-verification-banner';
+      banner.innerHTML = '<span><strong>E-postanızı doğrulayın.</strong> Ayar kaydetme, entegrasyon ve yayınlama doğrulama tamamlanana kadar kapalıdır.</span><button type="button" class="btn btn-secondary">E-postayı yeniden gönder</button>';
+      document.querySelector('.panel-main')?.prepend(banner);
+      banner.querySelector('button').onclick = async () => {
+        const res = await fetch(`${getApiBase()}/api/auth/resend-verification`, { method: 'POST', headers: { Authorization: `Bearer ${authToken()}` } });
+        const data = await res.json().catch(() => ({}));
+        this.showToast(res.ok ? 'Doğrulama e-postası gönderildi' : (data.error || 'E-posta gönderilemedi'), res.ok ? 'success' : 'error');
+      };
     }
     const avatar = document.getElementById('storeAvatar');
     if (avatar && this.store) avatar.textContent = this.store.name.trim().charAt(0).toLocaleUpperCase('tr-TR') || 'M';
@@ -136,6 +154,7 @@ class AdminPanel {
     });
     sidebarScrim?.addEventListener('click', closeSidebar);
     this.setupSupportWidget();
+
 
     this.setupTabs();
     this.setupModalEscapeHandling();
@@ -270,7 +289,7 @@ class AdminPanel {
         saveAuthToken(data.token, isRegister || document.getElementById('authRememberMe').checked);
         this.store = data.store;
         await this.loadFromBackend({ render: false });
-        if (!this.store.isOnboarded) {
+        if (!this.store.isOnboarded && this.store.emailVerifiedAt) {
           this.showOnboarding();
           return;
         }
@@ -725,6 +744,10 @@ class AdminPanel {
                   <input type="url" class="form-input" id="setting-redirectUrl" value="${this.config.settings.redirectUrl}" placeholder="https://...">
                 </div>
               </div>
+              <div class="form-group">
+                <label><input type="checkbox" id="setting-soundEnabled" ${this.config.settings.soundEnabled !== false ? 'checked' : ''}> Çark çevirme ve kazanma sesleri aktif</label>
+                <div class="appearance-help-text">Ziyaretçi bu tercihi kendi cihazında ayrıca kapatabilir.</div>
+              </div>
               <div class="btn-group" style="justify-content: flex-end;">
                 <button class="btn btn-primary" id="saveSettingsBtn">Ayarları Kaydet</button>
               </div>
@@ -967,6 +990,7 @@ class AdminPanel {
         storeName: document.getElementById('setting-storeName').value,
         cooldownHours: parseInt(document.getElementById('setting-cooldown').value) || 24,
         redirectUrl: document.getElementById('setting-redirectUrl').value,
+        soundEnabled: document.getElementById('setting-soundEnabled').checked,
         triggerType: document.getElementById('setting-triggerType').value,
       };
       const triggerVal = document.getElementById('setting-triggerValue');
@@ -2235,6 +2259,14 @@ class AdminPanel {
     saveBtn.disabled = true;
     this.loadPlatformCredentials();
     this.loadBillingInfo();
+    const secretInput = document.getElementById('platform-ikasClientSecret');
+    if (secretInput && !document.getElementById('platformSecretToggle')) {
+      secretInput.parentElement.classList.add('password-field');
+      const toggle = document.createElement('button');
+      toggle.type = 'button'; toggle.id = 'platformSecretToggle'; toggle.className = 'password-toggle'; toggle.textContent = 'Göster';
+      secretInput.insertAdjacentElement('afterend', toggle);
+      toggle.addEventListener('click', () => this.togglePassword('platform-ikasClientSecret', 'platformSecretToggle'));
+    }
 
     saveBtn.addEventListener('click', async () => {
       if (!this.platformCredsLoaded) {

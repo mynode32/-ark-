@@ -1,5 +1,10 @@
 export const FREE_TRIAL_MS = 60 * 60 * 1000;
 
+export function hasProAccess(store, now = new Date()) {
+  const endsAt = store?.subscriptionEndsAt ? new Date(store.subscriptionEndsAt) : null;
+  return store?.planType === 'pro' && store?.subscriptionStatus === 'active' && (!endsAt || endsAt > now);
+}
+
 export function subscriptionAccess(store, now = new Date()) {
   const endsAt = store?.subscriptionEndsAt ? new Date(store.subscriptionEndsAt) : null;
   const expired = Boolean(endsAt && endsAt.getTime() <= now.getTime());

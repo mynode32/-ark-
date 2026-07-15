@@ -36,7 +36,7 @@ class CarkApp {
     // this can take several seconds with nothing on screen to show for it —
     // a small indicator after a short grace period beats the widget
     // appearing to simply not exist.
-    const loadingTimer = setTimeout(() => showLoadingIndicator(), 1200);
+    const loadingTimer = setTimeout(() => showLoadingIndicator(), 500);
     try {
       this.config = await fetchConfig();
     } finally {

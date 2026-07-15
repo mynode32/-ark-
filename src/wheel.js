@@ -14,6 +14,7 @@ export class WheelEngine {
     this.rotation = 0;
     this.isSpinning = false;
     this.audioCtx = null;
+    this.soundEnabled = config.settings?.soundEnabled !== false;
     this.winnerGlow = 0;
     this._idleWobbleFrame = null;
     this._setupCanvas();
@@ -523,10 +524,12 @@ export class WheelEngine {
   }
 
   _ensureAudio() {
+    if (!this.soundEnabled) return false;
     if (!this.audioCtx) {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+    return true;
   }
 
   _playTick(progress = 0) {
@@ -541,7 +544,7 @@ export class WheelEngine {
 
     // Synthesized Tick Sound — pitch/volume rise slightly as progress advances
     try {
-      this._ensureAudio();
+      if (!this._ensureAudio()) return;
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
       osc.connect(gain);
@@ -565,6 +568,7 @@ export class WheelEngine {
   }
 
   _playWhoosh() {
+    if (!this.soundEnabled) return;
     try {
       this._ensureAudio();
       const ctx = this.audioCtx;
@@ -586,6 +590,7 @@ export class WheelEngine {
   }
 
   _playLandingThud() {
+    if (!this.soundEnabled) return;
     try {
       this._ensureAudio();
       const ctx = this.audioCtx;
@@ -606,6 +611,7 @@ export class WheelEngine {
   }
 
   _playWinChime() {
+    if (!this.soundEnabled) return;
     try {
       this._ensureAudio();
       const ctx = this.audioCtx;
@@ -698,7 +704,7 @@ export class WheelEngine {
   _animateAnticipation(pullback) {
     return new Promise((resolve) => {
       const startRotation = this.rotation || 0;
-      const duration = 260;
+      const duration = 140;
       const startTime = performance.now();
       this._playWhoosh();
 
@@ -724,7 +730,7 @@ export class WheelEngine {
   _animateMainSpin(distance) {
     return new Promise((resolve) => {
       const startRotation = this.rotation;
-      const baseDuration = Math.max(1500, this.theme.spinDurationMs || 7000);
+      const baseDuration = Math.max(1500, this.theme.spinDurationMs || 4200);
       const duration = baseDuration + (Math.random() * 500 - 250); // hafif doğal varyasyon
       const startTime = performance.now();
       let lastSegmentIndex = -1;
@@ -769,7 +775,7 @@ export class WheelEngine {
   _animateSettle() {
     return new Promise((resolve) => {
       const finalRotation = this.rotation;
-      const duration = 450;
+      const duration = 260;
       const startTime = performance.now();
       this._playLandingThud();
 
@@ -800,7 +806,7 @@ export class WheelEngine {
       const wrapper = this.canvas.parentElement;
       if (wrapper) wrapper.classList.add('cark-winner-pulse');
 
-      const duration = 900;
+      const duration = 520;
       const startTime = performance.now();
       this._playWinChime();
 
