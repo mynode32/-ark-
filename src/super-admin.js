@@ -59,6 +59,7 @@ function renderOverview(data) {
   document.getElementById('superStats').innerHTML = stats.map(([label, value]) => `<article><span>${label}</span><strong>${Number(value || 0)}</strong></article>`).join('');
   stores = data.stores || []; renderStores(); loginView.hidden = true; dashboard.hidden = false;
   document.getElementById('lastUpdated').textContent = `Son güncelleme: ${new Date().toLocaleTimeString('tr-TR')}`;
+  loadAuditLog(); loadLoginAttempts();
 }
 async function loadOverview() { renderOverview(await api('/overview')); }
 async function openDetail(id) {
@@ -68,13 +69,38 @@ async function openDetail(id) {
     const data = await api(`/stores/${id}`); const s = data.store;
     document.getElementById('storeDetail').innerHTML = `<div class="detail-head"><span class="pill violet">${escapeHtml(s.planType)}</span><h2>${escapeHtml(s.name)}</h2><p>${escapeHtml(s.email)} · ${escapeHtml(s.slug)}</p></div>
       <div class="detail-grid"><div class="detail-box"><span>Abonelik</span><strong>${escapeHtml(s.subscriptionStatus)} · ${remaining(s.subscriptionEndsAt)}</strong></div><div class="detail-box"><span>Altyapı</span><strong>${s.ikasConnected ? 'İkas bağlı' : escapeHtml(s.platform)}</strong></div><div class="detail-box"><span>Kurulum</span><strong>${s.isOnboarded ? 'Tamamlandı' : 'Bekliyor'}</strong></div><div class="detail-box"><span>E-posta</span><strong>${s.emailVerified ? 'Doğrulandı' : 'Doğrulama bekliyor'}</strong>${s.emailVerified ? '' : '<button type="button" class="row-action" id="verifyStoreEmail">Doğrulanmış işaretle</button>'}</div><div class="detail-box"><span>Domainler</span><strong>${s.allowedDomains.map(escapeHtml).join(', ') || 'Yok'}</strong></div></div>
+      <section class="detail-section"><h3>Mağaza Bilgilerini Düzenle</h3><form id="profileForm" class="plan-form"><label>Ad<input id="profileName" type="text" value="${escapeHtml(s.name)}" required minlength="2" maxlength="80"></label><label>E-posta<input id="profileEmail" type="email" value="${escapeHtml(s.email)}" required></label><label>İzinli Domainler (virgülle ayırın)<input id="profileDomains" type="text" value="${escapeHtml(s.allowedDomains.join(', '))}"></label><button type="submit">Bilgileri Güncelle</button></form></section>
       <section class="detail-section"><h3>Planı Düzenle</h3><form id="planForm" class="plan-form"><select id="planType"><option value="free" ${s.planType === 'free' ? 'selected' : ''}>Ücretsiz</option><option value="pro" ${s.planType === 'pro' ? 'selected' : ''}>Pro</option></select><select id="planStatus"><option value="trialing" ${s.subscriptionStatus === 'trialing' ? 'selected' : ''}>Deneme</option><option value="active" ${s.subscriptionStatus === 'active' ? 'selected' : ''}>Aktif</option><option value="past_due" ${s.subscriptionStatus === 'past_due' ? 'selected' : ''}>Ödeme gecikmiş</option><option value="canceled" ${s.subscriptionStatus === 'canceled' ? 'selected' : ''}>İptal</option></select><label>Başlangıç<input id="planStart" type="datetime-local" value="${new Date(s.subscriptionStartsAt || Date.now()).toISOString().slice(0,16)}"></label><label>Bitiş<input id="planEnd" type="datetime-local" value="${new Date(s.subscriptionEndsAt || Date.now() + 86400000).toISOString().slice(0,16)}"></label><button type="submit">Planı Güncelle</button></form></section>
       <section class="detail-section"><h3>Ödül Performansı</h3>${data.prizes.length ? data.prizes.map(p => `<div class="activity"><strong>${escapeHtml(p.prize)}</strong><span>${p.count} kazanım</span><small>${p.failed} hata</small></div>`).join('') : '<p class="muted">Henüz katılım yok.</p>'}</section>
       <section class="detail-section"><h3>Son Hareketler</h3>${data.activity.length ? data.activity.map(a => `<div class="activity"><strong>${a.type === 'spin' ? 'Çark' : 'Ayar'}</strong><span>${escapeHtml(a.section)}<small>${escapeHtml(a.summary || '')}</small></span><small>${formatDate(a.at)}</small></div>`).join('') : '<p class="muted">Hareket yok.</p>'}</section>
       <section class="detail-section"><h3>Ödeme Geçmişi</h3>${data.billing.length ? data.billing.map(b => `<div class="activity"><strong>${escapeHtml(b.plan_type)}</strong><span>${Number(b.amount).toLocaleString('tr-TR')} ${escapeHtml(b.currency)}</span><small>${escapeHtml(b.status)} · ${formatDate(b.created_at)}</small></div>`).join('') : '<p class="muted">Ödeme kaydı yok.</p>'}</section>`;
+    document.getElementById('profileForm').addEventListener('submit', async (event) => { event.preventDefault(); const button=event.currentTarget.querySelector('button'); button.disabled=true; try { const domains=document.getElementById('profileDomains').value.split(',').map(d=>d.trim()).filter(Boolean); await api(`/stores/${id}/profile`, { method:'PUT', body:JSON.stringify({ name:document.getElementById('profileName').value, email:document.getElementById('profileEmail').value, allowedDomains:domains }) }); await loadOverview(); await openDetail(id); } catch(error) { alert(error.message); } finally { button.disabled=false; } });
     document.getElementById('planForm').addEventListener('submit', async (event) => { event.preventDefault(); const button=event.currentTarget.querySelector('button'); button.disabled=true; try { await api(`/stores/${id}/plan`, { method:'PUT', body:JSON.stringify({ planType:document.getElementById('planType').value, subscriptionStatus:document.getElementById('planStatus').value, subscriptionStartsAt:new Date(document.getElementById('planStart').value).toISOString(), subscriptionEndsAt:new Date(document.getElementById('planEnd').value).toISOString() }) }); await loadOverview(); await openDetail(id); } catch(error) { alert(error.message); } finally { button.disabled=false; } });
     document.getElementById('verifyStoreEmail')?.addEventListener('click', async (event) => { if (!confirm(`${s.email} adresi mağaza sahibi tarafından kontrol edildi mi?`)) return; event.currentTarget.disabled = true; try { await api(`/stores/${id}/verify-email`, { method: 'POST' }); await loadOverview(); await openDetail(id); } catch (error) { alert(error.message); event.currentTarget.disabled = false; } });
   } catch (error) { document.getElementById('storeDetail').innerHTML = `<p class="danger">${escapeHtml(error.message)}</p>`; }
+}
+function openCreateStore() { document.getElementById('createStoreDrawer').hidden = false; document.getElementById('createStoreBackdrop').hidden = false; }
+function closeCreateStore() { document.getElementById('createStoreDrawer').hidden = true; document.getElementById('createStoreBackdrop').hidden = true; document.getElementById('createStoreForm').reset(); }
+async function loadAuditLog() {
+  const rows = document.getElementById('auditLogRows');
+  try {
+    const data = await api('/audit-log?limit=100');
+    rows.innerHTML = data.entries.length ? data.entries.map((entry) => {
+      const store = stores.find((s) => s.id === entry.storeId);
+      const detail = entry.after ? Object.entries(entry.after).map(([k, v]) => `${k}: ${escapeHtml(String(v))}`).join(', ') : '';
+      return `<tr><td>${formatDate(entry.createdAt)}</td><td>${escapeHtml(entry.actorEmail)}</td><td>${escapeHtml(entry.action)}</td><td>${store ? escapeHtml(store.name) : (entry.storeId || '—')}</td><td><small>${detail}</small></td></tr>`;
+    }).join('') : '<tr><td colspan="5" class="empty">Henüz bir işlem kaydı yok.</td></tr>';
+  } catch (error) { rows.innerHTML = `<tr><td colspan="5" class="danger">${escapeHtml(error.message)}</td></tr>`; }
+}
+async function loadLoginAttempts() {
+  const rows = document.getElementById('loginAttemptRows');
+  const context = document.getElementById('loginAttemptContextFilter').value;
+  try {
+    const data = await api(`/login-attempts?limit=100${context ? `&context=${context}` : ''}`);
+    rows.innerHTML = data.attempts.length ? data.attempts.map((a) =>
+      `<tr><td>${formatDate(a.createdAt)}</td><td>${a.context === 'super_admin' ? 'Süper admin' : 'Mağaza sahibi'}</td><td>${escapeHtml(a.email)}</td><td><span class="pill ${a.success ? 'green' : 'danger'}">${a.success ? 'Başarılı' : 'Başarısız'}</span></td><td>${escapeHtml(a.ip || '—')}</td></tr>`,
+    ).join('') : '<tr><td colspan="5" class="empty">Kayıt yok.</td></tr>';
+  } catch (error) { rows.innerHTML = `<tr><td colspan="5" class="danger">${escapeHtml(error.message)}</td></tr>`; }
 }
 function closeDetail() { document.getElementById('storeDrawer').hidden = true; document.getElementById('drawerBackdrop').hidden = true; }
 function exportCsv() {
@@ -90,4 +116,21 @@ document.getElementById('exportStores').addEventListener('click', exportCsv);
 ['storeSearch','statusFilter','connectionFilter'].forEach(id => document.getElementById(id).addEventListener('input', renderStores));
 document.getElementById('storeRows').addEventListener('click', e => { const id=e.target.closest('[data-detail]')?.dataset.detail; if(id) openDetail(id); });
 document.getElementById('drawerClose').addEventListener('click', closeDetail); document.getElementById('drawerBackdrop').addEventListener('click', closeDetail);
+document.getElementById('createStoreBtn').addEventListener('click', openCreateStore);
+document.getElementById('createStoreClose').addEventListener('click', closeCreateStore);
+document.getElementById('createStoreBackdrop').addEventListener('click', closeCreateStore);
+document.getElementById('createStoreForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('button');
+  button.disabled = true;
+  try {
+    await api('/stores', { method: 'POST', body: JSON.stringify({ storeName: document.getElementById('createStoreName').value, email: document.getElementById('createStoreEmail').value }) });
+    closeCreateStore();
+    await loadOverview();
+    alert('Mağaza oluşturuldu. Şifre belirleme bağlantısı mağaza sahibinin e-postasına gönderildi.');
+  } catch (error) { alert(error.message); } finally { button.disabled = false; }
+});
+document.getElementById('refreshAuditLog').addEventListener('click', () => loadAuditLog().catch(e => alert(e.message)));
+document.getElementById('refreshLoginAttempts').addEventListener('click', () => loadLoginAttempts().catch(e => alert(e.message)));
+document.getElementById('loginAttemptContextFilter').addEventListener('change', () => loadLoginAttempts().catch(e => alert(e.message)));
 if (token()) loadOverview().catch(error => showLogin(error.message));

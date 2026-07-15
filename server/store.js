@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { query, withTransaction } from './db.js';
 import { encryptSecret } from './services/crypto.js';
 
@@ -103,6 +104,66 @@ export async function createStore({ slug, name, email, passwordHash, widgetConfi
     [slug, name, email, passwordHash, JSON.stringify(widgetConfig), CURRENT_TERMS_VERSION],
   );
   return rowToStore(res.rows[0]);
+}
+
+const STORE_EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/;
+
+function slugify(name) {
+  return (
+    (name || '')
+      .toLowerCase()
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'magaza'
+  );
+}
+
+async function uniqueSlug(base) {
+  let slug = base;
+  let attempt = 0;
+  while (await slugExists(slug)) {
+    attempt += 1;
+    slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+    if (attempt > 10) {
+      throw new Error('Benzersiz slug üretilemedi');
+    }
+  }
+  return slug;
+}
+
+/**
+ * Süper admin panelinden mağaza oluşturma — kayıt akışındaki (auth.js
+ * /register) aynı doğrulama kurallarını kullanır, ama şifreyi kimse
+ * bilmez/görmez: mağaza sahibi ilk girişte "şifremi unuttum" akışıyla
+ * kendi şifresini belirler (bkz. server/routes/superAdmin.js POST /stores).
+ */
+export async function createStoreAsSuperAdmin({ storeName, email }) {
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (typeof storeName !== 'string' || storeName.trim().length < 2 || storeName.length > 80) {
+    throw Object.assign(new Error('Mağaza adı 2-80 karakter arasında olmalıdır'), { status: 400 });
+  }
+  if (!STORE_EMAIL_RE.test(normalizedEmail)) {
+    throw Object.assign(new Error('Geçerli bir e-posta adresi giriniz'), { status: 400 });
+  }
+  const existing = await findStoreByEmail(normalizedEmail);
+  if (existing) {
+    throw Object.assign(new Error('Bu e-posta ile zaten bir hesap var'), { status: 400 });
+  }
+  const slug = await uniqueSlug(slugify(storeName));
+  const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+  return createStore({
+    slug,
+    name: storeName.trim(),
+    email: normalizedEmail,
+    passwordHash,
+    widgetConfig: defaultConfigFor(storeName),
+  });
 }
 
 export async function findStoreBySlug(slug) {
@@ -239,7 +300,49 @@ export async function getWidgetConfig(storeId) {
 export const REQUIRED_SEGMENT_COUNT = 6;
 const MAX_DISCOUNT_VALUE = { percentage: 100, fixed: 100000, freeShipping: 100000, noLuck: 0 };
 const THEME_MODES = new Set(['auto', 'darkGlass', 'lightGlass', 'solid', 'image']);
-export const FREE_PALETTE = ['#D2001F', '#1C1C1E', '#48484A', '#8B0000', '#0A0A0A', '#6E6E73'];
+
+// Sabit, tasarımı bozmayacak 5 hazır renk teması — hem ücretsiz hem Pro
+// mağazalar bu temalardan birini uygulayabilir (bkz. saveWidgetConfig
+// `themePresetId`). Pro mağazalar bunlara ek olarak serbest hex seçebilir;
+// ücretsiz mağazalar dilim renklerini yalnızca bu temaların renklerinden
+// (FREE_PALETTE) seçebilir, tema renklerini ise sadece tam bir preset
+// uygulayarak değiştirebilir.
+export const THEME_PRESETS = [
+  {
+    id: 'klasik',
+    name: 'Klasik Kırmızı',
+    segments: ['#D2001F', '#1C1C1E', '#48484A', '#8B0000', '#0A0A0A', '#6E6E73'],
+    theme: { primaryColor: '#FFD700', primaryColorDark: '#FFA502', pointerColor: '#FF4757', bgDark: '#0F0C29', bgMid: '#302B63', bgLight: '#24243E' },
+  },
+  {
+    id: 'gece-mavisi',
+    name: 'Gece Mavisi',
+    segments: ['#1D4ED8', '#0F172A', '#334155', '#1E3A8A', '#0B1220', '#475569'],
+    theme: { primaryColor: '#38BDF8', primaryColorDark: '#0EA5E9', pointerColor: '#F43F5E', bgDark: '#0B1220', bgMid: '#1E293B', bgLight: '#334155' },
+  },
+  {
+    id: 'zumrut',
+    name: 'Zümrüt Yeşili',
+    segments: ['#059669', '#065F46', '#064E3B', '#10B981', '#022C22', '#34D399'],
+    theme: { primaryColor: '#34D399', primaryColorDark: '#10B981', pointerColor: '#F59E0B', bgDark: '#022C22', bgMid: '#064E3B', bgLight: '#0B3B2E' },
+  },
+  {
+    id: 'kraliyet-moru',
+    name: 'Kraliyet Moru',
+    segments: ['#7C3AED', '#4C1D95', '#2E1065', '#8B5CF6', '#1E1B4B', '#A78BFA'],
+    theme: { primaryColor: '#C084FC', primaryColorDark: '#A855F7', pointerColor: '#F472B6', bgDark: '#1E1B4B', bgMid: '#312E81', bgLight: '#0F0B2E' },
+  },
+  {
+    id: 'gun-batimi',
+    name: 'Gün Batımı',
+    segments: ['#F97316', '#C2410C', '#7C2D12', '#EA580C', '#9A3412', '#FB923C'],
+    theme: { primaryColor: '#FBBF24', primaryColorDark: '#F59E0B', pointerColor: '#EF4444', bgDark: '#431407', bgMid: '#7C2D12', bgLight: '#27150A' },
+  },
+];
+
+// Ücretsiz mağazaların dilim başına manuel olarak seçebileceği renkler —
+// yukarıdaki 5 hazır temanın tüm dilim renklerinin birleşimi.
+export const FREE_PALETTE = [...new Set(THEME_PRESETS.flatMap((preset) => preset.segments))];
 
 function sanitizeTheme(input = {}) {
   const theme = { ...input };
@@ -325,6 +428,25 @@ export async function saveWidgetConfig(storeId, data, { pro = false } = {}) {
     throw new Error('Mağaza bulunamadı');
   }
   const config = store.widgetConfig;
+
+  // Hazır tema uygulama, tekil alan düzenlemesinden ayrı ve atomik bir
+  // işlemdir — dilim + tema renklerini birlikte, tier'dan bağımsız olarak
+  // (bu 5 tema hem free hem pro için önceden onaylıdır) günceller.
+  if (data.themePresetId) {
+    const preset = THEME_PRESETS.find((item) => item.id === data.themePresetId);
+    if (!preset) {
+      throw Object.assign(new Error('Geçersiz renk teması'), { status: 400 });
+    }
+    config.segments = (config.segments || []).map((segment, index) => ({
+      ...segment,
+      color: preset.segments[index] || segment.color,
+    }));
+    config.theme = { ...config.theme, ...preset.theme };
+    await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
+    await logConfigChange(storeId, 'theme', `"${preset.name}" renk teması uygulandı`);
+    return config;
+  }
+
   if (data.segments) {
     const error = validateSegments(data.segments);
     if (error) {
@@ -832,6 +954,62 @@ export async function updateStorePlan(storeId, { planType, subscriptionStatus, s
   return rowToStore(result.rows[0]);
 }
 
+/**
+ * Süper admin panelinden mağaza profili (ad/e-posta/izinli domain)
+ * düzenleme — mevcut PUT /api/admin/domains ile aynı validateDomains'i,
+ * kayıt akışındakiyle aynı e-posta biçim/benzersizlik kuralını kullanır.
+ */
+export async function updateStoreProfile(storeId, { name, email, allowedDomains }) {
+  const fields = [];
+  const params = [storeId];
+
+  if (typeof name === 'string') {
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 80) {
+      throw Object.assign(new Error('Mağaza adı 2-80 karakter arasında olmalıdır'), { status: 400 });
+    }
+    params.push(trimmed);
+    fields.push(`name = $${params.length}`);
+  }
+
+  if (typeof email === 'string') {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/.test(normalizedEmail)) {
+      throw Object.assign(new Error('Geçerli bir e-posta adresi giriniz'), { status: 400 });
+    }
+    const existing = await findStoreByEmail(normalizedEmail);
+    if (existing && existing.id !== storeId) {
+      throw Object.assign(new Error('Bu e-posta ile zaten başka bir hesap var'), { status: 400 });
+    }
+    params.push(normalizedEmail);
+    fields.push(`email = $${params.length}`);
+  }
+
+  if (allowedDomains !== undefined) {
+    const error = validateDomains(allowedDomains);
+    if (error) {
+      throw Object.assign(new Error(error), { status: 400 });
+    }
+    const normalized = allowedDomains.map((d) => d.trim().replace(/^www\./, '').toLowerCase());
+    params.push(JSON.stringify(normalized));
+    fields.push(`allowed_domains = $${params.length}`);
+  }
+
+  if (!fields.length) {
+    throw Object.assign(new Error('Güncellenecek alan yok'), { status: 400 });
+  }
+
+  const result = await query(
+    `UPDATE stores SET ${fields.join(', ')} WHERE id = $1 AND deleted_at IS NULL RETURNING *`,
+    params,
+  );
+  if (!result.rowCount) {
+    throw Object.assign(new Error('Mağaza bulunamadı'), { status: 404 });
+  }
+  await logConfigChange(storeId, 'profile', 'Mağaza bilgileri süper admin tarafından güncellendi');
+  return rowToStore(result.rows[0]);
+}
+
 export async function setOnboarded(storeId) {
   await query('UPDATE stores SET is_onboarded = true WHERE id = $1', [storeId]);
 }
@@ -911,6 +1089,28 @@ export async function recordBillingEvent({
       rawPayload ? JSON.stringify(rawPayload) : null,
     ],
   );
+}
+
+export async function getBillingHistoryForStore(storeId, limit = 50) {
+  const res = await query(
+    `SELECT id, provider, amount, currency, status, plan_type, period_start, period_end,
+            invoice_number, invoice_url, created_at
+     FROM billing_history WHERE store_id = $1 ORDER BY created_at DESC LIMIT $2`,
+    [storeId, Math.min(200, Math.max(1, limit))],
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    provider: r.provider,
+    amount: Number(r.amount),
+    currency: r.currency,
+    status: r.status,
+    planType: r.plan_type,
+    periodStart: r.period_start,
+    periodEnd: r.period_end,
+    invoiceNumber: r.invoice_number,
+    invoiceUrl: r.invoice_url,
+    createdAt: r.created_at,
+  }));
 }
 
 export async function markPastDue(storeId) {

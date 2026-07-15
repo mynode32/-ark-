@@ -10,6 +10,7 @@ import {
   saveCheckoutSession,
   findCheckoutSession,
   completeCheckoutSession,
+  getBillingHistoryForStore,
 } from '../store.js';
 import { initializeCheckout, retrieveCheckout, PLAN_PRICING } from '../services/billing/iyzico.js';
 import { createInvoice } from '../services/invoicing/parasut.js';
@@ -93,8 +94,14 @@ billingRouter.get('/status', adminAuth, asyncHandler(async (req, res) => {
   res.json({
     planType: store.planType,
     subscriptionStatus: store.subscriptionStatus,
+    subscriptionStartsAt: store.subscriptionStartsAt,
     subscriptionEndsAt: store.subscriptionEndsAt,
+    planPricing: PLAN_PRICING,
   });
+}));
+
+billingRouter.get('/history', adminAuth, asyncHandler(async (req, res) => {
+  res.json({ history: await getBillingHistoryForStore(req.storeId) });
 }));
 
 billingRouter.post('/cancel', adminAuth, asyncHandler(async (req, res) => {

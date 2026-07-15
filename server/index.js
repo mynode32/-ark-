@@ -19,6 +19,11 @@ const app = express();
 const LEGACY_RENDER_HOST = 'cark-backend.onrender.com';
 const CANONICAL_RENDER_ORIGIN = 'https://ark-0ntz.onrender.com';
 
+// Render (ve benzeri) ters proxy arkasında çalışırken bu olmadan req.ip
+// proxy'nin adresini döner — login_attempts.ip hiçbir zaman gerçek istemci
+// IP'sini yansıtmaz ve şüpheli aktivite tespiti işe yaramaz hale gelirdi.
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: config.corsOrigin }));
 // KVKK full-text and similar admin fields are the largest legitimate
 // payloads (a few KB); this caps abuse without constraining real usage.

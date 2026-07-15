@@ -232,5 +232,39 @@ export async function ensureSchema() {
   `);
   await query('CREATE INDEX IF NOT EXISTS contact_leads_created_at_idx ON contact_leads(created_at DESC)');
 
+  // Süper adminin kendi mutasyon işlemlerinin izi — kim, ne zaman, hangi
+  // mağazada, neyi değiştirdi (varsa önce/sonra anlık görüntüsüyle).
+  await query(`
+    CREATE TABLE IF NOT EXISTS super_admin_audit_log (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      actor_email TEXT NOT NULL,
+      action TEXT NOT NULL,
+      store_id UUID REFERENCES stores(id) ON DELETE SET NULL,
+      before JSONB,
+      after JSONB,
+      ip TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS super_admin_audit_log_created_at_idx ON super_admin_audit_log(created_at DESC)');
+  await query('CREATE INDEX IF NOT EXISTS super_admin_audit_log_store_id_idx ON super_admin_audit_log(store_id)');
+
+  // Hem mağaza sahibi hem süper admin giriş denemeleri — şüpheli aktiviteyi
+  // (brute-force, bilinmeyen IP) fark edebilmek için.
+  await query(`
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      context TEXT NOT NULL,
+      email TEXT NOT NULL,
+      success BOOLEAN NOT NULL,
+      ip TEXT,
+      user_agent TEXT,
+      store_id UUID REFERENCES stores(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS login_attempts_created_at_idx ON login_attempts(created_at DESC)');
+  await query('CREATE INDEX IF NOT EXISTS login_attempts_email_idx ON login_attempts(email, created_at DESC)');
+
   console.log('[DB] Şema hazır.');
 }

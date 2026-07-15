@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/superAdmin-BFVGZEU_.js"></script>
+  <script type="module" crossorigin src="/assets/superAdmin-DIDdSf6Q.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
-  <link rel="stylesheet" crossorigin href="/assets/superAdmin-Dhz437w1.css">
+  <link rel="stylesheet" crossorigin href="/assets/superAdmin-BRvmXclP.css">
 </head>
 <body>
   <main class="super-shell">
@@ -26,12 +26,26 @@
       </form>
     </section>
     <section class="super-dashboard" id="superDashboard" hidden>
-      <header><div><p>MyStore / Süper Admin</p><h1>Operasyon Merkezi</h1><span id="lastUpdated"></span></div><div class="header-actions"><button id="refreshOverview" class="ghost">↻ Yenile</button><button id="exportStores" class="ghost">CSV İndir</button><button id="superLogout" class="ghost">Çıkış Yap</button></div></header>
+      <header><div><p>MyStore / Süper Admin</p><h1>Operasyon Merkezi</h1><span id="lastUpdated"></span></div><div class="header-actions"><button id="createStoreBtn" class="ghost">+ Yeni Mağaza</button><button id="refreshOverview" class="ghost">↻ Yenile</button><button id="exportStores" class="ghost">CSV İndir</button><button id="superLogout" class="ghost">Çıkış Yap</button></div></header>
       <div class="super-stats" id="superStats"></div>
       <section class="super-card"><div class="super-card-head"><div><h2>Mağazalar</h2><p>Canlı kullanım, kupon sağlığı ve abonelik takibi</p></div><div class="filters"><input id="storeSearch" type="search" placeholder="Mağaza veya slug ara"><select id="statusFilter"><option value="">Tüm durumlar</option><option value="active">Aktif ücretli</option><option value="trialing">Denemede</option><option value="expired">Süresi dolmuş</option></select><select id="connectionFilter"><option value="">Tüm bağlantılar</option><option value="ikas">İkas bağlı</option><option value="manual">İkas bağlı değil</option></select></div></div><div class="table-wrap"><table><thead><tr><th>Mağaza</th><th>Plan / Süre</th><th>Aktivite</th><th>Kupon</th><th>Bağlantı</th><th>Son İşlem</th><th></th></tr></thead><tbody id="storeRows"></tbody></table></div></section>
+      <section class="super-card"><div class="super-card-head"><div><h2>Denetim Kaydı</h2><p>Süper adminin mağazalarda yaptığı değişiklikler</p></div><button id="refreshAuditLog" class="ghost">↻ Yenile</button></div><div class="table-wrap"><table><thead><tr><th>Tarih</th><th>Kim</th><th>İşlem</th><th>Mağaza</th><th>Detay</th></tr></thead><tbody id="auditLogRows"></tbody></table></div></section>
+      <section class="super-card"><div class="super-card-head"><div><h2>Giriş Denemeleri</h2><p>Mağaza sahibi ve süper admin girişleri — şüpheli aktiviteyi fark edin</p></div><div class="filters"><select id="loginAttemptContextFilter"><option value="">Tüm girişler</option><option value="store">Mağaza sahibi</option><option value="super_admin">Süper admin</option></select><button id="refreshLoginAttempts" class="ghost">↻ Yenile</button></div></div><div class="table-wrap"><table><thead><tr><th>Tarih</th><th>Bağlam</th><th>E-posta</th><th>Sonuç</th><th>IP</th></tr></thead><tbody id="loginAttemptRows"></tbody></table></div></section>
     </section>
   </main>
   <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
   <aside class="store-drawer" id="storeDrawer" hidden><button class="drawer-close" id="drawerClose" aria-label="Kapat">×</button><div id="storeDetail"></div></aside>
+  <div class="drawer-backdrop" id="createStoreBackdrop" hidden></div>
+  <aside class="store-drawer" id="createStoreDrawer" hidden>
+    <button class="drawer-close" id="createStoreClose" aria-label="Kapat">×</button>
+    <div class="detail-head"><h2>Yeni Mağaza Oluştur</h2><p>Mağaza sahibi, kendisine gönderilecek e-postadaki bağlantıyla kendi şifresini belirler.</p></div>
+    <section class="detail-section">
+      <form id="createStoreForm" class="plan-form">
+        <label>Mağaza Adı<input id="createStoreName" type="text" required minlength="2" maxlength="80"></label>
+        <label>E-posta<input id="createStoreEmail" type="email" required></label>
+        <button type="submit">Mağaza Oluştur</button>
+      </form>
+    </section>
+  </aside>
 </body>
 </html>

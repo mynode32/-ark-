@@ -118,6 +118,14 @@ function getApiBase() {
   return getApiUrl();
 }
 
+// This is only ever hit as an offline/no-backend dev fallback (production
+// embeds always have window.CARK_STORE_SLUG set, so fetchConfig/spin/canSpin
+// go through the backend instead) — but namespacing by slug anyway means two
+// different stores' local demos on the same origin never bleed into each other.
+function namespacedKey(base) {
+  return `${base}_${getStoreSlug() || 'default'}`;
+}
+
 // --- Config (backend-first, localStorage fallback) ---
 
 export async function fetchConfig() {
@@ -133,7 +141,7 @@ export async function fetchConfig() {
         throw error;
       }
       const data = await res.json();
-      localStorage.setItem('carkConfig', JSON.stringify(data));
+      localStorage.setItem(namespacedKey('carkConfig'), JSON.stringify(data));
       return data;
     } catch (error) {
       // Embedded widgets must never fall back to stale/local prize data. That
@@ -147,7 +155,7 @@ export async function fetchConfig() {
 
 export function getLocalConfig() {
   try {
-    const stored = localStorage.getItem('carkConfig');
+    const stored = localStorage.getItem(namespacedKey('carkConfig'));
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
@@ -167,7 +175,7 @@ export function getLocalConfig() {
 
 export function saveConfigToLocal(config) {
   try {
-    localStorage.setItem('carkConfig', JSON.stringify(config));
+    localStorage.setItem(namespacedKey('carkConfig'), JSON.stringify(config));
   } catch {
     /* ignore */
   }
@@ -268,13 +276,13 @@ export async function canSpin() {
   if (!lastSpin) {
     return true;
   }
-  const cooldownHours = parseInt(localStorage.getItem('carkCooldown') || '24');
+  const cooldownHours = parseInt(localStorage.getItem(namespacedKey('carkCooldown')) || '24');
   const elapsed = Date.now() - parseInt(lastSpin, 10);
   const totalMs = cooldownHours * 60 * 60 * 1000;
   const expired = elapsed >= totalMs;
   if (expired) {
     document.cookie = 'cark_last_spin=;max-age=0;path=/';
-    localStorage.removeItem('carkCooldown');
+    localStorage.removeItem(namespacedKey('carkCooldown'));
   } else {
     lastKnownRemainingMs = totalMs - elapsed;
   }
@@ -284,16 +292,16 @@ export async function canSpin() {
 export function markSpun(hours = 24) {
   const now = Date.now();
   setCookie('cark_last_spin', now.toString(), hours);
-  localStorage.setItem('carkCooldown', hours.toString());
+  localStorage.setItem(namespacedKey('carkCooldown'), hours.toString());
 }
 
 // --- Local entries for admin ---
 
 export function saveEntry(entry) {
   try {
-    const entries = JSON.parse(localStorage.getItem('carkEntries') || '[]');
+    const entries = JSON.parse(localStorage.getItem(namespacedKey('carkEntries')) || '[]');
     entries.push(entry);
-    localStorage.setItem('carkEntries', JSON.stringify(entries));
+    localStorage.setItem(namespacedKey('carkEntries'), JSON.stringify(entries));
   } catch {
     /* ignore */
   }
@@ -301,14 +309,14 @@ export function saveEntry(entry) {
 
 export function getLocalEntries() {
   try {
-    return JSON.parse(localStorage.getItem('carkEntries') || '[]');
+    return JSON.parse(localStorage.getItem(namespacedKey('carkEntries')) || '[]');
   } catch {
     return [];
   }
 }
 
 export function clearLocalEntries() {
-  localStorage.removeItem('carkEntries');
+  localStorage.removeItem(namespacedKey('carkEntries'));
 }
 
 // Excel/Sheets treats a cell starting with =, +, - or @ as a formula even

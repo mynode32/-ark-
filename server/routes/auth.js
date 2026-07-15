@@ -8,6 +8,7 @@ import {
   createAuthToken, findValidToken, consumeToken, updateStorePassword, markEmailVerified,
 } from '../store.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
+import { recordLoginAttempt } from '../services/loginAttempts.js';
 
 export const authRouter = Router();
 
@@ -134,10 +135,12 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
 
     const store = await findStoreByEmail(email);
     if (!store) {
+      recordLoginAttempt({ context: 'store', email, success: false, ip: req.ip, userAgent: req.headers['user-agent'] });
       return res.status(401).json({ error: 'E-posta veya şifre hatalı' });
     }
 
     const ok = await bcrypt.compare(password, store.passwordHash);
+    recordLoginAttempt({ context: 'store', email, success: ok, ip: req.ip, userAgent: req.headers['user-agent'], storeId: store.id });
     if (!ok) {
       return res.status(401).json({ error: 'E-posta veya şifre hatalı' });
     }

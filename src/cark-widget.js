@@ -48,7 +48,7 @@ const WIDGET_CSS = `
   background: #ff1e1e;
   box-shadow: 0 0 0 0 rgba(255, 30, 30, 0.6);
   z-index: 999998;
-  animation: carkLoadingPulse 1.4s ease-out infinite;
+  animation: carkLoadingPulse 0.9s ease-out infinite;
   pointer-events: none;
 }
 @keyframes carkLoadingPulse {
@@ -77,7 +77,7 @@ const WIDGET_CSS = `
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.22s ease;
 }
 
 .cark-overlay.active {
@@ -106,7 +106,7 @@ const WIDGET_CSS = `
     inset 0 0 40px rgba(var(--cark-primary-rgb), 0.05),
     0 0 20px rgba(var(--cark-primary-rgb), 0.1);
   transform: scale(0.9) translateY(20px);
-  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   color: var(--cark-text);
   overflow: hidden;
   backdrop-filter: blur(20px);
@@ -921,7 +921,7 @@ class CarkApp {
     // on screen to show for it — a small indicator after a short grace
     // period beats the widget appearing to simply not exist. Styled inline
     // since the widget's own stylesheet isn't injected until after this.
-    const loadingTimer = setTimeout(() => this.showLoadingIndicator(), 500);
+    const loadingTimer = setTimeout(() => this.showLoadingIndicator(), 250);
     try {
       this.config = await fetchConfig();
     } finally {
@@ -999,7 +999,7 @@ class CarkApp {
     el.setAttribute('aria-hidden', 'true');
     el.style.cssText =
       'position:fixed;bottom:20px;right:20px;width:14px;height:14px;border-radius:50%;' +
-      'background:#FF1E1E;z-index:999998;pointer-events:none;animation:carkLoadingPulse 1.4s ease-out infinite;';
+      'background:#FF1E1E;z-index:999998;pointer-events:none;animation:carkLoadingPulse 0.9s ease-out infinite;';
     if (!document.getElementById('cark-loading-indicator-keyframes')) {
       const kf = document.createElement('style');
       kf.id = 'cark-loading-indicator-keyframes';

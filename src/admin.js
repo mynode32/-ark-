@@ -2,6 +2,7 @@ import {
   generateId,
   DEFAULT_CONFIG,
 } from './storage.js';
+import { THEME_PRESETS, FREE_PALETTE } from './colorPalettes.js';
 import { readAdminConfigCache, writeAdminConfigCache } from './adminCache.js';
 import { campaignDiscountMetadata, describeDiscount } from './campaignDiscount.js';
 import { generateEmbedCode, generateIkasGuide } from './embed.js';
@@ -92,6 +93,15 @@ class AdminPanel {
     this.showAuthForm(requestedMode === 'register' ? 'register' : 'login');
   }
 
+  isPro() {
+    if (!this.store) return false;
+    return (
+      this.store.planType === 'pro' &&
+      this.store.subscriptionStatus === 'active' &&
+      (!this.store.subscriptionEndsAt || new Date(this.store.subscriptionEndsAt) > new Date())
+    );
+  }
+
   showContent() {
     const overlay = document.getElementById('adminPasswordOverlay');
     const content = document.getElementById('adminContent');
@@ -107,8 +117,7 @@ class AdminPanel {
     }
     const planEl = document.querySelector('.store-identity span');
     if (planEl && this.store) {
-      const activePro = this.store.planType === 'pro' && this.store.subscriptionStatus === 'active' && (!this.store.subscriptionEndsAt || new Date(this.store.subscriptionEndsAt) > new Date());
-      planEl.textContent = activePro ? `Pro plan · ${this.store.subscriptionEndsAt ? new Date(this.store.subscriptionEndsAt).toLocaleDateString('tr-TR') : 'süresiz'}` : 'Ücretsiz plan';
+      planEl.textContent = this.isPro() ? `Pro plan · ${this.store.subscriptionEndsAt ? new Date(this.store.subscriptionEndsAt).toLocaleDateString('tr-TR') : 'süresiz'}` : 'Ücretsiz plan';
     }
     document.getElementById('emailVerificationBanner')?.remove();
     if (this.store && !this.store.emailVerifiedAt) {
@@ -543,6 +552,7 @@ class AdminPanel {
       appearance: 'Görünüm',
       entries: 'Katılımcılar',
       integration: 'Entegrasyon',
+      billing: 'Plan & Faturalama',
     };
     document.querySelectorAll('.admin-nav a').forEach((tab) => {
       tab.addEventListener('click', (e) => {
@@ -631,6 +641,9 @@ class AdminPanel {
     } else if (this.currentTab === 'integration') {
       main.innerHTML = this.renderIntegrationTab();
       this.setupIntegrationListeners();
+    } else if (this.currentTab === 'billing') {
+      main.innerHTML = this.renderBillingTab();
+      this.setupBillingListeners();
     }
     this.isDirty = false;
     this.trackDirtyState();
@@ -940,7 +953,9 @@ class AdminPanel {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 401) throw new Error('Oturum süresi dolmuş. Çıkış yapıp tekrar giriş yapın.');
-        throw new Error(data.error || `Backend kaydı başarısız (${res.status})`);
+        const err = new Error(data.error || `Backend kaydı başarısız (${res.status})`);
+        err.code = data.code;
+        throw err;
       }
       return data;
     } catch (error) {
@@ -1048,7 +1063,26 @@ class AdminPanel {
       Object.assign(this.config, previous);
       this.cacheConfig();
       this.render();
-      this.showToast(`Kaydedilemedi: ${error.message}`, 'error');
+      if (error.code === 'PRO_FEATURE_REQUIRED') {
+        this.showToast(`🔒 ${error.message} Pro'ya yükseltmek için Plan & Faturalama sekmesine bakın.`, 'warning');
+      } else {
+        this.showToast(`Kaydedilemedi: ${error.message}`, 'error');
+      }
+      return false;
+    }
+  }
+
+  async applyThemePreset(presetId) {
+    try {
+      const updated = await this.saveConfigToBackend({ themePresetId: presetId });
+      this.config.segments = updated.segments;
+      this.config.theme = updated.theme;
+      this.cacheConfig();
+      const preset = THEME_PRESETS.find((p) => p.id === presetId);
+      this.showToast(`"${preset?.name || 'Tema'}" uygulandı`, 'success');
+      return true;
+    } catch (error) {
+      this.showToast(`Tema uygulanamadı: ${error.message}`, 'error');
       return false;
     }
   }
@@ -1060,6 +1094,8 @@ class AdminPanel {
     const backgroundMode = theme.backgroundMode || (theme.autoSiteTheme !== false ? 'auto' : 'solid');
     const popupOpacity = Math.round((theme.popupOpacity ?? 0.82) * 100);
     const overlayOpacity = Math.round((theme.overlayOpacity ?? 0.55) * 100);
+    const pro = this.isPro();
+    const lockBadge = pro ? '' : ' <span class="pro-lock-badge" title="Bu özellik Pro plana özeldir">🔒 Pro</span>';
 
     return `
       <div class="tab-content active" id="tab-appearance">
@@ -1069,7 +1105,7 @@ class AdminPanel {
               <h3>🎯 Çark Stili</h3>
               <div class="wheel-style-options" id="wheelStyleOptions" role="radiogroup" aria-label="Çark Stili">
                 <div class="wheel-style-option ${theme.wheelStyle !== 'standard' ? 'active' : ''}" data-style="premium" role="radio" tabindex="0" aria-checked="${theme.wheelStyle !== 'standard'}">
-                  <div class="wheel-style-title">✨ Premium</div>
+                  <div class="wheel-style-title">✨ Premium${lockBadge}</div>
                   <div class="wheel-style-desc">Metalik, parlayan, ışıklı çark</div>
                 </div>
                 <div class="wheel-style-option ${theme.wheelStyle === 'standard' ? 'active' : ''}" data-style="standard" role="radio" tabindex="0" aria-checked="${theme.wheelStyle === 'standard'}">
@@ -1094,7 +1130,20 @@ class AdminPanel {
             </div>
 
             <div class="admin-card appearance-settings-card">
-              <h3>🎨 Renkler</h3>
+              <h3>🌈 Hazır Renk Temaları</h3>
+              <div class="appearance-help-text">Bir temaya tıklayın: çark dilimleri ve arka plan renkleri birlikte, tek tıkla güncellenir. Ücretsiz ve Pro planlarda kullanılabilir.</div>
+              <div class="theme-preset-row" id="themePresetRow">
+                ${THEME_PRESETS.map((preset) => `
+                  <button type="button" class="theme-preset-swatch" data-preset-id="${preset.id}" title="${escapeHtml(preset.name)}" style="background:linear-gradient(135deg, ${preset.theme.bgDark}, ${preset.theme.bgMid}, ${preset.theme.bgLight});border-color:${preset.theme.primaryColor}">
+                    <span class="theme-preset-dots">${preset.segments.slice(0, 4).map((color) => `<i style="background:${color}"></i>`).join('')}</span>
+                    <span class="theme-preset-name">${escapeHtml(preset.name)}</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="admin-card appearance-settings-card">
+              <h3>🎨 Renkler${lockBadge}</h3>
               <div class="form-group">
                 <label>Arka Plan Modu</label>
                 <select class="form-input" id="theme-backgroundMode">
@@ -1110,14 +1159,14 @@ class AdminPanel {
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Ana Renk (vurgu)</label>
+                  <label>Ana Renk (vurgu)${lockBadge}</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-primaryColor" value="${theme.primaryColor}">
                     <span class="color-value" data-color-for="theme-primaryColor">${theme.primaryColor}</span>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>İkincil Renk</label>
+                  <label>İkincil Renk${lockBadge}</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-primaryColorDark" value="${theme.primaryColorDark}">
                     <span class="color-value" data-color-for="theme-primaryColorDark">${theme.primaryColorDark}</span>
@@ -1125,7 +1174,7 @@ class AdminPanel {
                 </div>
               </div>
               <div class="form-group">
-                <label>Ok Rengi</label>
+                <label>Ok Rengi${lockBadge}</label>
                 <div class="color-input-wrapper">
                   <input type="color" id="theme-pointerColor" value="${theme.pointerColor}">
                   <span class="color-value" data-color-for="theme-pointerColor">${theme.pointerColor}</span>
@@ -1133,21 +1182,21 @@ class AdminPanel {
               </div>
               <div id="imageBgControl" style="display:${backgroundMode === 'image' ? 'block' : 'none'}">
                 <div class="form-group">
-                  <label>Kampanya Görseli URL’si</label>
+                  <label>Kampanya Görseli URL’si${lockBadge}</label>
                   <input type="url" class="form-input" id="theme-backgroundImageUrl" value="${escapeHtml(theme.backgroundImageUrl || '')}" placeholder="https://.../kampanya.jpg">
                 </div>
               </div>
               <div id="manualBgColors" style="display:${backgroundMode === 'solid' ? 'block' : 'none'}">
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Arka Plan (Koyu)</label>
+                    <label>Arka Plan (Koyu)${lockBadge}</label>
                     <div class="color-input-wrapper">
                       <input type="color" id="theme-bgDark" value="${theme.bgDark}">
                       <span class="color-value" data-color-for="theme-bgDark">${theme.bgDark}</span>
                     </div>
                   </div>
                   <div class="form-group">
-                    <label>Arka Plan (Orta)</label>
+                    <label>Arka Plan (Orta)${lockBadge}</label>
                     <div class="color-input-wrapper">
                       <input type="color" id="theme-bgMid" value="${theme.bgMid}">
                       <span class="color-value" data-color-for="theme-bgMid">${theme.bgMid}</span>
@@ -1155,7 +1204,7 @@ class AdminPanel {
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Arka Plan (Açık)</label>
+                  <label>Arka Plan (Açık)${lockBadge}</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-bgLight" value="${theme.bgLight}">
                     <span class="color-value" data-color-for="theme-bgLight">${theme.bgLight}</span>
@@ -1246,6 +1295,15 @@ class AdminPanel {
   setupAppearanceListeners() {
     this.setupStyleOptionGroup('wheelStyleOptions');
     this.setupStyleOptionGroup('pointerStyleOptions');
+
+    document.getElementById('themePresetRow')?.addEventListener('click', async (e) => {
+      const button = e.target.closest('.theme-preset-swatch');
+      if (!button) return;
+      button.disabled = true;
+      const applied = await this.applyThemePreset(button.dataset.presetId);
+      button.disabled = false;
+      if (applied) this.render();
+    });
 
     const backgroundMode = document.getElementById('theme-backgroundMode');
     const manualBgColors = document.getElementById('manualBgColors');
@@ -1377,7 +1435,10 @@ class AdminPanel {
     const templates = this.getCouponTemplates();
     let seg = id ? templates.find((s) => String(s.couponGroupId) === String(id)) : null;
     if (!seg) {
-      const colors = ['#1E3A8A', '#9F1239', '#065F46', '#B8860B', '#6B21A8', '#92400E', '#831843'];
+      // Free-tier saves reject any segment color outside FREE_PALETTE (see
+      // server/store.js saveWidgetConfig) — drawing the default from that
+      // same palette means a new segment always saves on the first try.
+      const colors = FREE_PALETTE;
       seg = {
         couponGroupId: `coupon-${generateId()}`,
         label: 'Yeni Ödül',
@@ -1405,7 +1466,10 @@ class AdminPanel {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Arkaplan Rengi</label>
+          <label>Arkaplan Rengi${this.isPro() ? '' : ' <span class="pro-lock-badge" title="Ücretsiz planda sadece hazır palet renkleri kullanılabilir">🔒 Özel renk Pro\'da</span>'}</label>
+          <div class="segment-color-swatches" id="segColorSwatches">
+            ${FREE_PALETTE.map((color) => `<button type="button" class="segment-color-swatch ${color.toUpperCase() === String(seg.color).toUpperCase() ? 'active' : ''}" data-color="${color}" style="background:${color}" title="${color}"></button>`).join('')}
+          </div>
           <div class="color-input-wrapper">
             <input type="color" id="seg-color" value="${seg.color}">
             <span style="font-family:monospace;font-size:12px">${seg.color}</span>
@@ -1447,6 +1511,16 @@ class AdminPanel {
 
     document.getElementById('seg-prob').addEventListener('input', (e) => {
       document.getElementById('seg-prob-val').textContent = e.target.value;
+    });
+
+    document.getElementById('segColorSwatches')?.addEventListener('click', (e) => {
+      const swatch = e.target.closest('.segment-color-swatch');
+      if (!swatch) return;
+      const colorInput = document.getElementById('seg-color');
+      colorInput.value = swatch.dataset.color;
+      colorInput.nextElementSibling.textContent = swatch.dataset.color;
+      document.querySelectorAll('#segColorSwatches .segment-color-swatch').forEach((el) => el.classList.remove('active'));
+      swatch.classList.add('active');
     });
 
     this.populateIkasCampaignSelect(seg.ikasCampaignId);
@@ -2390,6 +2464,120 @@ class AdminPanel {
       this.showToast(err.message, 'error');
     } finally {
       saveBtn.disabled = false;
+    }
+  }
+
+  // --- Billing Tab ---
+
+  renderBillingTab() {
+    const pro = this.isPro();
+    const endsAt = this.store?.subscriptionEndsAt ? new Date(this.store.subscriptionEndsAt).toLocaleDateString('tr-TR') : null;
+    const startsAt = this.store?.subscriptionStartsAt ? new Date(this.store.subscriptionStartsAt).toLocaleDateString('tr-TR') : null;
+    return `
+      <div class="tab-content active" id="tab-billing">
+        <div class="admin-grid full">
+          <div class="admin-card">
+            <h3>💳 Mevcut Planınız</h3>
+            <div class="billing-plan-summary">
+              <span class="billing-plan-badge ${pro ? 'pro' : 'free'}">${pro ? '✨ Pro Plan' : 'Ücretsiz Plan'}</span>
+              <span class="billing-plan-dates">${startsAt ? `Başlangıç: ${startsAt}` : ''} ${endsAt ? `· ${pro ? 'Yenilenme' : 'Bitiş'}: ${endsAt}` : ''}</span>
+            </div>
+            <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin:12px 0;">
+              ${pro
+                ? 'Pro planla özel renkler, görselli arka plan, Premium çark stili ve daha yüksek aylık çevirme kotası kullanıyorsunuz.'
+                : 'Ücretsiz planda hazır renk temaları ve standart çark stili kullanılabilir. Özel renkler, görselli arka plan ve Premium çark stili için Pro\'ya yükseltin.'}
+            </p>
+            <div class="btn-group" style="justify-content:flex-end;">
+              ${pro
+                ? '<button class="btn btn-secondary" id="cancelSubscriptionBtn">Aboneliği İptal Et</button>'
+                : '<button class="btn btn-primary" id="upgradeToProBtn">Pro\'ya Yükselt</button>'}
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>🧾 Ödeme Geçmişi</h3>
+            <div id="billingHistoryList" style="font-size:13px;color:rgba(255,255,255,0.6);">Yükleniyor...</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  setupBillingListeners() {
+    this.loadBillingHistory();
+
+    document.getElementById('upgradeToProBtn')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Yönlendiriliyor...';
+      try {
+        const res = await fetch(`${getApiBase()}/api/billing/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+          body: JSON.stringify({ planType: 'pro' }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Ödeme başlatılamadı');
+        window.location.href = data.paymentPageUrl;
+      } catch (err) {
+        this.showToast(err.message, 'error');
+        button.disabled = false;
+        button.textContent = "Pro'ya Yükselt";
+      }
+    });
+
+    document.getElementById('cancelSubscriptionBtn')?.addEventListener('click', async (event) => {
+      if (!confirm('Aboneliğiniz iptal edilsin mi? Mevcut dönem sonuna kadar Pro özellikleri kullanmaya devam edersiniz.')) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const res = await fetch(`${getApiBase()}/api/billing/cancel`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authToken()}` },
+        });
+        if (!res.ok) throw new Error('İptal işlemi başarısız oldu');
+        this.showToast('Abonelik iptal edildi');
+        const meRes = await fetch(`${getApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${authToken()}` } });
+        const meData = await meRes.json().catch(() => ({}));
+        if (meRes.ok) this.store = meData.store;
+        this.render();
+      } catch (err) {
+        this.showToast(err.message, 'error');
+        button.disabled = false;
+      }
+    });
+  }
+
+  async loadBillingHistory() {
+    const listEl = document.getElementById('billingHistoryList');
+    try {
+      const res = await fetch(`${getApiBase()}/api/billing/history`, {
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Ödeme geçmişi alınamadı');
+      const history = data.history || [];
+      if (!history.length) {
+        listEl.textContent = 'Henüz bir ödeme kaydı yok.';
+        return;
+      }
+      listEl.innerHTML = `
+        <table class="billing-history-table">
+          <thead><tr><th>Tarih</th><th>Plan</th><th>Tutar</th><th>Durum</th><th>Fatura</th></tr></thead>
+          <tbody>
+            ${history.map((item) => `
+              <tr>
+                <td>${new Date(item.createdAt).toLocaleDateString('tr-TR')}</td>
+                <td>${escapeHtml(item.planType)}</td>
+                <td>${item.amount.toLocaleString('tr-TR')} ${escapeHtml(item.currency)}</td>
+                <td>${escapeHtml(item.status)}</td>
+                <td>${item.invoiceUrl ? `<a href="${item.invoiceUrl}" target="_blank" rel="noopener">Görüntüle</a>` : '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (err) {
+      listEl.textContent = `⚠️ ${err.message}`;
     }
   }
 
