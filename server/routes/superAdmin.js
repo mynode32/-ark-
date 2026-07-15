@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { superAdminAuth } from '../middleware/superAdminAuth.js';
-import { getSuperAdminOverview, getSuperAdminStoreDetail, updateStorePlan } from '../store.js';
+import { getSuperAdminOverview, getSuperAdminStoreDetail, updateStorePlan, markEmailVerified } from '../store.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
 export const superAdminRouter = Router();
@@ -51,4 +51,10 @@ superAdminRouter.put('/stores/:storeId/plan', superAdminAuth, asyncHandler(async
   if (!/^[0-9a-f-]{36}$/i.test(req.params.storeId)) return res.status(400).json({ error: 'Geçersiz mağaza kimliği' });
   const store = await updateStorePlan(req.params.storeId, req.body || {});
   res.json({ store: { id: store.id, planType: store.planType, subscriptionStatus: store.subscriptionStatus, subscriptionStartsAt: store.subscriptionStartsAt, subscriptionEndsAt: store.subscriptionEndsAt } });
+}));
+
+superAdminRouter.post('/stores/:storeId/verify-email', superAdminAuth, asyncHandler(async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.storeId)) return res.status(400).json({ error: 'Geçersiz mağaza kimliği' });
+  await markEmailVerified(req.params.storeId);
+  res.json({ ok: true });
 }));
