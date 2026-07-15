@@ -109,7 +109,9 @@ export const DEFAULT_CONFIG = {
   },
 };
 
-export const getApiUrl = () => window.CARK_API_URL || window.location.origin;
+export const getApiUrl = () =>
+  window.CARK_API_URL ||
+  (window.location.hostname === 'cark-backend.onrender.com' ? 'https://ark-0ntz.onrender.com' : window.location.origin);
 export const getStoreSlug = () => window.CARK_STORE_SLUG || '';
 
 function getApiBase() {

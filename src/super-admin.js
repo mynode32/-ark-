@@ -1,4 +1,9 @@
-const API_BASE = window.CARK_API_URL || window.location.origin;
+const LEGACY_RENDER_HOST = 'cark-backend.onrender.com';
+const CANONICAL_RENDER_ORIGIN = 'https://ark-0ntz.onrender.com';
+if (window.location.hostname === LEGACY_RENDER_HOST) {
+  window.location.replace(`${CANONICAL_RENDER_ORIGIN}${window.location.pathname}${window.location.search}${window.location.hash}`);
+}
+const API_BASE = window.CARK_API_URL || (window.location.hostname === LEGACY_RENDER_HOST ? CANONICAL_RENDER_ORIGIN : window.location.origin);
 const TOKEN_KEY = 'mystore_super_admin_token';
 const loginView = document.getElementById('superLogin');
 const dashboard = document.getElementById('superDashboard');

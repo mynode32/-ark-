@@ -16,11 +16,23 @@ import { superAdminRouter } from './routes/superAdmin.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
+const LEGACY_RENDER_HOST = 'cark-backend.onrender.com';
+const CANONICAL_RENDER_ORIGIN = 'https://ark-0ntz.onrender.com';
 
 app.use(cors({ origin: config.corsOrigin }));
 // KVKK full-text and similar admin fields are the largest legitimate
 // payloads (a few KB); this caps abuse without constraining real usage.
 app.use(express.json({ limit: '256kb' }));
+
+// Eski servis API/embed geçişi tamamlanana kadar açık kalabilir; ancak panel
+// ve satış sitesi ziyaretçileri eski embed kodunu yeniden kopyalamasın diye
+// kullanıcı arayüzlerini kanonik yeni servise taşı.
+app.use('/mystore', (req, res, next) => {
+  if (req.hostname === LEGACY_RENDER_HOST) {
+    return res.redirect(308, `${CANONICAL_RENDER_ORIGIN}${req.originalUrl}`);
+  }
+  return next();
+});
 
 // MyStore satış sitesi ayrı bir statik servise/özel domaine taşınana kadar
 // aynı backend üzerinden /mystore altında canlı önizleme sunar.

@@ -10,8 +10,15 @@ import { WheelEngine } from './wheel.js';
 import { applyWidgetTheme } from './siteTheme.js';
 import './styles/main.css';
 
+const LEGACY_RENDER_HOST = 'cark-backend.onrender.com';
+const CANONICAL_RENDER_ORIGIN = 'https://ark-0ntz.onrender.com';
+
+if (window.location.hostname === LEGACY_RENDER_HOST) {
+  window.location.replace(`${CANONICAL_RENDER_ORIGIN}${window.location.pathname}${window.location.search}${window.location.hash}`);
+}
+
 function getApiBase() {
-  return window.CARK_API_URL || window.location.origin;
+  return window.CARK_API_URL || (window.location.hostname === LEGACY_RENDER_HOST ? CANONICAL_RENDER_ORIGIN : window.location.origin);
 }
 
 function authToken() {
