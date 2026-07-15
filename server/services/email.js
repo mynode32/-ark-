@@ -25,7 +25,7 @@ export function sendPasswordResetEmail(store, token) {
 }
 
 export function sendPastDueEmail(store) {
-  return send({ to: store.email, subject: 'Çark aboneliğinizde ödeme sorunu', html: `<p>Merhaba ${store.name},</p><p>Kartınızdan tahsilat yapılamadı. Lütfen ödeme bilgilerinizi güncelleyin: <a href="${config.appBaseUrl}/admin.html">Admin Paneline Git</a>.</p>` });
+  return send({ to: store.email, subject: 'Çark aboneliğinizde ödeme sorunu', html: `<p>Merhaba ${store.name},</p><p>Kartınızdan tahsilat yapılamadı. Lütfen ödeme bilgilerinizi güncelleyin: <a href="${config.appBaseUrl}/mystore/panel">Admin Paneline Git</a>.</p>` });
 }
 
 export function sendQuotaExceededEmail(store) {

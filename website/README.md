@@ -28,7 +28,7 @@ Site şu anda ana backend tarafından `/mystore/` altında da sunulur. Ayrı bir
 - Build Command: boş
 - Publish Directory: `public`
 
-Canlı site varsayılan olarak `https://cark-backend.onrender.com` API'sine bağlanır. Farklı adresler için sayfa yüklenmeden önce `window.MYSTORE_API_URL` ve `window.MYSTORE_APP_URL` tanımlanabilir.
+Canlı site varsayılan olarak yayınlandığı origin'deki API'ye bağlanır (güncel Render servisi: `https://ark-0ntz.onrender.com`). Farklı adresler için sayfa yüklenmeden önce `window.MYSTORE_API_URL` ve `window.MYSTORE_APP_URL` tanımlanabilir.
 
 ## Yayın öncesi zorunlu işler
 

@@ -29,7 +29,7 @@ billingRouter.post('/checkout', adminAuth, asyncHandler(async (req, res) => {
 
 billingRouter.post('/callback', express.urlencoded({ extended: false }), asyncHandler(async (req, res) => {
   const { token } = req.body;
-  const redirect = (status) => res.redirect(`${config.appBaseUrl}/admin.html?billing=${status}`);
+  const redirect = (status) => res.redirect(`${config.appBaseUrl}/mystore/panel?billing=${status}`);
   if (!token) {
     return redirect('error');
   }
