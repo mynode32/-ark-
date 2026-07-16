@@ -378,6 +378,7 @@ export function validateSegments(segments) {
   }
   const seenIds = new Set();
   const labelsToGroups = new Map();
+  const campaignsToGroups = new Map();
   const groupSignatures = new Map();
   let totalProbability = 0;
   for (const seg of segments) {
@@ -395,6 +396,14 @@ export function validateSegments(segments) {
       return `"${seg.label}" başlığı birden fazla farklı ödülde kullanılamaz`;
     }
     labelsToGroups.set(normalizedLabel, groupId);
+    if (seg.ikasCampaignId) {
+      const campaignId = String(seg.ikasCampaignId);
+      const existingCampaignGroup = campaignsToGroups.get(campaignId);
+      if (existingCampaignGroup && existingCampaignGroup !== groupId) {
+        return `"${seg.label}" için seçilen İkas kampanyası başka bir ödülde zaten kullanılıyor`;
+      }
+      campaignsToGroups.set(campaignId, groupId);
+    }
     const signature = JSON.stringify({
       label: seg.label.trim(),
       discountType: seg.discountType,

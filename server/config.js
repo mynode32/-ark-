@@ -24,10 +24,12 @@ const env = loadEnv();
 
 const ikasStoreId = env.IKAS_STORE_ID || process.env.IKAS_STORE_ID || '';
 
-const jwtSecret = env.JWT_SECRET || process.env.JWT_SECRET;
-const encryptionKey = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
-const databaseUrl = env.DATABASE_URL || process.env.DATABASE_URL || '';
-const port = parseInt(env.PORT || process.env.PORT || '3001');
+const jwtSecret = process.env.JWT_SECRET || env.JWT_SECRET;
+const encryptionKey = process.env.ENCRYPTION_KEY || env.ENCRYPTION_KEY;
+const databaseUrl = process.env.DATABASE_URL || env.DATABASE_URL || '';
+// Process-level PORT must win on Render and in isolated smoke tests; a local
+// .env file should not force every concurrently running instance onto 3001.
+const port = parseInt(process.env.PORT || env.PORT || '3001');
 const emailVerificationRequired =
   String(env.EMAIL_VERIFICATION_REQUIRED || process.env.EMAIL_VERIFICATION_REQUIRED || 'false').toLowerCase() === 'true';
 
@@ -56,6 +58,7 @@ export const config = {
   backendBaseUrl:
     env.BACKEND_BASE_URL || process.env.BACKEND_BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`,
   contactAdminKey: env.CONTACT_ADMIN_KEY || process.env.CONTACT_ADMIN_KEY || '',
+  alertWebhookUrl: env.ALERT_WEBHOOK_URL || process.env.ALERT_WEBHOOK_URL || '',
   superAdmin: {
     email: (env.SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase(),
     passwordHash: env.SUPER_ADMIN_PASSWORD_HASH || process.env.SUPER_ADMIN_PASSWORD_HASH || '',

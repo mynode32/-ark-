@@ -69,7 +69,7 @@ h1 em { color: var(--violet); font-style: normal; }
 .wheel-wrap { position: relative; width: 180px; height: 180px; margin: 0 auto 12px; }
 .wheel { position: relative; width: 180px; height: 180px; border: 8px solid #fff; border-radius: 50%; background: conic-gradient(#7c3aed 0 60deg, #f472b6 60deg 120deg, #fbbf24 120deg 180deg, #4f46e5 180deg 240deg, #fb7185 240deg 300deg, #a78bfa 300deg); box-shadow: 0 0 0 2px #7c3aed, 0 12px 28px rgba(124, 58, 237, .22); animation: wheel-showcase-spin 18s linear infinite; }
 .wheel-wrap::before { content: ""; position: absolute; top: -18px; left: 50%; z-index: 3; transform: translateX(-50%); transform-origin: 50% 100%; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 24px solid var(--ink); }
-.wheel-center { position: absolute; inset: 50% auto auto 50%; z-index: 2; width: 62px; height: 62px; display: grid; place-items: center; padding: 0; transform: translate(-50%, -50%); border: 6px solid #fff; border-radius: 50%; color: #fff; background: var(--ink); font-size: 11px; font-weight: 850; animation: wheel-center-counter 18s linear infinite; cursor: pointer; }
+.wheel-center { position: absolute; inset: 50% auto auto 50%; z-index: 2; width: 62px; height: 62px; display: grid; place-items: center; padding: 0; transform: translate(-50%, -50%); border: 6px solid #fff; border-radius: 50%; color: #fff; background: var(--ink); font-size: 11px; font-weight: 850; cursor: pointer; }
 .wheel-center:hover { background: #202a40; }
 .wheel-center:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
 .wheel-center:disabled { cursor: wait; }
@@ -81,10 +81,8 @@ h1 em { color: var(--violet); font-style: normal; }
 .label-webflow { --segment-angle: 270deg; }
 .label-prestashop { --segment-angle: 330deg; }
 @keyframes wheel-showcase-spin { to { transform: rotate(360deg); } }
-@keyframes wheel-center-counter { to { transform: translate(-50%, -50%) rotate(-360deg); } }
 .wheel.is-boosted { animation-duration: 2.8s; }
-.wheel.is-boosted .wheel-center { animation-duration: 2.8s; }
-.wheel.js-driven, .wheel.js-driven .wheel-center { animation: none; }
+.wheel.js-driven { animation: none; }
 @keyframes pointer-tick { 0% { transform: translateX(-50%) rotate(0deg); } 35% { transform: translateX(-50%) rotate(-11deg); } 65% { transform: translateX(-50%) rotate(7deg); } 100% { transform: translateX(-50%) rotate(0deg); } }
 .wheel-wrap.tick::before { animation: pointer-tick .18s cubic-bezier(.2, .7, .2, 1); }
 .demo-result { display: block; min-height: 17px; transition: color .2s ease, transform .2s ease; }

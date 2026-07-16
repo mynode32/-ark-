@@ -18,6 +18,7 @@ import { sendQuotaExceededEmail } from '../services/email.js';
 import { subscriptionAccess } from '../services/subscriptionAccess.js';
 import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
 import { config } from '../config.js';
+import { recordOperationalEvent } from '../services/operations.js';
 
 export const widgetRouter = Router();
 
@@ -288,6 +289,14 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
           couponError: couponError.message || 'Kupon üretilemedi',
         });
         console.error(`[Spin] [${req.store.slug}] Gerçek kupon üretilemedi:`, couponError.message);
+        recordOperationalEvent({
+          eventType: 'coupon_failure',
+          storeId,
+          source: req.store.slug,
+          statusCode: couponError.status || 503,
+          message: couponError.message,
+          notify: true,
+        }).catch((error) => console.error('[Alarm] Kupon hatası kaydedilemedi:', error.message));
         return res.status(couponError.status || 503).json({
           error: 'Kupon şu anda oluşturulamadı. Mağaza yetkilisi bilgilendirildi; lütfen daha sonra tekrar deneyin.',
           code: couponError.code || 'COUPON_PROVISION_FAILED',

@@ -10,10 +10,14 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --check .",
-    "format:fix": "prettier --write ."
+    "format:fix": "prettier --write .",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium firefox webkit"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
     "prettier": "^3.9.1",

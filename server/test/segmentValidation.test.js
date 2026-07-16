@@ -60,3 +60,21 @@ test('duplicate prize labels cannot point to different coupon groups', () => {
   segments[1] = segment(2, { label: segments[0].label });
   assert.match(validateSegments(segments), /birden fazla farklı ödülde/i);
 });
+
+test('the same İkas campaign cannot be presented as different rewards', () => {
+  const segments = Array.from({ length: 6 }, (_, index) => segment(index + 1));
+  segments[0] = segment(1, {
+    label: 'FUYGUR',
+    ikasCampaignId: 'campaign-fuygur',
+    discountType: 'ikasCampaign',
+    discountValue: null,
+  });
+  segments[1] = segment(2, {
+    label: 'Ücretsiz Kargo',
+    ikasCampaignId: 'campaign-fuygur',
+    discountType: 'ikasCampaign',
+    discountValue: null,
+  });
+
+  assert.match(validateSegments(segments), /başka bir ödülde zaten kullanılıyor/i);
+});

@@ -1,0 +1,44 @@
+name: Deploy Staging
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm ci
+        working-directory: server
+      - run: npm test
+        working-directory: server
+      - run: npm run build
+      - name: Trigger Render staging deployment
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
+        run: |
+          test -n "$DEPLOY_HOOK"
+          curl --fail --silent --show-error --request POST "$DEPLOY_HOOK"
+      - name: Wait for staging readiness
+        env:
+          STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+        run: |
+          test -n "$STAGING_BASE_URL"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error "$STAGING_BASE_URL/api/health/ready"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+      - name: Run staging smoke test
+        env:
+          SMOKE_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+        run: npm run smoke
+        working-directory: server

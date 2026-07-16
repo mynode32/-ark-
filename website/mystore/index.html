@@ -69,8 +69,7 @@
                 <span class="wheel-label label-wordpress">WORDPRESS</span>
                 <span class="wheel-label label-webflow">WEBFLOW</span>
                 <span class="wheel-label label-prestashop">PRESTASHOP</span>
-                <button class="wheel-center" id="demoSpinButton" type="button" aria-label="Demo Çarkı çevir">ÇEVİR</button>
-              </div></div>
+              </div><button class="wheel-center" id="demoSpinButton" type="button" aria-label="Demo Çarkı çevir">ÇEVİR</button></div>
               <small class="demo-result" id="demoResult" role="status" aria-live="polite">Platformları keşfetmek için ÇEVİR'e basın</small>
             </div>
           </div>
@@ -132,7 +131,7 @@
         </div>
         <div class="plan-comparison" aria-label="Plan karşılaştırması">
           <h3>Planları ayrıntılı karşılaştırın</h3>
-          <div class="comparison-scroll"><table>
+          <div class="comparison-scroll" tabindex="0" role="region" aria-label="Plan özellikleri karşılaştırma tablosu"><table>
             <thead><tr><th>Özellik</th><th>Ücretsiz</th><th>Pro</th></tr></thead>
             <tbody>
               <tr><td>Aylık katılım</td><td>100</td><td>2.000</td></tr>
@@ -195,7 +194,6 @@
     const demoResult = document.getElementById('demoResult');
     const demoWheel = document.querySelector('.wheel');
     const demoWheelWrap = document.querySelector('.wheel-wrap');
-    const demoWheelCenter = document.querySelector('.wheel-center');
     const demoRewards = ['İkas: otomatik entegrasyon', 'Shopify: embed kodu', 'Web siteniz: embed kodu', 'WordPress: footer kodu', 'Webflow: özel kod', 'PrestaShop: embed kodu'];
     const DEMO_SEGMENT_SIZE = 60;
     const DEMO_SEGMENT_CENTER = 30;
@@ -253,11 +251,9 @@
       const startAngle = getRotationDeg(demoWheel);
       demoWheel.classList.add('js-driven');
       demoWheel.style.transform = `rotate(${startAngle}deg)`;
-      demoWheelCenter.style.transform = `translate(-50%, -50%) rotate(${-startAngle}deg)`;
 
       if (demoReduceMotion) {
         demoWheel.style.transform = `rotate(${targetMod}deg)`;
-        demoWheelCenter.style.transform = `translate(-50%, -50%) rotate(${-targetMod}deg)`;
         finishDemoSpin(targetIndex);
         return;
       }
@@ -275,7 +271,6 @@
         const eased = 1 - Math.pow(1 - t, 4);
         const angle = startAngle + eased * (finalAngle - startAngle);
         demoWheel.style.transform = `rotate(${angle}deg)`;
-        demoWheelCenter.style.transform = `translate(-50%, -50%) rotate(${-angle}deg)`;
 
         const currentSegment = Math.floor((angle % 360) / DEMO_SEGMENT_SIZE);
         if (currentSegment !== lastSegment) {

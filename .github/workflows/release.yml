@@ -1,0 +1,29 @@
+name: Release Artifact
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm ci
+        working-directory: server
+      - run: npm test
+        working-directory: server
+      - run: npm run build
+      - name: Package immutable release
+        run: tar -czf cark-${GITHUB_REF_NAME}.tar.gz dist dist-app server website package.json package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cark-${{ github.ref_name }}
+          path: cark-${{ github.ref_name }}.tar.gz
+          retention-days: 90

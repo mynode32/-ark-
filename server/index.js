@@ -15,6 +15,7 @@ import { contactRouter } from './routes/contact.js';
 import { superAdminRouter } from './routes/superAdmin.js';
 import { purgePersonalData } from './jobs/purgePersonalData.js';
 import { processCustomerSyncJobs } from './jobs/processCustomerSyncJobs.js';
+import { getOperationalReadiness, recordOperationalEvent, runMonitoredJob } from './services/operations.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -121,14 +122,42 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+app.get('/api/health/ready', async (req, res) => {
+  if (!pool) {
+    return res.status(503).json({ status: 'error', ready: false });
+  }
+  try {
+    await pool.query('SELECT 1');
+    const readiness = await getOperationalReadiness();
+    return res.status(readiness.ready ? 200 : 503).json({
+      status: readiness.ready ? 'ok' : 'degraded',
+      ...readiness,
+      time: new Date().toISOString(),
+    });
+  } catch {
+    return res.status(503).json({ status: 'error', ready: false });
+  }
+});
+
 // Final safety net — one tenant's bad request must never crash the shared
 // process and take every other store down with it.
 app.use((err, req, res, next) => {
   console.error('[Unhandled]', err);
+  const statusCode = err.status || 500;
+  if (statusCode >= 500) {
+    recordOperationalEvent({
+      eventType: 'http_5xx',
+      storeId: req.store?.id || null,
+      source: req.path,
+      statusCode,
+      message: err.message,
+      notify: statusCode >= 503,
+    }).catch((recordError) => console.error('[Alarm] Sunucu hatası kaydedilemedi:', recordError.message));
+  }
   if (res.headersSent) {
     return next(err);
   }
-  res.status(err.status || 500).json({ error: err.status ? err.message : 'Sunucu hatası' });
+  res.status(statusCode).json({ error: err.status ? err.message : 'Sunucu hatası' });
 });
 
 let server;
@@ -143,16 +172,20 @@ ensureSchema()
       console.log(`   DB:          ${config.databaseUrl ? 'CONFIGURED' : 'NOT CONFIGURED'}`);
     });
     cron.schedule('0 3 * * *', () => {
-      renewSubscriptions().catch((err) => console.error('[Cron] renewSubscriptions hatası:', err.message));
+      runMonitoredJob('subscription_renewal', renewSubscriptions)
+        .catch((err) => console.error('[Cron] renewSubscriptions hatası:', err.message));
     });
     cron.schedule('0 4 * * *', () => {
-      purgeDeletedStores().catch((err) => console.error('[Cron] purgeDeletedStores hatası:', err.message));
+      runMonitoredJob('deleted_store_purge', purgeDeletedStores)
+        .catch((err) => console.error('[Cron] purgeDeletedStores hatası:', err.message));
     });
     cron.schedule('30 4 * * *', () => {
-      purgePersonalData().catch((err) => console.error('[Cron] purgePersonalData hatası:', err.message));
+      runMonitoredJob('personal_data_purge', purgePersonalData)
+        .catch((err) => console.error('[Cron] purgePersonalData hatası:', err.message));
     });
     cron.schedule('*/5 * * * *', () => {
-      processCustomerSyncJobs().catch((err) => console.error('[Cron] processCustomerSyncJobs hatası:', err.message));
+      runMonitoredJob('customer_sync', processCustomerSyncJobs)
+        .catch((err) => console.error('[Cron] processCustomerSyncJobs hatası:', err.message));
     });
   })
   .catch((err) => {

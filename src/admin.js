@@ -1568,6 +1568,19 @@ class AdminPanel {
         this.showToast('Seçilen İkas kampanyası aktif değil veya doğrulanamadı. Kampanya listesini yenileyin.', 'error');
         return;
       }
+      const duplicateCampaignReward = this.getCouponTemplates().find(
+        (item) =>
+          String(item.couponGroupId) !== String(seg.couponGroupId) &&
+          item.ikasCampaignId &&
+          String(item.ikasCampaignId) === String(campaignId),
+      );
+      if (duplicateCampaignReward) {
+        this.showToast(
+          `Bu İkas kampanyası "${duplicateCampaignReward.label}" ödülünde zaten kullanılıyor.`,
+          'error',
+        );
+        return;
+      }
       const couponCode = document.getElementById('seg-coupon')?.value.trim() || null;
       const label = selectedCampaign?.title || couponCode || (this.editingSegmentId ? seg.label : null) || 'Kupon';
       // İkas owns the real amount/rate. Never turn a missing API value into a

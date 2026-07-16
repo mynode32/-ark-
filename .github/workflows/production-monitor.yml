@@ -1,0 +1,14 @@
+name: Production Monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production readiness
+        run: curl --fail --silent --show-error --retry 2 --retry-delay 10 https://ark-0ntz.onrender.com/api/health/ready
