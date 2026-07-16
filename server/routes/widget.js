@@ -17,6 +17,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { sendQuotaExceededEmail } from '../services/email.js';
 import { subscriptionAccess } from '../services/subscriptionAccess.js';
 import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
+import { config } from '../config.js';
 
 export const widgetRouter = Router();
 
@@ -98,7 +99,7 @@ const resolveStore = asyncHandler(async (req, res, next) => {
     return res.status(404).json({ error: 'Mağaza bulunamadı' });
   }
   req.store = store;
-  if (!store.emailVerifiedAt) {
+  if (config.emailVerificationRequired && !store.emailVerifiedAt) {
     return res.status(403).json({ error: 'Mağaza e-posta doğrulamasını tamamlamadı.', code: 'STORE_EMAIL_UNVERIFIED' });
   }
   next();

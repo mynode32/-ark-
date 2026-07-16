@@ -76,7 +76,7 @@ class AdminPanel {
           const data = await res.json();
           this.store = data.store;
           await this.loadFromBackend({ render: false });
-          if (!this.store.isOnboarded && this.store.emailVerifiedAt) {
+          if (!this.store.isOnboarded && (!this.store.emailVerificationRequired || this.store.emailVerifiedAt)) {
             this.showOnboarding();
             return;
           }
@@ -120,7 +120,7 @@ class AdminPanel {
       planEl.textContent = this.isPro() ? `Pro plan · ${this.store.subscriptionEndsAt ? new Date(this.store.subscriptionEndsAt).toLocaleDateString('tr-TR') : 'süresiz'}` : 'Ücretsiz plan';
     }
     document.getElementById('emailVerificationBanner')?.remove();
-    if (this.store && !this.store.emailVerifiedAt) {
+    if (this.store?.emailVerificationRequired && !this.store.emailVerifiedAt) {
       const banner = document.createElement('div');
       banner.id = 'emailVerificationBanner';
       banner.className = 'email-verification-banner';
@@ -331,7 +331,7 @@ class AdminPanel {
         saveAuthToken(data.token, isRegister || document.getElementById('authRememberMe').checked);
         this.store = data.store;
         await this.loadFromBackend({ render: false });
-        if (!this.store.isOnboarded && this.store.emailVerifiedAt) {
+        if (!this.store.isOnboarded && (!this.store.emailVerificationRequired || this.store.emailVerifiedAt)) {
           this.showOnboarding();
           return;
         }

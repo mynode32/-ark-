@@ -28,6 +28,8 @@ const jwtSecret = env.JWT_SECRET || process.env.JWT_SECRET;
 const encryptionKey = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
 const databaseUrl = env.DATABASE_URL || process.env.DATABASE_URL || '';
 const port = parseInt(env.PORT || process.env.PORT || '3001');
+const emailVerificationRequired =
+  String(env.EMAIL_VERIFICATION_REQUIRED || process.env.EMAIL_VERIFICATION_REQUIRED || 'false').toLowerCase() === 'true';
 
 if (!jwtSecret) {
   throw new Error('JWT_SECRET ortam değişkeni tanımlı değil. server/.env dosyasına JWT_SECRET=... ekleyin.');
@@ -89,4 +91,5 @@ export const config = {
     .map((value) => value.trim())
     .filter((value) => value && value !== '*'),
   dataRetentionDays: Math.max(1, parseInt(env.DATA_RETENTION_DAYS || process.env.DATA_RETENTION_DAYS || '365', 10)),
+  emailVerificationRequired,
 };

@@ -65,6 +65,7 @@ function publicStore(store) {
     subscriptionStartsAt: store.subscriptionStartsAt,
     subscriptionEndsAt: store.subscriptionEndsAt,
     emailVerifiedAt: store.emailVerifiedAt,
+    emailVerificationRequired: config.emailVerificationRequired,
   };
 }
 
