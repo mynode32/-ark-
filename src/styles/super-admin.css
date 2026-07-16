@@ -64,3 +64,11 @@ td:first-child { min-width: 210px; } td strong, td small { display: block; } td 
 }
 .super-login form .super-password-field button:hover { background: #ddd6fe; }
 .plan-form{display:grid;gap:10px}.plan-form label{display:grid;gap:5px}.plan-form input,.plan-form select{width:100%;box-sizing:border-box}
+.danger-zone { padding: 18px; border: 1px solid #fecaca; border-radius: 14px; background: #fff7f7; }
+.danger-zone h3 { color: #b91c1c; }
+.danger-zone p, .protected-store p { margin: 0 0 14px; color: #6b7280; font-size: 12px; line-height: 1.6; }
+.danger-button { width: 100%; border: 1px solid #dc2626; color: #fff; background: #dc2626; }
+.danger-button:hover { background: #b91c1c; }
+.danger-button:disabled { cursor: wait; opacity: .6; }
+.protected-store { padding: 18px; border: 1px solid #bbf7d0; border-radius: 14px; background: #f0fdf4; }
+.protected-store h3 { color: #15803d; }

@@ -73,10 +73,32 @@ async function openDetail(id) {
       <section class="detail-section"><h3>Planı Düzenle</h3><form id="planForm" class="plan-form"><select id="planType"><option value="free" ${s.planType === 'free' ? 'selected' : ''}>Ücretsiz</option><option value="pro" ${s.planType === 'pro' ? 'selected' : ''}>Pro</option></select><select id="planStatus"><option value="trialing" ${s.subscriptionStatus === 'trialing' ? 'selected' : ''}>Deneme</option><option value="active" ${s.subscriptionStatus === 'active' ? 'selected' : ''}>Aktif</option><option value="past_due" ${s.subscriptionStatus === 'past_due' ? 'selected' : ''}>Ödeme gecikmiş</option><option value="canceled" ${s.subscriptionStatus === 'canceled' ? 'selected' : ''}>İptal</option></select><label>Başlangıç<input id="planStart" type="datetime-local" value="${new Date(s.subscriptionStartsAt || Date.now()).toISOString().slice(0,16)}"></label><label>Bitiş<input id="planEnd" type="datetime-local" value="${new Date(s.subscriptionEndsAt || Date.now() + 86400000).toISOString().slice(0,16)}"></label><button type="submit">Planı Güncelle</button></form></section>
       <section class="detail-section"><h3>Ödül Performansı</h3>${data.prizes.length ? data.prizes.map(p => `<div class="activity"><strong>${escapeHtml(p.prize)}</strong><span>${p.count} kazanım</span><small>${p.failed} hata</small></div>`).join('') : '<p class="muted">Henüz katılım yok.</p>'}</section>
       <section class="detail-section"><h3>Son Hareketler</h3>${data.activity.length ? data.activity.map(a => `<div class="activity"><strong>${a.type === 'spin' ? 'Çark' : 'Ayar'}</strong><span>${escapeHtml(a.section)}<small>${escapeHtml(a.summary || '')}</small></span><small>${formatDate(a.at)}</small></div>`).join('') : '<p class="muted">Hareket yok.</p>'}</section>
-      <section class="detail-section"><h3>Ödeme Geçmişi</h3>${data.billing.length ? data.billing.map(b => `<div class="activity"><strong>${escapeHtml(b.plan_type)}</strong><span>${Number(b.amount).toLocaleString('tr-TR')} ${escapeHtml(b.currency)}</span><small>${escapeHtml(b.status)} · ${formatDate(b.created_at)}</small></div>`).join('') : '<p class="muted">Ödeme kaydı yok.</p>'}</section>`;
+      <section class="detail-section"><h3>Ödeme Geçmişi</h3>${data.billing.length ? data.billing.map(b => `<div class="activity"><strong>${escapeHtml(b.plan_type)}</strong><span>${Number(b.amount).toLocaleString('tr-TR')} ${escapeHtml(b.currency)}</span><small>${escapeHtml(b.status)} · ${formatDate(b.created_at)}</small></div>`).join('') : '<p class="muted">Ödeme kaydı yok.</p>'}</section>
+      ${String(s.slug).toLowerCase() === 'yhmoda'
+        ? '<section class="detail-section protected-store"><h3>Korunan Mağaza</h3><p>yhmoda ana mağazası yanlışlıkla silinmemesi için kod seviyesinde korunuyor.</p></section>'
+        : `<section class="detail-section danger-zone"><h3>Tehlikeli Alan</h3><p>Hesabı panelden kaldırır, aboneliği iptal eder ve katılımcı kişisel verilerini anonimleştirir.</p><button type="button" class="danger-button" id="deleteStoreBtn">Mağazayı Sil</button></section>`}`;
     document.getElementById('profileForm').addEventListener('submit', async (event) => { event.preventDefault(); const button=event.currentTarget.querySelector('button'); button.disabled=true; try { const domains=document.getElementById('profileDomains').value.split(',').map(d=>d.trim()).filter(Boolean); await api(`/stores/${id}/profile`, { method:'PUT', body:JSON.stringify({ name:document.getElementById('profileName').value, email:document.getElementById('profileEmail').value, allowedDomains:domains }) }); await loadOverview(); await openDetail(id); } catch(error) { alert(error.message); } finally { button.disabled=false; } });
     document.getElementById('planForm').addEventListener('submit', async (event) => { event.preventDefault(); const button=event.currentTarget.querySelector('button'); button.disabled=true; try { await api(`/stores/${id}/plan`, { method:'PUT', body:JSON.stringify({ planType:document.getElementById('planType').value, subscriptionStatus:document.getElementById('planStatus').value, subscriptionStartsAt:new Date(document.getElementById('planStart').value).toISOString(), subscriptionEndsAt:new Date(document.getElementById('planEnd').value).toISOString() }) }); await loadOverview(); await openDetail(id); } catch(error) { alert(error.message); } finally { button.disabled=false; } });
     document.getElementById('verifyStoreEmail')?.addEventListener('click', async (event) => { if (!confirm(`${s.email} adresi mağaza sahibi tarafından kontrol edildi mi?`)) return; event.currentTarget.disabled = true; try { await api(`/stores/${id}/verify-email`, { method: 'POST' }); await loadOverview(); await openDetail(id); } catch (error) { alert(error.message); event.currentTarget.disabled = false; } });
+    document.getElementById('deleteStoreBtn')?.addEventListener('click', async (event) => {
+      const confirmation = prompt(`Bu işlem geri alınamaz.\n\nSilmek için mağaza slugını yazın: ${s.slug}`);
+      if (confirmation === null) return;
+      if (confirmation.trim() !== s.slug) {
+        alert(`Slug eşleşmedi. Silmek için tam olarak "${s.slug}" yazmalısınız.`);
+        return;
+      }
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const result = await api(`/stores/${id}`, { method: 'DELETE', body: JSON.stringify({ confirmSlug: confirmation.trim() }) });
+        alert(result.message);
+        closeDetail();
+        await loadOverview();
+      } catch (error) {
+        alert(error.message);
+        button.disabled = false;
+      }
+    });
   } catch (error) { document.getElementById('storeDetail').innerHTML = `<p class="danger">${escapeHtml(error.message)}</p>`; }
 }
 function openCreateStore() { document.getElementById('createStoreDrawer').hidden = false; document.getElementById('createStoreBackdrop').hidden = false; }

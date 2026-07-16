@@ -16,6 +16,7 @@ import {
   saveSuperAdmin2FASecret,
   enableSuperAdmin2FA,
   consumeSuperAdminBackupCode,
+  softDeleteStore,
 } from '../store.js';
 import { sendPasswordResetEmail } from '../services/email.js';
 import { logSuperAdminAction, getSuperAdminAuditLog } from '../services/superAdminAudit.js';
@@ -161,6 +162,30 @@ superAdminRouter.post('/stores/:storeId/verify-email', superAdminAuth, asyncHand
   await markEmailVerified(req.params.storeId);
   logSuperAdminAction({ actorEmail: req.superAdmin.email, action: 'store.verify_email', storeId: req.params.storeId, ip: req.ip });
   res.json({ ok: true });
+}));
+
+superAdminRouter.delete('/stores/:storeId', superAdminAuth, asyncHandler(async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.storeId)) return res.status(400).json({ error: 'Geçersiz mağaza kimliği' });
+  const detail = await getSuperAdminStoreDetail(req.params.storeId);
+  if (!detail) return res.status(404).json({ error: 'Mağaza bulunamadı' });
+  const store = detail.store;
+  if (String(store.slug).toLowerCase() === 'yhmoda') {
+    return res.status(403).json({ error: 'yhmoda ana mağazası silinmeye karşı korunuyor.' });
+  }
+  const confirmSlug = typeof req.body?.confirmSlug === 'string' ? req.body.confirmSlug.trim() : '';
+  if (confirmSlug !== store.slug) {
+    return res.status(400).json({ error: `Silmek için mağaza slugını tam olarak yazın: ${store.slug}` });
+  }
+  await softDeleteStore(store.id);
+  await logSuperAdminAction({
+    actorEmail: req.superAdmin.email,
+    action: 'store.delete',
+    storeId: store.id,
+    before: { name: store.name, email: store.email, slug: store.slug },
+    after: { deleted: true, personalDataAnonymized: true },
+    ip: req.ip,
+  });
+  res.json({ ok: true, message: `${store.name} silindi ve katılımcı kişisel verileri anonimleştirildi.` });
 }));
 
 superAdminRouter.get('/audit-log', superAdminAuth, asyncHandler(async (req, res) => {
