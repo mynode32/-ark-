@@ -116,6 +116,36 @@ test('campaign changes and stale coupon tests require a fresh test', () => {
   assert.equal(stale.issues[0].reason, 'test_expired');
 });
 
+test('legacy test stamps remain valid only when they are newer than the İkas campaign update', () => {
+  const now = Date.now();
+  const campaign = {
+    id: 'campaign-legacy',
+    hasCoupon: true,
+    type: 'RATIO',
+    fixedDiscount: { amount: 10 },
+    updatedAt: now - 60_000,
+  };
+  const segment = {
+    ...reward,
+    ikasCampaignId: campaign.id,
+    couponVerifiedCampaignId: campaign.id,
+    couponVerifiedAt: new Date(now).toISOString(),
+  };
+  assert.equal(
+    assessCouponHealth({ segments: [segment], platform: 'ikas', campaigns: [campaign], now }).ready,
+    true,
+  );
+  assert.equal(
+    assessCouponHealth({
+      segments: [segment],
+      platform: 'ikas',
+      campaigns: [{ ...campaign, updatedAt: now + 1 }],
+      now,
+    }).issues[0].reason,
+    'test_required',
+  );
+});
+
 test('İkas + missing campaignId is blocked without generating a local coupon', async () => {
   let called = false;
   const adapter = { platform: 'ikas', addCouponToCampaign: async () => { called = true; } };

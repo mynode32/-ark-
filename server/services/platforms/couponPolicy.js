@@ -150,11 +150,21 @@ export function assessCouponHealth({
         issues.push({ ...base, reason: campaignState.reason, message: campaignState.message });
         continue;
       }
-      if (!segment.couponVerifiedCampaignFingerprint) {
+      const verifiedAt = new Date(segment.couponVerifiedAt).getTime();
+      const campaignUpdatedAt = timestamp(campaign.updatedAt);
+      const legacyVerificationStillCurrent =
+        !segment.couponVerifiedCampaignFingerprint &&
+        Number.isFinite(verifiedAt) &&
+        campaignUpdatedAt !== null &&
+        campaignUpdatedAt <= verifiedAt;
+      if (!segment.couponVerifiedCampaignFingerprint && !legacyVerificationStillCurrent) {
         issues.push({ ...base, reason: 'test_required', message: 'Kampanyanın güncel ayarları için kupon testi gerekli.' });
         continue;
       }
-      if (segment.couponVerifiedCampaignFingerprint !== campaignFingerprint(campaign)) {
+      if (
+        segment.couponVerifiedCampaignFingerprint &&
+        segment.couponVerifiedCampaignFingerprint !== campaignFingerprint(campaign)
+      ) {
         issues.push({ ...base, reason: 'campaign_changed', message: 'Kampanya testten sonra değiştirilmiş; yeniden test edin.' });
         continue;
       }
