@@ -25,3 +25,31 @@ export function describeDiscount({ discountType, discountValue } = {}) {
   if (discountType === 'ikasCampaign') return 'İndirim değeri İkas kampanyası tarafından belirlenir';
   return '';
 }
+
+function formatMoney(value) {
+  return Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+}
+
+export function describeIkasCampaign(campaign = {}) {
+  const type = String(campaign.type || '').toUpperCase();
+  const fixedAmount = Number(campaign.fixedDiscount?.amount);
+  const rules = campaign.tieredDiscount?.rules || [];
+  const parts = [];
+  if (Number.isFinite(fixedAmount) && fixedAmount > 0) {
+    parts.push(type === 'RATIO' ? `%${formatMoney(fixedAmount)}` : `${formatMoney(fixedAmount)} TL`);
+  } else if (rules.length) {
+    const amounts = rules.map((rule) => Number(rule.amount)).filter((amount) => Number.isFinite(amount) && amount > 0);
+    if (amounts.length) {
+      parts.push(`${formatMoney(Math.min(...amounts))}-${formatMoney(Math.max(...amounts))} TL kademeli`);
+    }
+  }
+  const minimum = Number(campaign.fixedDiscount?.priceRange?.min);
+  if (Number.isFinite(minimum) && minimum > 0) {
+    parts.push(`min. sepet ${formatMoney(minimum)} TL`);
+  }
+  const end = Number(campaign.dateRange?.end);
+  if (Number.isFinite(end)) {
+    parts.push(`bitiş ${new Date(end).toLocaleDateString('tr-TR')}`);
+  }
+  return parts.join(' • ') || 'İndirim kuralı İkas tarafından belirlenir';
+}

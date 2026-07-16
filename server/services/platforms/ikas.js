@@ -9,6 +9,8 @@ import { CouponConfigurationError, CouponProvisionError } from './couponPolicy.j
 // a Render redeploy doesn't force every connected store to re-authenticate
 // with İkas at once just because the in-memory Map was wiped.
 const tokenCache = new Map();
+const campaignCache = new Map();
+const CAMPAIGN_CACHE_MS = 60 * 1000;
 
 // Must be called whenever a store's Ikas credentials change — otherwise a
 // stale token for the *previous* credentials keeps being reused until it
@@ -16,6 +18,7 @@ const tokenCache = new Map();
 // copy is cleared by savePlatformCredentials() itself.
 export function clearTokenCache(storeId) {
   tokenCache.delete(storeId);
+  campaignCache.delete(storeId);
 }
 
 async function getAccessToken(creds, storeId) {
@@ -75,15 +78,25 @@ export async function createCoupon() {
  * Lists existing İkas campaigns (discount rules created in the İkas dashboard/builder)
  * so the admin can pick one to attach a wheel segment to.
  */
-export async function listCampaigns(creds, storeId) {
+export async function listCampaigns(creds, storeId, { force = false, strict = false } = {}) {
+  const cached = campaignCache.get(storeId);
+  if (!force && cached && Date.now() < cached.expiresAt) {
+    return cached.campaigns;
+  }
   let token;
   try {
     token = await getAccessToken(creds, storeId);
   } catch (e) {
     console.error('[İkas] Token alınamadı:', e.message);
+    if (strict) {
+      throw new CouponProvisionError('İkas kampanyaları doğrulanamadı.', e);
+    }
   }
 
   if (!token) {
+    if (strict) {
+      throw new CouponProvisionError('İkas bağlantısı doğrulanamadı.');
+    }
     return [];
   }
 
@@ -110,8 +123,42 @@ export async function listCampaigns(creds, storeId) {
                   type
                   hasCoupon
                   isFreeShipping
+                  deleted
+                  updatedAt
+                  dateRange {
+                    start
+                    end
+                  }
+                  fixedDiscount {
+                    amount
+                    priceRange {
+                      min
+                      max
+                    }
+                    lineItemQuantityRange {
+                      min
+                      max
+                    }
+                  }
+                  tieredDiscount {
+                    isApplyByCartAmount
+                    rules {
+                      amount
+                      priceRange {
+                        min
+                        max
+                      }
+                      lineItemQuantityRange {
+                        min
+                        max
+                      }
+                    }
+                  }
                   usageLimit
                   usageCount
+                  usageLimitPerCustomer
+                  salesChannelIds
+                  currencyCodes
                 }
                 hasNext
                 page
@@ -126,6 +173,9 @@ export async function listCampaigns(creds, storeId) {
       const data = await response.json();
       if (data.errors) {
         console.error('[İkas] Kampanya listesi alınamadı:', JSON.stringify(data.errors));
+        if (strict) {
+          throw new CouponProvisionError('İkas kampanya listesi alınamadı.');
+        }
         return [];
       }
 
@@ -135,9 +185,16 @@ export async function listCampaigns(creds, storeId) {
       page += 1;
     }
 
+    campaignCache.set(storeId, { campaigns, expiresAt: Date.now() + CAMPAIGN_CACHE_MS });
     return campaigns;
   } catch (err) {
+    if (err instanceof CouponProvisionError || err instanceof CouponConfigurationError) {
+      throw err;
+    }
     console.error('[İkas] Kampanya listesi bağlantı hatası:', err.message);
+    if (strict) {
+      throw new CouponProvisionError('İkas kampanyalarına ulaşılamadı.', err);
+    }
     return [];
   }
 }

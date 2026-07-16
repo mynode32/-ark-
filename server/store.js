@@ -308,6 +308,7 @@ export async function getWidgetConfig(storeId) {
 // src/wheel.js) — segment count is locked, not configurable per store.
 export const REQUIRED_SEGMENT_COUNT = 6;
 const MAX_DISCOUNT_VALUE = { percentage: 100, fixed: 100000, freeShipping: 100000, noLuck: 0 };
+const DISCOUNT_TYPES = new Set(['percentage', 'fixed', 'freeShipping', 'noLuck', 'ikasCampaign']);
 const THEME_MODES = new Set(['auto', 'darkGlass', 'lightGlass', 'solid', 'image']);
 
 // Sabit, tasarımı bozmayacak 5 hazır renk teması. Tüm planlar hazır temaları
@@ -376,6 +377,9 @@ export function validateSegments(segments) {
     return `Çark tam olarak ${REQUIRED_SEGMENT_COUNT} dilimden oluşmalı`;
   }
   const seenIds = new Set();
+  const labelsToGroups = new Map();
+  const groupSignatures = new Map();
+  let totalProbability = 0;
   for (const seg of segments) {
     if (!seg || typeof seg.label !== 'string' || !seg.label.trim() || seg.label.length > 100) {
       return 'Her dilimin geçerli bir başlığı olmalı';
@@ -384,15 +388,45 @@ export function validateSegments(segments) {
       return 'Dilim kimlikleri (id) benzersiz olmalı';
     }
     seenIds.add(String(seg.id));
-    if (typeof seg.probability !== 'number' || !Number.isFinite(seg.probability) || seg.probability < 0) {
+    const groupId = String(seg.couponGroupId || seg.id);
+    const normalizedLabel = seg.label.trim().toLocaleLowerCase('tr-TR');
+    const existingLabelGroup = labelsToGroups.get(normalizedLabel);
+    if (existingLabelGroup && existingLabelGroup !== groupId) {
+      return `"${seg.label}" başlığı birden fazla farklı ödülde kullanılamaz`;
+    }
+    labelsToGroups.set(normalizedLabel, groupId);
+    const signature = JSON.stringify({
+      label: seg.label.trim(),
+      discountType: seg.discountType,
+      discountValue: seg.discountValue ?? null,
+      ikasCampaignId: seg.ikasCampaignId || null,
+      couponCode: seg.couponCode || null,
+    });
+    const existingSignature = groupSignatures.get(groupId);
+    if (existingSignature && existingSignature !== signature) {
+      return `"${seg.label}" ödülünün tekrarlanan dilimleri birbiriyle tutarlı değil`;
+    }
+    groupSignatures.set(groupId, signature);
+    if (typeof seg.probability !== 'number' || !Number.isFinite(seg.probability) || seg.probability < 0 || seg.probability > 100) {
       return `"${seg.label}" için kazanma olasılığı geçersiz`;
+    }
+    totalProbability += seg.probability;
+    if (!DISCOUNT_TYPES.has(seg.discountType)) {
+      return `"${seg.label}" için ödül türü geçersiz`;
+    }
+    if (seg.discountType === 'ikasCampaign' && !seg.ikasCampaignId) {
+      return `"${seg.label}" için İkas kampanyası seçilmemiş`;
     }
     const cap = MAX_DISCOUNT_VALUE[seg.discountType];
     if (cap !== undefined && seg.discountType !== 'noLuck') {
-      if (typeof seg.discountValue !== 'number' || !Number.isFinite(seg.discountValue) || seg.discountValue < 0 || seg.discountValue > cap) {
+      const minimum = seg.discountType === 'freeShipping' ? 0 : Number.EPSILON;
+      if (typeof seg.discountValue !== 'number' || !Number.isFinite(seg.discountValue) || seg.discountValue < minimum || seg.discountValue > cap) {
         return `"${seg.label}" için indirim değeri geçersiz (0-${cap} arası olmalı)`;
       }
     }
+  }
+  if (!Number.isFinite(totalProbability) || totalProbability <= 0) {
+    return 'Çarkın toplam kazanma ağırlığı sıfır olamaz';
   }
   return null;
 }
@@ -483,6 +517,7 @@ export async function saveWidgetConfig(storeId, data) {
       const safeSegment = { ...segment };
       delete safeSegment.couponVerifiedAt;
       delete safeSegment.couponVerifiedCampaignId;
+      delete safeSegment.couponVerifiedCampaignFingerprint;
       const groupId = String(segment.couponGroupId || segment.id);
       const previous = previousSegments.find((item) => String(item.couponGroupId || item.id) === groupId);
       const verificationStillMatches =
@@ -495,6 +530,7 @@ export async function saveWidgetConfig(storeId, data) {
             ...safeSegment,
             couponVerifiedAt: previous.couponVerifiedAt,
             couponVerifiedCampaignId: previous.couponVerifiedCampaignId,
+            couponVerifiedCampaignFingerprint: previous.couponVerifiedCampaignFingerprint || null,
           }
         : safeSegment;
     });
@@ -523,14 +559,19 @@ export async function saveWidgetConfig(storeId, data) {
   return config;
 }
 
-export async function markCouponGroupVerified(storeId, couponGroupId, campaignId) {
+export async function markCouponGroupVerified(storeId, couponGroupId, campaignId, campaignFingerprint = null) {
   const store = await findStoreById(storeId);
   if (!store) throw new Error('Mağaza bulunamadı');
   const verifiedAt = new Date().toISOString();
   const groupId = String(couponGroupId);
   const segments = (store.widgetConfig?.segments || []).map((segment) =>
     String(segment.couponGroupId || segment.id) === groupId && String(segment.ikasCampaignId || '') === String(campaignId)
-      ? { ...segment, couponVerifiedAt: verifiedAt, couponVerifiedCampaignId: campaignId }
+      ? {
+          ...segment,
+          couponVerifiedAt: verifiedAt,
+          couponVerifiedCampaignId: campaignId,
+          couponVerifiedCampaignFingerprint: campaignFingerprint,
+        }
       : segment,
   );
   const config = { ...store.widgetConfig, segments };

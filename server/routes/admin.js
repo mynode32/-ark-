@@ -43,7 +43,13 @@ import { sendTeamInviteEmail, sendNewTicketAdminNotification } from '../services
 import { config } from '../config.js';
 import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
-import { assessCouponHealth, CouponConfigurationError, provisionCouponForSegment } from '../services/platforms/couponPolicy.js';
+import {
+  assessCouponHealth,
+  assessIkasCampaign,
+  campaignFingerprint,
+  CouponConfigurationError,
+  provisionCouponForSegment,
+} from '../services/platforms/couponPolicy.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
 import { encryptSecret } from '../services/crypto.js';
 
@@ -83,10 +89,22 @@ async function couponHealthForStore(storeId, widgetConfig = null) {
     widgetConfig ? Promise.resolve(widgetConfig) : getWidgetConfig(storeId),
     getPlatformAdapter(storeId),
   ]);
+  let campaigns;
+  let campaignsAvailable = true;
+  if (adapter.platform === 'ikas' && adapter.connected) {
+    try {
+      campaigns = await adapter.listCampaigns({ strict: true });
+    } catch (error) {
+      campaignsAvailable = false;
+      console.error('[CouponHealth] İkas kampanyaları doğrulanamadı:', error.message);
+    }
+  }
   return assessCouponHealth({
     segments: config?.segments || [],
     platform: adapter.platform,
     connected: adapter.connected,
+    campaigns,
+    campaignsAvailable,
   });
 }
 
@@ -302,6 +320,17 @@ async function retryEntryCoupon(storeId, entryId) {
   }
 
   try {
+    const campaigns = await adapter.listCampaigns({ force: true, strict: true });
+    const campaign = campaigns.find((item) => String(item.id) === String(segment.ikasCampaignId));
+    const campaignState = assessIkasCampaign(campaign);
+    if (!campaignState.ready) {
+      return updateEntryCoupon(storeId, entryId, {
+        couponCode: entry.couponCode,
+        status: 'manual_review',
+        error: campaignState.message,
+        isLocalCoupon: false,
+      });
+    }
     const coupon = await provisionCouponForSegment(adapter, segment);
     return updateEntryCoupon(storeId, entryId, {
       couponCode: coupon.code,
@@ -396,11 +425,18 @@ adminRouter.get('/entries/:entryId', asyncHandler(async (req, res) => {
  */
 adminRouter.get('/ikas/campaigns', asyncHandler(async (req, res) => {
   const adapter = await getPlatformAdapter(req.storeId);
-  const campaigns = await adapter.listCampaigns();
+  const campaigns = await adapter.listCampaigns({ strict: true });
   // The wheel only offers campaigns that are already configured for coupons
   // in İkas. Pagination in the adapter ensures this includes every matching
   // campaign, not merely the first 100 records.
-  res.json({ campaigns: campaigns.filter((campaign) => campaign.hasCoupon) });
+  const evaluated = campaigns.map((campaign) => ({
+    ...campaign,
+    eligibility: assessIkasCampaign(campaign),
+  }));
+  res.json({
+    campaigns: evaluated.filter((campaign) => campaign.eligibility.ready),
+    unavailableCampaigns: evaluated.filter((campaign) => campaign.hasCoupon && !campaign.eligibility.ready),
+  });
 }));
 
 /**
@@ -428,11 +464,22 @@ adminRouter.post('/segments/:segmentId/test-coupon', testCouponLimiter, asyncHan
     if (!segment.ikasCampaignId) {
       throw new CouponConfigurationError('Önce bu ödülü bir İkas kampanyasına bağlayın.');
     }
+    const campaigns = await adapter.listCampaigns({ force: true, strict: true });
+    const campaign = campaigns.find((item) => String(item.id) === String(segment.ikasCampaignId));
+    const campaignState = assessIkasCampaign(campaign);
+    if (!campaignState.ready) {
+      throw new CouponConfigurationError(campaignState.message, campaignState.reason);
+    }
     const coupon = await provisionCouponForSegment(adapter, segment);
     couponCode = coupon.code;
 
     const groupId = String(segment.couponGroupId || segment.id);
-    await markCouponGroupVerified(req.storeId, groupId, segment.ikasCampaignId);
+    await markCouponGroupVerified(
+      req.storeId,
+      groupId,
+      segment.ikasCampaignId,
+      campaignFingerprint(campaign),
+    );
   } else if (!couponCode) {
     const coupon = await provisionCouponForSegment(adapter, segment);
     couponCode = coupon.code;

@@ -4,7 +4,7 @@ import {
 } from './storage.js';
 import { THEME_PRESETS, FREE_PALETTE } from './colorPalettes.js';
 import { readAdminConfigCache, writeAdminConfigCache } from './adminCache.js';
-import { campaignDiscountMetadata, describeDiscount } from './campaignDiscount.js';
+import { campaignDiscountMetadata, describeDiscount, describeIkasCampaign } from './campaignDiscount.js';
 import { generateEmbedCode, generateIkasGuide } from './embed.js';
 import { ModalManager } from './modal.js';
 import { WheelEngine } from './wheel.js';
@@ -1564,6 +1564,10 @@ class AdminPanel {
     document.getElementById('saveSegBtn').addEventListener('click', async () => {
       const campaignId = document.getElementById('seg-ikas-campaign')?.value || null;
       const selectedCampaign = this._ikasCampaigns?.find((campaign) => String(campaign.id) === String(campaignId));
+      if (campaignId && !selectedCampaign) {
+        this.showToast('Seçilen İkas kampanyası aktif değil veya doğrulanamadı. Kampanya listesini yenileyin.', 'error');
+        return;
+      }
       const couponCode = document.getElementById('seg-coupon')?.value.trim() || null;
       const label = selectedCampaign?.title || couponCode || (this.editingSegmentId ? seg.label : null) || 'Kupon';
       // İkas owns the real amount/rate. Never turn a missing API value into a
@@ -1627,6 +1631,7 @@ class AdminPanel {
       if (res.ok) {
         const data = await res.json();
         this._ikasCampaigns = data.campaigns || [];
+        this._unavailableIkasCampaigns = data.unavailableCampaigns || [];
         return this._ikasCampaigns;
       }
     } catch {
@@ -1680,12 +1685,18 @@ class AdminPanel {
     campaigns.forEach((c) => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = `${c.title} • Kuponlu`;
+      opt.textContent = `${c.title} • ${describeIkasCampaign(c)}`;
       if (String(c.id) === String(selectedId)) {
         opt.selected = true;
       }
       currentSelect.appendChild(opt);
     });
+    if (hint) {
+      const unavailable = this._unavailableIkasCampaigns || [];
+      hint.textContent = unavailable.length
+        ? `${unavailable.length} süresi dolmuş, limiti bitmiş veya indirimi geçersiz kampanya güvenlik amacıyla listeden çıkarıldı.`
+        : 'Yalnızca aktif, kuponlu ve indirim değeri sıfırdan büyük kampanyalar gösteriliyor.';
+    }
   }
 
   // --- Preview ---

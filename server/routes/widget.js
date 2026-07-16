@@ -35,6 +35,26 @@ const checkSpinLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeade
 // send the same warning on every rejected spin until the month rolls over.
 const quotaEmailsSent = new Set();
 
+async function couponHealthForWidget(adapter, segments, storeSlug) {
+  let campaigns;
+  let campaignsAvailable = true;
+  if (adapter.platform === 'ikas' && adapter.connected) {
+    try {
+      campaigns = await adapter.listCampaigns({ strict: true });
+    } catch (error) {
+      campaignsAvailable = false;
+      console.error(`[CouponHealth] [${storeSlug}] İkas kampanyaları doğrulanamadı:`, error.message);
+    }
+  }
+  return assessCouponHealth({
+    segments,
+    platform: adapter.platform,
+    connected: adapter.connected,
+    campaigns,
+    campaignsAvailable,
+  });
+}
+
 function notifyQuotaExceededOnce(store) {
   const month = new Date().toISOString().slice(0, 7);
   const key = `${store.id}:${month}`;
@@ -141,11 +161,7 @@ widgetRouter.use('/:storeSlug', (req, res, next) => {
 widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
   const config = await getWidgetConfig(req.store.id);
   const adapter = await getPlatformAdapter(req.store.id);
-  const couponHealth = assessCouponHealth({
-    segments: config.segments,
-    platform: adapter.platform,
-    connected: adapter.connected,
-  });
+  const couponHealth = await couponHealthForWidget(adapter, config.segments, req.store.slug);
   if (!couponHealth.ready) {
     return res.status(409).json({
       error: 'Çark kupon ayarları tamamlanana kadar geçici olarak kullanılamıyor.',
@@ -202,11 +218,7 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
     }
 
     const adapter = await getPlatformAdapter(storeId);
-    const couponHealth = assessCouponHealth({
-      segments: activeSegments,
-      platform: adapter.platform,
-      connected: adapter.connected,
-    });
+    const couponHealth = await couponHealthForWidget(adapter, activeSegments, req.store.slug);
     if (!couponHealth.ready) {
       console.error(`[Spin] [${req.store.slug}] Kupon sağlık kontrolü başarısız: ${couponHealth.message}`);
       return res.status(409).json({

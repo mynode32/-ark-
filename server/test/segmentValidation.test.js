@@ -45,3 +45,18 @@ test('legacy İkas free-shipping flags are normalized as campaign-owned rewards'
   assert.equal(normalized[0].discountValue, null);
   assert.equal(validateSegments(normalized), null);
 });
+
+test('zero total weight and zero-value manual discounts are rejected', () => {
+  const zeroWeight = Array.from({ length: 6 }, (_, index) => segment(index + 1, { probability: 0 }));
+  assert.match(validateSegments(zeroWeight), /toplam kazanma ağırlığı/i);
+
+  const zeroDiscount = Array.from({ length: 6 }, (_, index) => segment(index + 1));
+  zeroDiscount[0] = segment(1, { discountType: 'fixed', discountValue: 0 });
+  assert.match(validateSegments(zeroDiscount), /indirim değeri geçersiz/i);
+});
+
+test('duplicate prize labels cannot point to different coupon groups', () => {
+  const segments = Array.from({ length: 6 }, (_, index) => segment(index + 1));
+  segments[1] = segment(2, { label: segments[0].label });
+  assert.match(validateSegments(segments), /birden fazla farklı ödülde/i);
+});
