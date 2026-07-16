@@ -141,6 +141,9 @@ class CarkApp {
         name: userData.name,
         phone: userData.phone,
         email: userData.email,
+        kvkkAccepted: userData.kvkkAccepted,
+        marketingConsent: userData.marketingConsent,
+        kvkkVersion: userData.kvkkVersion,
       });
 
       // Çarkı görsel olarak döndür

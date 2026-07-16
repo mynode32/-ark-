@@ -108,7 +108,18 @@ function exportCsv() {
   const csv = '\uFEFF' + rows.map(row => row.map(v => `"${String(v).replaceAll('"','""')}"`).join(';')).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = `mystore-magazalar-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
-loginForm.addEventListener('submit', async (event) => { event.preventDefault(); loginError.textContent = ''; const button = loginForm.querySelector('button'); button.disabled = true; try { const response = await fetch(`${API_BASE}/api/super-admin/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:document.getElementById('superEmail').value,password:document.getElementById('superPassword').value}) }); const data=await response.json().catch(()=>({})); if(!response.ok) throw new Error(data.error||'Giriş başarısız'); sessionStorage.setItem(TOKEN_KEY,data.token); await loadOverview(); loginForm.reset(); } catch(error){ showLogin(error.message); } finally { button.disabled=false; } });
+loginForm.addEventListener('submit', async (event) => { event.preventDefault(); loginError.textContent = ''; const button = loginForm.querySelector('button'); button.disabled = true; try { const response = await fetch(`${API_BASE}/api/super-admin/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:document.getElementById('superEmail').value,password:document.getElementById('superPassword').value,code:document.getElementById('superTwoFactorCode').value}) }); const data=await response.json().catch(()=>({})); if(!response.ok) throw new Error(data.error||'Giriş başarısız'); sessionStorage.setItem(TOKEN_KEY,data.token); await loadOverview(); loginForm.reset(); } catch(error){ showLogin(error.message); } finally { button.disabled=false; } });
+document.getElementById('setupTwoFactor').addEventListener('click', async () => {
+  try {
+    const status = await api('/2fa/status');
+    if (status.enabled) { alert('İki adımlı doğrulama zaten açık.'); return; }
+    const setup = await api('/2fa/setup', { method: 'POST' });
+    const code = prompt(`Authenticator uygulamasına bu anahtarı ekleyin:\n\n${setup.secret}\n\nUygulamanın ürettiği 6 haneli kodu girin:`);
+    if (!code) return;
+    const result = await api('/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
+    alert(`2FA açıldı. Bu yedek kodları güvenli bir yerde saklayın; tekrar gösterilmeyecek:\n\n${result.backupCodes.join('\n')}`);
+  } catch (error) { alert(error.message); }
+});
 document.getElementById('superPasswordToggle').addEventListener('click', (event) => { const input=document.getElementById('superPassword'); const show=input.type==='password'; input.type=show?'text':'password'; event.currentTarget.textContent=show?'Gizle':'Göster'; event.currentTarget.setAttribute('aria-label', show?'Şifreyi gizle':'Şifreyi göster'); });
 document.getElementById('superLogout').addEventListener('click', () => showLogin());
 document.getElementById('refreshOverview').addEventListener('click', () => loadOverview().catch(e => alert(e.message)));

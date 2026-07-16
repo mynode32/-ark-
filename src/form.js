@@ -100,8 +100,8 @@ export class FormManager {
     }
 
     // KVKK Checkboxes
-    if (!this.inputs.kvkk1.checked || !this.inputs.kvkk2.checked) {
-      errors.push('Lütfen sözleşme ve aydınlatma metinlerini onaylayınız.');
+    if (!this.inputs.kvkk2.checked) {
+      errors.push('Lütfen KVKK aydınlatma metnini onaylayınız.');
     }
 
     return { valid: errors.length === 0, errors };
@@ -112,6 +112,9 @@ export class FormManager {
       name: this.inputs.name.value.trim(),
       phone: this.inputs.phone.value.replace(/\D/g, ''),
       email: this.inputs.email.value.trim(),
+      kvkkAccepted: this.inputs.kvkk2.checked,
+      marketingConsent: this.inputs.kvkk1.checked,
+      kvkkVersion: this.config.kvkk?.version || 'unspecified',
     };
   }
 

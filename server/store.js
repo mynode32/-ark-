@@ -25,6 +25,7 @@ const GENERIC_DEFAULT_CONFIG = {
     soundEnabled: true,
   },
   kvkk: {
+    version: '2026-07-16',
     etiText:
       "Tanıtım, pazarlama, reklam ve benzeri amaçlarla tarafıma ticari elektronik ileti gönderilmesine izin veriyorum. Elektronik Ticari İleti Aydınlatma Metni'ni okudum onay veriyorum.",
     kvkkText:
@@ -90,6 +91,7 @@ function rowToStore(row) {
     deletedAt: row.deleted_at,
     iyzicoCardUserKey: row.iyzico_card_user_key,
     iyzicoCardToken: row.iyzico_card_token,
+    authVersion: Number(row.auth_version || 1),
   };
 }
 
@@ -98,8 +100,9 @@ export const CURRENT_TERMS_VERSION = '2026-07-12';
 export async function createStore({ slug, name, email, passwordHash, widgetConfig }) {
   const res = await query(
     `INSERT INTO stores
-       (slug, name, email, password_hash, widget_config, terms_accepted_at, terms_version, subscription_ends_at)
-     VALUES ($1, $2, $3, $4, $5, now(), $6, now() + interval '1 hour')
+       (slug, name, email, password_hash, widget_config, terms_accepted_at, terms_version,
+        plan_type, subscription_status, subscription_starts_at, subscription_ends_at)
+     VALUES ($1, $2, $3, $4, $5, now(), $6, 'free', 'active', now(), NULL)
      RETURNING *`,
     [slug, name, email, passwordHash, JSON.stringify(widgetConfig), CURRENT_TERMS_VERSION],
   );
@@ -240,6 +243,12 @@ export async function getSuperAdminOverview() {
       lastSpinAt: row.last_spin_at,
       lastConfigAt: row.last_config_at,
       ikasConnected: Boolean(row.ikas_connected),
+      // Kesin bir dolandırıcılık tespiti değil, sadece süper adminin gözden
+      // geçirmesi gereken kabaca bir sinyal: kısa sürede anormal yoğun
+      // kullanım ya da kuponların büyük kısmının başarısız olması.
+      suspicious:
+        Number(row.entries_24h || 0) > 150 ||
+        (Number(row.entry_count || 0) >= 20 && Number(row.failed_coupons || 0) / Number(row.entry_count || 1) > 0.4),
     })),
   };
 }
@@ -552,6 +561,12 @@ function rowToEntry(row) {
     couponStatus: derivedStatus,
     couponError: row.coupon_error || null,
     processedAt: row.processed_at instanceof Date ? row.processed_at.toISOString() : row.processed_at || null,
+    kvkkAcceptedAt: row.kvkk_accepted_at instanceof Date ? row.kvkk_accepted_at.toISOString() : row.kvkk_accepted_at || null,
+    kvkkVersion: row.kvkk_version || null,
+    marketingConsent: Boolean(row.marketing_consent),
+    marketingConsentAt:
+      row.marketing_consent_at instanceof Date ? row.marketing_consent_at.toISOString() : row.marketing_consent_at || null,
+    campaignKey: row.campaign_key || null,
   };
 }
 
@@ -702,7 +717,11 @@ export async function getEntries(storeId) {
 
 export async function findLastEntryByPhone(storeId, phone) {
   const res = await query(
-    'SELECT * FROM entries WHERE store_id = $1 AND phone = $2 ORDER BY "timestamp" DESC LIMIT 1',
+    `SELECT * FROM entries
+     WHERE store_id = $1 AND phone = $2
+       AND coupon_status IS DISTINCT FROM 'failed'
+       AND discount_type IS DISTINCT FROM 'noLuck'
+     ORDER BY "timestamp" DESC LIMIT 1`,
     [storeId, phone],
   );
   return res.rows[0] ? rowToEntry(res.rows[0]) : null;
@@ -774,23 +793,51 @@ export async function createTestEntry(storeId, segment) {
  * the newly reserved row (prize/coupon fields still empty — filled in by
  * finalizeEntry once the winner/coupon are determined).
  */
-export async function claimEntry(storeId, { name, phone, email }) {
+export async function claimEntry(
+  storeId,
+  { name, phone, email, cooldownHours, monthlyLimit, kvkkVersion, marketingConsent, campaignKey },
+) {
   return withTransaction(async (client) => {
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [String(storeId)]);
+    const countResult = await client.query(
+      `SELECT COUNT(*)::int AS count
+       FROM entries
+       WHERE store_id = $1
+         AND "timestamp" >= date_trunc('month', now())
+         AND coupon_status IS DISTINCT FROM 'failed'`,
+      [storeId],
+    );
+    const currentCount = Number(countResult.rows[0]?.count || 0);
+    if (Number.isFinite(monthlyLimit) && currentCount >= monthlyLimit) {
+      return { status: 'quota_exceeded', currentCount };
+    }
+
+    const cooldown = Math.max(0, Number(cooldownHours) || 24);
     const dup = await client.query(
-      'SELECT 1 FROM entries WHERE store_id = $1 AND (email = $2 OR phone = $3) LIMIT 1',
-      [storeId, email, phone],
+      `SELECT "timestamp"
+       FROM entries
+       WHERE store_id = $1
+         AND (email = $2 OR phone = $3)
+         AND coupon_status IS DISTINCT FROM 'failed'
+         AND discount_type IS DISTINCT FROM 'noLuck'
+         AND "timestamp" > now() - ($4::numeric * interval '1 hour')
+       ORDER BY "timestamp" DESC
+       LIMIT 1`,
+      [storeId, email, phone, cooldown],
     );
     if (dup.rowCount > 0) {
-      return null;
+      const blockedUntil = new Date(new Date(dup.rows[0].timestamp).getTime() + cooldown * 60 * 60 * 1000);
+      return { status: 'cooldown', blockedUntil };
     }
     const res = await client.query(
-      `INSERT INTO entries (store_id, "timestamp", name, phone, email)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO entries
+         (store_id, "timestamp", name, phone, email, kvkk_accepted_at, kvkk_version,
+          marketing_consent, marketing_consent_at, campaign_key)
+       VALUES ($1, $2, $3, $4, $5, now(), $6, $7, CASE WHEN $7 THEN now() ELSE NULL END, $8)
        RETURNING *`,
-      [storeId, new Date().toISOString(), name, phone, email],
+      [storeId, new Date().toISOString(), name, phone, email, kvkkVersion, Boolean(marketingConsent), campaignKey],
     );
-    return rowToEntry(res.rows[0]);
+    return { status: 'claimed', entry: rowToEntry(res.rows[0]), currentCount: currentCount + 1 };
   });
 }
 
@@ -910,16 +957,23 @@ export async function updateAllowedDomains(storeId, domains) {
 }
 
 // --- Auth token'ları ---
-export async function createAuthToken(storeId, purpose, ttlMs) {
+export async function createAuthToken(storeId, purpose, ttlMs, memberId = null) {
   const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const expiresAt = new Date(Date.now() + ttlMs).toISOString();
-  await query('INSERT INTO password_resets (store_id, token, purpose, expires_at) VALUES ($1, $2, $3, $4)', [storeId, token, purpose, expiresAt]);
+  await query(
+    `INSERT INTO password_resets (store_id, token, token_hash, purpose, expires_at, member_id)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [storeId, `hashed:${tokenHash}`, tokenHash, purpose, expiresAt, memberId],
+  );
   return token;
 }
 
 export async function findValidToken(token, purpose) {
+  const tokenHash = crypto.createHash('sha256').update(String(token || '')).digest('hex');
   const res = await query(`SELECT * FROM password_resets
-    WHERE token = $1 AND purpose = $2 AND used_at IS NULL AND expires_at > now()`, [token, purpose]);
+    WHERE (token_hash = $1 OR token = $2) AND purpose = $3 AND used_at IS NULL AND expires_at > now()`,
+  [tokenHash, token, purpose]);
   return res.rows[0] || null;
 }
 
@@ -928,7 +982,7 @@ export async function consumeToken(tokenId) {
 }
 
 export async function updateStorePassword(storeId, passwordHash) {
-  await query('UPDATE stores SET password_hash = $1 WHERE id = $2', [passwordHash, storeId]);
+  await query('UPDATE stores SET password_hash = $1, auth_version = auth_version + 1 WHERE id = $2', [passwordHash, storeId]);
 }
 
 export async function markEmailVerified(storeId) {
@@ -1020,10 +1074,48 @@ export const PLAN_SPIN_LIMITS = { free: 100, pro: 2000, unlimited: Infinity };
 export async function getMonthlySpinCount(storeId) {
   const res = await query(
     `SELECT COUNT(*) AS count FROM entries
-     WHERE store_id = $1 AND "timestamp" >= date_trunc('month', now())`,
+     WHERE store_id = $1
+       AND "timestamp" >= date_trunc('month', now())
+       AND coupon_status IS DISTINCT FROM 'failed'`,
     [storeId],
   );
   return Number(res.rows[0]?.count || 0);
+}
+
+export async function createPurchaseRequest(storeId, planType, note = '') {
+  if (!['pro'].includes(planType)) {
+    throw Object.assign(new Error('Geçersiz plan talebi'), { status: 400 });
+  }
+  const existing = await query(
+    `SELECT * FROM purchase_requests
+     WHERE store_id = $1 AND plan_type = $2 AND status = 'pending'
+     ORDER BY created_at DESC LIMIT 1`,
+    [storeId, planType],
+  );
+  if (existing.rows[0]) return existing.rows[0];
+  const result = await query(
+    `INSERT INTO purchase_requests (store_id, plan_type, note)
+     VALUES ($1, $2, $3) RETURNING *`,
+    [storeId, planType, String(note || '').trim().slice(0, 1000) || null],
+  );
+  return result.rows[0];
+}
+
+export async function listPurchaseRequests(storeId) {
+  const result = await query(
+    `SELECT id, plan_type, note, status, created_at, resolved_at
+     FROM purchase_requests WHERE store_id = $1 ORDER BY created_at DESC LIMIT 20`,
+    [storeId],
+  );
+  return result.rows;
+}
+
+export async function enqueueCustomerSync(storeId, entryId, payload, error = null) {
+  await query(
+    `INSERT INTO customer_sync_jobs (store_id, entry_id, payload, last_error, next_attempt_at)
+     VALUES ($1, $2, $3, $4, now() + interval '5 minutes')`,
+    [storeId, entryId, JSON.stringify(payload), error ? String(error).slice(0, 1000) : null],
+  );
 }
 
 // --- Abonelik ve ödeme kayıtları ---
@@ -1156,4 +1248,242 @@ export async function softDeleteStore(storeId) {
     await client.query('UPDATE entries SET name = NULL, phone = NULL, email = NULL WHERE store_id = $1', [storeId]);
     await client.query("UPDATE stores SET deleted_at = now(), subscription_status = 'canceled' WHERE id = $1", [storeId]);
   });
+}
+
+// --- Çalışan/rol sistemi ---
+// Mağaza sahibi (`stores` satırının kendisi) örtük olarak 'owner' rolündedir;
+// bu tablo yalnızca davet edilmiş çalışanları tutar.
+
+function rowToMember(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    email: row.email,
+    role: row.role,
+    authVersion: Number(row.auth_version || 1),
+    invitedAt: row.invited_at,
+    acceptedAt: row.accepted_at,
+    createdAt: row.created_at,
+  };
+}
+
+export async function findMemberByEmail(email) {
+  const res = await query('SELECT * FROM store_members WHERE email = $1', [email]);
+  return rowToMember(res.rows[0]);
+}
+
+export async function findMemberById(id) {
+  const res = await query('SELECT * FROM store_members WHERE id = $1', [id]);
+  return rowToMember(res.rows[0]);
+}
+
+export async function getMemberPasswordHash(id) {
+  const res = await query('SELECT password_hash FROM store_members WHERE id = $1', [id]);
+  return res.rows[0]?.password_hash || null;
+}
+
+export async function listStoreMembers(storeId) {
+  const res = await query('SELECT * FROM store_members WHERE store_id = $1 ORDER BY created_at', [storeId]);
+  return res.rows.map(rowToMember);
+}
+
+/** Davet edilen çalışan e-postası hem stores hem store_members üzerinde benzersiz olmalı. */
+export async function inviteStoreMember(storeId, email) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const existingStore = await findStoreByEmail(normalizedEmail);
+  if (existingStore) {
+    throw Object.assign(new Error('Bu e-posta zaten bir mağaza hesabına ait'), { status: 400 });
+  }
+  const existingMember = await findMemberByEmail(normalizedEmail);
+  if (existingMember) {
+    throw Object.assign(new Error('Bu e-posta zaten bir ekip üyesi'), { status: 400 });
+  }
+  const res = await query(
+    `INSERT INTO store_members (store_id, email, role) VALUES ($1, $2, 'employee') RETURNING *`,
+    [storeId, normalizedEmail],
+  );
+  return rowToMember(res.rows[0]);
+}
+
+export async function removeMember(storeId, memberId) {
+  const result = await query('DELETE FROM store_members WHERE id = $1 AND store_id = $2', [memberId, storeId]);
+  if (!result.rowCount) throw Object.assign(new Error('Ekip üyesi bulunamadı'), { status: 404 });
+}
+
+export async function acceptMemberInvite(memberId, passwordHash) {
+  await query('UPDATE store_members SET password_hash = $2, accepted_at = now() WHERE id = $1', [memberId, passwordHash]);
+}
+
+// --- Süper admin 2FA ---
+
+export async function getSuperAdmin2FA() {
+  const res = await query('SELECT secret_enc, enabled, backup_codes_enc FROM super_admin_2fa WHERE id = 1');
+  const row = res.rows[0];
+  if (!row) return { secretEnc: null, enabled: false, backupCodesEnc: null };
+  return { secretEnc: row.secret_enc, enabled: Boolean(row.enabled), backupCodesEnc: row.backup_codes_enc };
+}
+
+export async function saveSuperAdmin2FASecret(secretEnc) {
+  await query(
+    `INSERT INTO super_admin_2fa (id, secret_enc, enabled) VALUES (1, $1, false)
+     ON CONFLICT (id) DO UPDATE SET secret_enc = $1, enabled = false`,
+    [secretEnc],
+  );
+}
+
+export async function enableSuperAdmin2FA(backupCodesEnc) {
+  await query('UPDATE super_admin_2fa SET enabled = true, backup_codes_enc = $1 WHERE id = 1', [JSON.stringify(backupCodesEnc)]);
+}
+
+export async function consumeSuperAdminBackupCode(code) {
+  const { backupCodesEnc } = await getSuperAdmin2FA();
+  const codes = backupCodesEnc || [];
+  const candidateHash = crypto.createHash('sha256').update(String(code || '').trim()).digest('hex');
+  const idx = codes.indexOf(candidateHash);
+  if (idx === -1) return false;
+  codes.splice(idx, 1);
+  await query('UPDATE super_admin_2fa SET backup_codes_enc = $1 WHERE id = 1', [JSON.stringify(codes)]);
+  return true;
+}
+
+// --- Destek / ticket sistemi ---
+
+function rowToTicket(row) {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    subject: row.subject,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function createSupportTicket(storeId, subject, message) {
+  return withTransaction(async (client) => {
+    const ticketRes = await client.query(
+      `INSERT INTO support_tickets (store_id, subject) VALUES ($1, $2) RETURNING *`,
+      [storeId, subject],
+    );
+    const ticket = ticketRes.rows[0];
+    await client.query(
+      `INSERT INTO support_ticket_messages (ticket_id, sender, message) VALUES ($1, 'store', $2)`,
+      [ticket.id, message],
+    );
+    return rowToTicket(ticket);
+  });
+}
+
+export async function listTicketsForStore(storeId) {
+  const res = await query('SELECT * FROM support_tickets WHERE store_id = $1 ORDER BY updated_at DESC', [storeId]);
+  return res.rows.map(rowToTicket);
+}
+
+export async function listAllTickets({ status, limit = 100 } = {}) {
+  const params = [];
+  let where = '';
+  if (status) {
+    params.push(status);
+    where = 'WHERE t.status = $1';
+  }
+  params.push(Math.min(500, Math.max(1, limit)));
+  const res = await query(
+    `SELECT t.*, s.name AS store_name, s.slug AS store_slug
+     FROM support_tickets t JOIN stores s ON s.id = t.store_id
+     ${where} ORDER BY t.updated_at DESC LIMIT $${params.length}`,
+    params,
+  );
+  return res.rows.map((row) => ({ ...rowToTicket(row), storeName: row.store_name, storeSlug: row.store_slug }));
+}
+
+async function getTicketMessages(ticketId) {
+  const res = await query(
+    'SELECT id, sender, message, created_at FROM support_ticket_messages WHERE ticket_id = $1 ORDER BY created_at',
+    [ticketId],
+  );
+  return res.rows.map((r) => ({ id: r.id, sender: r.sender, message: r.message, createdAt: r.created_at }));
+}
+
+export async function getTicketWithMessages(ticketId, storeId = null) {
+  const params = storeId ? [ticketId, storeId] : [ticketId];
+  const where = storeId ? 'WHERE id = $1 AND store_id = $2' : 'WHERE id = $1';
+  const res = await query(`SELECT * FROM support_tickets ${where}`, params);
+  const ticket = res.rows[0];
+  if (!ticket) return null;
+  return { ...rowToTicket(ticket), messages: await getTicketMessages(ticketId) };
+}
+
+export async function addTicketMessage(ticketId, sender, message) {
+  await withTransaction(async (client) => {
+    await client.query(
+      `INSERT INTO support_ticket_messages (ticket_id, sender, message) VALUES ($1, $2, $3)`,
+      [ticketId, sender, message],
+    );
+    const status = sender === 'admin' ? 'answered' : 'open';
+    await client.query('UPDATE support_tickets SET status = $2, updated_at = now() WHERE id = $1', [ticketId, status]);
+  });
+}
+
+export async function setTicketStatus(ticketId, status) {
+  await query('UPDATE support_tickets SET status = $2, updated_at = now() WHERE id = $1', [ticketId, status]);
+}
+
+// --- Duyuru sistemi ---
+
+function rowToAnnouncement(row) {
+  return { id: row.id, title: row.title, message: row.message, active: row.active, createdAt: row.created_at };
+}
+
+export async function getActiveAnnouncement() {
+  const res = await query('SELECT * FROM announcements WHERE active = true ORDER BY created_at DESC LIMIT 1');
+  return res.rows[0] ? rowToAnnouncement(res.rows[0]) : null;
+}
+
+export async function listAnnouncements(limit = 20) {
+  const res = await query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT $1', [Math.min(100, Math.max(1, limit))]);
+  return res.rows.map(rowToAnnouncement);
+}
+
+/** Aynı anda tek aktif duyuru olur — yenisi eklenince öncekiler pasifleşir. */
+export async function createAnnouncement(title, message) {
+  return withTransaction(async (client) => {
+    await client.query('UPDATE announcements SET active = false WHERE active = true');
+    const res = await client.query(
+      'INSERT INTO announcements (title, message) VALUES ($1, $2) RETURNING *',
+      [title, message],
+    );
+    return rowToAnnouncement(res.rows[0]);
+  });
+}
+
+export async function deactivateAnnouncement(id) {
+  await query('UPDATE announcements SET active = false WHERE id = $1', [id]);
+}
+
+// --- Gelir raporlama (süper admin) ---
+
+export async function getSuperAdminRevenueReport() {
+  const [totalsResult, monthlyResult, planResult] = await Promise.all([
+    query(`
+      SELECT COALESCE(SUM(amount), 0) AS total_revenue, COUNT(*)::int AS total_payments
+      FROM billing_history WHERE status = 'paid'
+    `),
+    query(`
+      SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
+             COALESCE(SUM(amount), 0) AS revenue, COUNT(*)::int AS payments
+      FROM billing_history WHERE status = 'paid' AND created_at >= now() - interval '12 months'
+      GROUP BY 1 ORDER BY 1
+    `),
+    query(`
+      SELECT plan_type, COUNT(*)::int AS store_count
+      FROM stores WHERE deleted_at IS NULL GROUP BY plan_type
+    `),
+  ]);
+  return {
+    totalRevenue: Number(totalsResult.rows[0]?.total_revenue || 0),
+    totalPayments: Number(totalsResult.rows[0]?.total_payments || 0),
+    monthly: monthlyResult.rows.map((r) => ({ month: r.month, revenue: Number(r.revenue), payments: Number(r.payments) })),
+    planDistribution: planResult.rows.map((r) => ({ planType: r.plan_type, storeCount: Number(r.store_count) })),
+  };
 }

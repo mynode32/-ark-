@@ -112,6 +112,11 @@ export async function ensureSchema() {
   await query("ALTER TABLE entries ADD COLUMN IF NOT EXISTS coupon_status TEXT");
   await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS coupon_error TEXT');
   await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ');
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS kvkk_accepted_at TIMESTAMPTZ');
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS kvkk_version TEXT');
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN NOT NULL DEFAULT false');
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS marketing_consent_at TIMESTAMPTZ');
+  await query('ALTER TABLE entries ADD COLUMN IF NOT EXISTS campaign_key TEXT');
   await query(`
     UPDATE entries
     SET coupon_status = CASE
@@ -151,14 +156,13 @@ export async function ensureSchema() {
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ');
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS subscription_starts_at TIMESTAMPTZ');
   await query('UPDATE stores SET subscription_starts_at = created_at WHERE subscription_starts_at IS NULL');
-  // Free accounts get one hour from registration. Backfill older trial rows
-  // deterministically from their own creation time so a restart cannot renew them.
+  // The public offer is a permanent free plan with a monthly quota. Normalize
+  // legacy one-hour trial rows so old signups receive the same promise.
   await query(`
     UPDATE stores
-    SET subscription_ends_at = created_at + interval '1 hour'
+    SET subscription_status = 'active',
+        subscription_ends_at = NULL
     WHERE plan_type = 'free'
-      AND subscription_status = 'trialing'
-      AND subscription_ends_at IS NULL
   `);
   await query("ALTER TABLE stores ADD COLUMN IF NOT EXISTS allowed_domains JSONB NOT NULL DEFAULT '[]'");
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN NOT NULL DEFAULT false');
@@ -170,6 +174,7 @@ export async function ensureSchema() {
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ');
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS iyzico_card_user_key TEXT');
   await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS iyzico_card_token TEXT');
+  await query('ALTER TABLE stores ADD COLUMN IF NOT EXISTS auth_version INTEGER NOT NULL DEFAULT 1');
 
   await query(`
     CREATE TABLE IF NOT EXISTS password_resets (
@@ -183,6 +188,8 @@ export async function ensureSchema() {
     )
   `);
   await query('CREATE INDEX IF NOT EXISTS password_resets_store_id_idx ON password_resets(store_id)');
+  await query('ALTER TABLE password_resets ADD COLUMN IF NOT EXISTS token_hash TEXT');
+  await query('CREATE UNIQUE INDEX IF NOT EXISTS password_resets_token_hash_idx ON password_resets(token_hash) WHERE token_hash IS NOT NULL');
 
   await query(`
     CREATE TABLE IF NOT EXISTS billing_history (
@@ -232,6 +239,35 @@ export async function ensureSchema() {
   `);
   await query('CREATE INDEX IF NOT EXISTS contact_leads_created_at_idx ON contact_leads(created_at DESC)');
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS purchase_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      plan_type TEXT NOT NULL,
+      note TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      resolved_at TIMESTAMPTZ
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS purchase_requests_store_id_idx ON purchase_requests(store_id, created_at DESC)');
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS customer_sync_jobs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      entry_id UUID REFERENCES entries(id) ON DELETE CASCADE,
+      payload JSONB NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS customer_sync_jobs_pending_idx ON customer_sync_jobs(status, next_attempt_at)');
+
   // Süper adminin kendi mutasyon işlemlerinin izi — kim, ne zaman, hangi
   // mağazada, neyi değiştirdi (varsa önce/sonra anlık görüntüsüyle).
   await query(`
@@ -265,6 +301,85 @@ export async function ensureSchema() {
   `);
   await query('CREATE INDEX IF NOT EXISTS login_attempts_created_at_idx ON login_attempts(created_at DESC)');
   await query('CREATE INDEX IF NOT EXISTS login_attempts_email_idx ON login_attempts(email, created_at DESC)');
+
+  // --- Faz 2: çalışan/rol sistemi ---
+  // Mağaza sahibinin kendisi `stores` tablosunda kalır (role='owner' zımni);
+  // bu tablo sadece davet edilen çalışanları tutar. email global olarak
+  // benzersizdir (login sırasında hem stores hem burada aranır).
+  await query(`
+    CREATE TABLE IF NOT EXISTS store_members (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT,
+      role TEXT NOT NULL DEFAULT 'employee',
+      invited_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      accepted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS store_members_store_id_idx ON store_members(store_id)');
+
+  // password_resets tokenlarının bir çalışan davetine ait olabilmesi için —
+  // purpose='employee_invite' olduğunda consumeToken bu üyenin şifresini set eder.
+  await query('ALTER TABLE password_resets ADD COLUMN IF NOT EXISTS member_id UUID REFERENCES store_members(id) ON DELETE CASCADE');
+  await query('ALTER TABLE store_members ADD COLUMN IF NOT EXISTS auth_version INTEGER NOT NULL DEFAULT 1');
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      hits INTEGER NOT NULL DEFAULT 0,
+      reset_at TIMESTAMPTZ NOT NULL
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS rate_limits_reset_at_idx ON rate_limits(reset_at)');
+
+  // --- Faz 2: süper admin 2FA (tek satır — süper admin hesabı env tabanlı, DB'de tek kayıt) ---
+  await query(`
+    CREATE TABLE IF NOT EXISTS super_admin_2fa (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      secret_enc TEXT,
+      enabled BOOLEAN NOT NULL DEFAULT false,
+      backup_codes_enc JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT super_admin_2fa_singleton CHECK (id = 1)
+    )
+  `);
+
+  // --- Faz 2: destek/ticket sistemi ---
+  await query(`
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      subject TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS support_tickets_store_id_idx ON support_tickets(store_id, updated_at DESC)');
+  await query(`
+    CREATE TABLE IF NOT EXISTS support_ticket_messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      ticket_id UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      sender TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS support_ticket_messages_ticket_id_idx ON support_ticket_messages(ticket_id, created_at)');
+
+  // --- Faz 2: duyuru sistemi ---
+  await query(`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query('CREATE INDEX IF NOT EXISTS announcements_active_idx ON announcements(active, created_at DESC)');
 
   console.log('[DB] Şema hazır.');
 }

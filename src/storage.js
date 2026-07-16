@@ -79,6 +79,7 @@ export const DEFAULT_CONFIG = {
     triggerScrollPercent: 50,
   },
   kvkk: {
+    version: '2026-07-16',
     etiText:
       "Tanıtım, pazarlama, reklam ve benzeri amaçlarla tarafıma ticari elektronik ileti gönderilmesine izin veriyorum. Elektronik Ticari İleti Aydınlatma Metni'ni okudum onay veriyorum.",
     kvkkText:

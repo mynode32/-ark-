@@ -9,23 +9,25 @@ import {
   isDomainAllowed,
   getMonthlySpinCount,
   PLAN_SPIN_LIMITS,
+  enqueueCustomerSync,
 } from '../store.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { assessCouponHealth, provisionCouponForSegment } from '../services/platforms/couponPolicy.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { sendQuotaExceededEmail } from '../services/email.js';
 import { subscriptionAccess } from '../services/subscriptionAccess.js';
+import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
 
 export const widgetRouter = Router();
 
 // Each spin can trigger a real coupon-creation call to the connected
 // platform, so this is throttled per IP to blunt spin-spam/abuse.
-const spinLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false });
+const spinLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false, store: persistentRateLimitStore('widget-spin') });
 
 // check-spin has no side effects but is unauthenticated and takes a raw
 // phone number — without a limiter it's an open door for probing which
 // phone numbers have already participated.
-const checkSpinLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+const checkSpinLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, store: persistentRateLimitStore('widget-check') });
 
 // A store at its exact limit remains at that count while every new request is
 // rejected. Without this guard, the plan's `currentCount === limit` check would
@@ -174,22 +176,17 @@ widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
  */
 widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
   try {
-    const { name, phone, email } = req.body;
+    const { name, phone, email, kvkkAccepted, marketingConsent, kvkkVersion } = req.body;
 
     const validationError = validateEntryFields(name, phone, email);
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
+    if (kvkkAccepted !== true) {
+      return res.status(400).json({ error: 'KVKK aydınlatma metni onayı zorunludur.' });
+    }
 
     const storeId = req.store.id;
-    const limit = PLAN_SPIN_LIMITS[req.store.planType] ?? PLAN_SPIN_LIMITS.free;
-    const currentCount = await getMonthlySpinCount(storeId);
-    if (currentCount >= limit) {
-      if (currentCount === limit) {
-        notifyQuotaExceededOnce(req.store);
-      }
-      return res.status(403).json({ error: 'Bu ay için katılım limitine ulaşıldı.', quotaExceeded: true });
-    }
 
     // Winner odds always come from the store's own saved config — a client
     // could otherwise send its own `segments` array and force the server to
@@ -219,10 +216,29 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
     // Atomically check-and-reserve the "one spin per phone/email" rule so
     // concurrent requests can't both slip past the check before either has
     // written its row.
-    const claimed = await claimEntry(storeId, { name, phone, email });
-    if (!claimed) {
-      return res.status(400).json({ error: 'Bu bilgilerle daha önce katılım sağlanmış.' });
+    const limit = PLAN_SPIN_LIMITS[req.store.planType] ?? PLAN_SPIN_LIMITS.free;
+    const claim = await claimEntry(storeId, {
+      name: name.trim(),
+      phone: phone.replace(/\s/g, ''),
+      email: email.trim().toLowerCase(),
+      cooldownHours: config.settings.cooldownHours || 24,
+      monthlyLimit: limit,
+      kvkkVersion: String(kvkkVersion || config.kvkk?.version || 'unspecified').slice(0, 100),
+      marketingConsent: marketingConsent === true,
+      campaignKey: `${req.store.slug}:${String(config.settings.campaignKey || 'default').slice(0, 100)}`,
+    });
+    if (claim.status === 'quota_exceeded') {
+      notifyQuotaExceededOnce(req.store);
+      return res.status(403).json({ error: 'Bu ay için katılım limitine ulaşıldı.', quotaExceeded: true });
     }
+    if (claim.status === 'cooldown') {
+      return res.status(409).json({
+        error: 'Bu bilgilerle yakın zamanda katılım sağlanmış.',
+        code: 'SPIN_COOLDOWN',
+        remainingMs: Math.max(0, new Date(claim.blockedUntil).getTime() - Date.now()),
+      });
+    }
+    const claimed = claim.entry;
 
     // Pick winner server-side (weighted random)
     const totalProb = activeSegments.reduce((s, seg) => s + (seg.probability || 0), 0);
@@ -270,7 +286,9 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
     if (winner.discountType !== 'noLuck' && adapter.platform === 'ikas') {
       createCustomerWithRetries(adapter, { name, phone, email }).then((result) => {
         if (!result) {
-          console.error(`[${req.store.slug}] Müşteri oluşturulamadı (${email}) — 3 denemeden sonra vazgeçildi`);
+          console.error(`[CustomerSync] [${req.store.slug}] Üç deneme sonunda müşteri eşitlemesi başarısız`);
+          enqueueCustomerSync(storeId, claimed.id, { name, phone, email }, 'İlk üç deneme başarısız')
+            .catch((error) => console.error('[CustomerSync] Kuyruğa yazılamadı:', error.message));
         }
       });
     }
@@ -297,7 +315,7 @@ widgetRouter.post('/:storeSlug/spin', spinLimiter, async (req, res) => {
             : null,
     });
 
-    console.log(`[Spin] ${name} -> ${winner.label} ${couponCode ? `(${couponCode})` : '(kupon yok)'}`);
+    console.log(`[Spin] [${req.store.slug}] katılım tamamlandı; ödül türü=${winner.discountType}`);
 
     res.json({
       winner: {

@@ -84,4 +84,9 @@ export const config = {
     storeId: ikasStoreId,
   },
   corsOrigin: env.CORS_ORIGIN || '*',
+  adminOrigins: (env.ADMIN_ORIGINS || process.env.ADMIN_ORIGINS || env.CORS_ORIGIN || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value && value !== '*'),
+  dataRetentionDays: Math.max(1, parseInt(env.DATA_RETENTION_DAYS || process.env.DATA_RETENTION_DAYS || '365', 10)),
 };

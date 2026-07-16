@@ -112,6 +112,12 @@
         <button type="button" class="support-close" id="supportClose" aria-label="Destek penceresini kapat">&times;</button>
       </div>
       <p class="support-intro">Kurulum, kuponlar veya çark ayarlarıyla ilgili ihtiyacınız olan kanalı seçin.</p>
+      <form id="supportTicketForm" class="support-ticket-form">
+        <input id="supportTicketSubject" type="text" maxlength="200" placeholder="Konu" required>
+        <textarea id="supportTicketMessage" maxlength="5000" rows="4" placeholder="Sorununuzu yazın" required></textarea>
+        <button type="submit" class="btn btn-primary">Destek Talebi Gönder</button>
+        <span id="supportTicketStatus" role="status"></span>
+      </form>
       <nav class="support-options" aria-label="Destek seçenekleri">
         <a href="/mystore/#contact" target="_blank" rel="noopener"><span class="support-option-icon">✦</span><span><strong>Destek talebi bırak</strong><small>Bilgilerinizi iletin, size dönüş yapalım</small></span><b>→</b></a>
         <a href="/mystore/kurulum-rehberi.html" target="_blank" rel="noopener"><span class="support-option-icon">?</span><span><strong>Kurulum rehberi</strong><small>Adım adım kurulumu inceleyin</small></span><b>→</b></a>

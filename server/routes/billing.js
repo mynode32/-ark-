@@ -11,6 +11,8 @@ import {
   findCheckoutSession,
   completeCheckoutSession,
   getBillingHistoryForStore,
+  getMonthlySpinCount,
+  PLAN_SPIN_LIMITS,
 } from '../store.js';
 import { initializeCheckout, retrieveCheckout, PLAN_PRICING } from '../services/billing/iyzico.js';
 import { createInvoice } from '../services/invoicing/parasut.js';
@@ -91,12 +93,15 @@ billingRouter.post('/callback', express.urlencoded({ extended: false }), asyncHa
 
 billingRouter.get('/status', adminAuth, asyncHandler(async (req, res) => {
   const store = await findStoreById(req.storeId);
+  const monthlyUsage = await getMonthlySpinCount(req.storeId);
   res.json({
     planType: store.planType,
     subscriptionStatus: store.subscriptionStatus,
     subscriptionStartsAt: store.subscriptionStartsAt,
     subscriptionEndsAt: store.subscriptionEndsAt,
     planPricing: PLAN_PRICING,
+    monthlyUsage,
+    monthlyLimit: PLAN_SPIN_LIMITS[store.planType] ?? PLAN_SPIN_LIMITS.free,
   });
 }));
 

@@ -31,3 +31,16 @@ export function sendPastDueEmail(store) {
 export function sendQuotaExceededEmail(store) {
   return send({ to: store.email, subject: 'Çark aylık gösterim limitine ulaştı', html: `<p>Merhaba ${store.name},</p><p>Bu ayki çevirme kotanız doldu. Daha yüksek limitli bir plana geçmek için admin panelinize göz atın.</p>` });
 }
+
+export function sendTeamInviteEmail(store, memberEmail, token) {
+  const url = `${config.appBaseUrl}/mystore/panel?inviteToken=${token}`;
+  return send({ to: memberEmail, subject: `${store.name} ekibine davet edildiniz`, html: `<p>Merhaba,</p><p><strong>${store.name}</strong> mağazasının çark panelinde çalışan olarak eklendiniz. Şifrenizi belirlemek için <a href="${url}">buraya tıklayın</a>. Bağlantı 48 saat geçerlidir.</p>` });
+}
+
+export function sendTicketReplyEmail(store, ticket) {
+  return send({ to: store.email, subject: `Destek talebinize yanıt geldi: ${ticket.subject}`, html: `<p>Merhaba ${store.name},</p><p>"${ticket.subject}" konulu destek talebinize bir yanıt geldi. Görüntülemek için <a href="${config.appBaseUrl}/mystore/panel">admin panelinize</a> giriş yapın.</p>` });
+}
+
+export function sendNewTicketAdminNotification(superAdminEmail, store, ticket) {
+  return send({ to: superAdminEmail, subject: `Yeni destek talebi: ${ticket.subject}`, html: `<p><strong>${store.name}</strong> (${store.email}) yeni bir destek talebi oluşturdu:</p><p>"${ticket.subject}"</p><p><a href="${config.appBaseUrl}/mystore/super-admin">Süper admin panelinden görüntüle</a>.</p>` });
+}

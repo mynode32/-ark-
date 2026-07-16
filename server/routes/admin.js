@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { adminAuth, requireActiveSubscription, requireVerifiedEmail } from '../middleware/auth.js';
+import bcrypt from 'bcryptjs';
+import { adminAuth, requireActiveSubscription, requireVerifiedEmail, requireOwner, blockIfImpersonating } from '../middleware/auth.js';
 import { hasProAccess } from '../services/subscriptionAccess.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
@@ -27,7 +28,21 @@ import {
   updateBillingInfo,
   exportStoreData,
   softDeleteStore,
+  listStoreMembers,
+  inviteStoreMember,
+  removeMember,
+  createSupportTicket,
+  listTicketsForStore,
+  getTicketWithMessages,
+  addTicketMessage,
+  getActiveAnnouncement,
+  createAuthToken,
+  createPurchaseRequest,
+  listPurchaseRequests,
 } from '../store.js';
+import { sendTeamInviteEmail, sendNewTicketAdminNotification } from '../services/email.js';
+import { config } from '../config.js';
+import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
 import { getPlatformAdapter } from '../services/platforms/index.js';
 import { assessCouponHealth, CouponConfigurationError, provisionCouponForSegment } from '../services/platforms/couponPolicy.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
@@ -37,6 +52,13 @@ export const adminRouter = Router();
 
 // All admin routes require auth; adminAuth sets req.storeId from the JWT
 adminRouter.use(adminAuth);
+
+// Süper admin salt-okunur görüntüleme (impersonation) sırasında hiçbir
+// mutasyona izin verilmez — /account dahil, istisnasız.
+adminRouter.use((req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  return blockIfImpersonating(req, res, next);
+});
 
 // Süresi dolan mağaza verilerini görebilir; ayar, kupon ve katılımcı
 // kayıtlarını değiştiremez. Hesap silme ve ödeme akışı erişilebilir kalır.
@@ -54,8 +76,8 @@ adminRouter.use((req, res, next) => {
 
 // Each test-coupon call can create a real İkas coupon — throttled to blunt
 // accidental spam-clicking, not abuse (this route is already auth-only).
-const testCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
-const retryCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+const testCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, store: persistentRateLimitStore('admin-test-coupon') });
+const retryCouponLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, store: persistentRateLimitStore('admin-retry-coupon') });
 
 async function couponHealthForStore(storeId, widgetConfig = null) {
   const [config, adapter] = await Promise.all([
@@ -539,6 +561,20 @@ adminRouter.get('/billing-info', asyncHandler(async (req, res) => {
   res.json({ invoiceTitle: store.invoiceTitle || '', taxId: store.taxId || '' });
 }));
 
+adminRouter.get('/purchase-requests', requireOwner, asyncHandler(async (req, res) => {
+  res.json({ requests: await listPurchaseRequests(req.storeId) });
+}));
+
+adminRouter.post('/purchase-requests', requireOwner, asyncHandler(async (req, res) => {
+  const request = await createPurchaseRequest(req.storeId, req.body?.planType, req.body?.note);
+  if (config.superAdmin.email) {
+    sendNewTicketAdminNotification(config.superAdmin.email, req.store, {
+      subject: `${req.store.name} Pro plan satın alma talebi`,
+    }).catch((err) => console.error('[PurchaseRequest] Bildirim gönderilemedi:', err.message));
+  }
+  res.status(201).json({ request, message: 'Talebiniz alındı. Ödeme ve fatura bilgileri için sizinle iletişime geçeceğiz.' });
+}));
+
 adminRouter.put('/billing-info', asyncHandler(async (req, res) => {
   const invoiceTitle = typeof req.body.invoiceTitle === 'string' ? req.body.invoiceTitle.trim() : '';
   const taxId = typeof req.body.taxId === 'string' ? req.body.taxId.trim() : '';
@@ -549,6 +585,66 @@ adminRouter.put('/billing-info', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Vergi/T.C. kimlik numarası 10 veya 11 rakam olmalıdır' });
   }
   res.json(await updateBillingInfo(req.storeId, { invoiceTitle, taxId }));
+}));
+
+// --- Ekip / rol yönetimi (sadece mağaza sahibi) ---
+
+adminRouter.get('/team', requireOwner, asyncHandler(async (req, res) => {
+  res.json({ members: await listStoreMembers(req.storeId), ownerEmail: req.store.email });
+}));
+
+adminRouter.post('/team', requireOwner, asyncHandler(async (req, res) => {
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!email) return res.status(400).json({ error: 'E-posta zorunludur' });
+  const member = await inviteStoreMember(req.storeId, email);
+  const inviteToken = await createAuthToken(req.storeId, 'employee_invite', 48 * 60 * 60 * 1000, member.id);
+  sendTeamInviteEmail(req.store, email, inviteToken)
+    .catch((err) => console.error('[Team] Davet e-postası gönderilemedi:', err.message));
+  res.status(201).json({ member });
+}));
+
+adminRouter.delete('/team/:memberId', requireOwner, asyncHandler(async (req, res) => {
+  await removeMember(req.storeId, req.params.memberId);
+  res.json({ ok: true });
+}));
+
+// --- Destek talepleri ---
+
+adminRouter.get('/tickets', asyncHandler(async (req, res) => {
+  res.json({ tickets: await listTicketsForStore(req.storeId) });
+}));
+
+adminRouter.post('/tickets', asyncHandler(async (req, res) => {
+  const subject = typeof req.body.subject === 'string' ? req.body.subject.trim().slice(0, 200) : '';
+  const message = typeof req.body.message === 'string' ? req.body.message.trim().slice(0, 5000) : '';
+  if (!subject || !message) return res.status(400).json({ error: 'Konu ve mesaj zorunludur' });
+  const ticket = await createSupportTicket(req.storeId, subject, message);
+  if (config.superAdmin.email) {
+    sendNewTicketAdminNotification(config.superAdmin.email, req.store, ticket)
+      .catch((err) => console.error('[Ticket] Bildirim e-postası gönderilemedi:', err.message));
+  }
+  res.status(201).json({ ticket });
+}));
+
+adminRouter.get('/tickets/:ticketId', asyncHandler(async (req, res) => {
+  const ticket = await getTicketWithMessages(req.params.ticketId, req.storeId);
+  if (!ticket) return res.status(404).json({ error: 'Talep bulunamadı' });
+  res.json({ ticket });
+}));
+
+adminRouter.post('/tickets/:ticketId/messages', asyncHandler(async (req, res) => {
+  const message = typeof req.body.message === 'string' ? req.body.message.trim().slice(0, 5000) : '';
+  if (!message) return res.status(400).json({ error: 'Mesaj boş olamaz' });
+  const existing = await getTicketWithMessages(req.params.ticketId, req.storeId);
+  if (!existing) return res.status(404).json({ error: 'Talep bulunamadı' });
+  await addTicketMessage(req.params.ticketId, 'store', message);
+  res.json({ ticket: await getTicketWithMessages(req.params.ticketId, req.storeId) });
+}));
+
+// --- Duyuru ---
+
+adminRouter.get('/announcement', asyncHandler(async (req, res) => {
+  res.json({ announcement: await getActiveAnnouncement() });
 }));
 
 /**
@@ -568,7 +664,11 @@ adminRouter.get('/export-data', asyncHandler(async (req, res) => {
  * Hesabı dondurur (soft delete) + katılımcı kişisel verilerini anonimleştirir.
  * Geri alınamaz bir işlemdir; 30 gün sonra kalıcı olarak temizlenir (bkz. purgeDeletedStores).
  */
-adminRouter.delete('/account', asyncHandler(async (req, res) => {
+adminRouter.delete('/account', requireOwner, asyncHandler(async (req, res) => {
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!password || !(await bcrypt.compare(password, req.store.passwordHash))) {
+    return res.status(403).json({ error: 'Hesabı silmek için mevcut şifrenizi doğrulayın', code: 'PASSWORD_CONFIRMATION_REQUIRED' });
+  }
   await softDeleteStore(req.storeId);
   res.json({ ok: true });
 }));

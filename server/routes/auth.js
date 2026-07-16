@@ -9,13 +9,14 @@ import {
 } from '../store.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
 import { recordLoginAttempt } from '../services/loginAttempts.js';
+import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
 
 export const authRouter = Router();
 
 // Self-serve signup is public, so throttle it to slow down mass fake-store
 // creation. Login is throttled tighter to blunt password-guessing.
-const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, store: persistentRateLimitStore('register') });
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, store: persistentRateLimitStore('login') });
 
 const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/;
 
@@ -49,7 +50,7 @@ async function uniqueSlug(base) {
 }
 
 function signToken(store) {
-  return jwt.sign({ storeId: store.id }, config.jwtSecret, { expiresIn: '30d' });
+  return jwt.sign({ storeId: store.id, authVersion: store.authVersion || 1 }, config.jwtSecret, { expiresIn: '12h' });
 }
 
 function publicStore(store) {
@@ -166,7 +167,7 @@ authRouter.get('/me', async (req, res) => {
     }
     const payload = jwt.verify(token, config.jwtSecret);
     const store = await findStoreById(payload.storeId);
-    if (!store) {
+    if (!store || Number(payload.authVersion || 1) !== Number(store.authVersion || 1)) {
       return res.status(401).json({ error: 'Yetkisiz erişim' });
     }
     res.json({ store: publicStore(store) });
@@ -175,7 +176,7 @@ authRouter.get('/me', async (req, res) => {
   }
 });
 
-const forgotPasswordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
+const forgotPasswordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, store: persistentRateLimitStore('forgot-password') });
 
 authRouter.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
@@ -232,7 +233,9 @@ authRouter.post('/resend-verification', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Yetkisiz erişim' });
     const payload = jwt.verify(token, config.jwtSecret);
     const store = await findStoreById(payload.storeId);
-    if (!store) return res.status(401).json({ error: 'Yetkisiz erişim' });
+    if (!store || Number(payload.authVersion || 1) !== Number(store.authVersion || 1)) {
+      return res.status(401).json({ error: 'Yetkisiz erişim' });
+    }
     if (store.emailVerifiedAt) return res.json({ ok: true, message: 'E-posta zaten doğrulanmış' });
     const verifyToken = await createAuthToken(store.id, 'email_verify', 24 * 60 * 60 * 1000);
     sendVerificationEmail(store, verifyToken)

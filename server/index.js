@@ -13,6 +13,8 @@ import { renewSubscriptions } from './jobs/renewSubscriptions.js';
 import { purgeDeletedStores } from './jobs/purgeDeletedStores.js';
 import { contactRouter } from './routes/contact.js';
 import { superAdminRouter } from './routes/superAdmin.js';
+import { purgePersonalData } from './jobs/purgePersonalData.js';
+import { processCustomerSyncJobs } from './jobs/processCustomerSyncJobs.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -24,7 +26,44 @@ const CANONICAL_RENDER_ORIGIN = 'https://ark-0ntz.onrender.com';
 // IP'sini yansıtmaz ve şüpheli aktivite tespiti işe yaramaz hale gelirdi.
 app.set('trust proxy', 1);
 
-app.use(cors({ origin: config.corsOrigin }));
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  if (req.path.startsWith('/mystore/panel') || req.path.startsWith('/mystore/super-admin')) {
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    );
+  }
+  next();
+});
+app.use((req, res, next) => {
+  const publicWidgetRequest = req.path.startsWith('/api/widget/') || req.path.startsWith('/dist/');
+  const options = publicWidgetRequest
+    ? { origin: true, credentials: false }
+    : {
+        origin(origin, callback) {
+          let sameHost;
+          try {
+            sameHost = new URL(origin).host === req.get('host');
+          } catch {
+            sameHost = false;
+          }
+          if (!origin || sameHost || config.adminOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+          }
+          callback(Object.assign(new Error('CORS origin reddedildi'), { status: 403 }));
+        },
+        credentials: false,
+      };
+  return cors(options)(req, res, next);
+});
 // KVKK full-text and similar admin fields are the largest legitimate
 // payloads (a few KB); this caps abuse without constraining real usage.
 app.use(express.json({ limit: '256kb' }));
@@ -95,8 +134,7 @@ app.use((err, req, res, next) => {
 let server;
 
 ensureSchema()
-  .catch((err) => console.error('[DB] Şema oluşturulamadı:', err.message))
-  .finally(() => {
+  .then(() => {
     server = app.listen(config.port, () => {
       console.log(`🎡 Çark Backend running on http://localhost:${config.port}`);
       console.log(`   Auth API:    http://localhost:${config.port}/api/auth/login`);
@@ -110,6 +148,16 @@ ensureSchema()
     cron.schedule('0 4 * * *', () => {
       purgeDeletedStores().catch((err) => console.error('[Cron] purgeDeletedStores hatası:', err.message));
     });
+    cron.schedule('30 4 * * *', () => {
+      purgePersonalData().catch((err) => console.error('[Cron] purgePersonalData hatası:', err.message));
+    });
+    cron.schedule('*/5 * * * *', () => {
+      processCustomerSyncJobs().catch((err) => console.error('[Cron] processCustomerSyncJobs hatası:', err.message));
+    });
+  })
+  .catch((err) => {
+    console.error('[DB] Şema oluşturulamadı; sunucu başlatılmadı:', err.message);
+    process.exitCode = 1;
   });
 
 // On redeploy/restart, let in-flight requests finish instead of dropping

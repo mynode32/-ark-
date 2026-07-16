@@ -1066,6 +1066,9 @@ class CarkApp {
         name: userData.name,
         phone: userData.phone,
         email: userData.email,
+        kvkkAccepted: userData.kvkkAccepted,
+        marketingConsent: userData.marketingConsent,
+        kvkkVersion: userData.kvkkVersion,
       });
 
       const winner = result.winner;
@@ -1081,7 +1084,7 @@ class CarkApp {
         if (winner.discountType !== 'noLuck') {
           this.confetti.fire();
         }
-        this.modalMgr.showResult(winner);
+        this.modalMgr.showResult(winner, () => this.resetForRetry());
       }, 500);
     } catch (err) {
       submitBtn.disabled = false;
@@ -1089,6 +1092,13 @@ class CarkApp {
       this.formMgr.showError(err.message || 'Bir hata oluştu');
       console.error(err);
     }
+  }
+
+  resetForRetry() {
+    this.modalMgr.reset();
+    const submitBtn = this.modalMgr.getElements().submitBtn;
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Çevir Kazan';
   }
 
   async open() {

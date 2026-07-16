@@ -18,5 +18,8 @@
     "globals": "^17.7.0",
     "prettier": "^3.9.1",
     "vite": "^6.3.5"
+  },
+  "dependencies": {
+    "framer-motion": "^12.42.2"
   }
 }

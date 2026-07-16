@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { query } from '../db.js';
 import { config } from '../config.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
 
 export const contactRouter = Router();
 
@@ -11,6 +12,7 @@ const contactLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  store: persistentRateLimitStore('contact'),
   message: { error: 'Çok fazla iletişim talebi gönderdiniz. Lütfen daha sonra tekrar deneyin.' },
 });
 
@@ -19,6 +21,7 @@ const contactAdminLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  store: persistentRateLimitStore('contact-admin'),
   message: { error: 'Çok fazla yönetim isteği gönderdiniz. Lütfen daha sonra tekrar deneyin.' },
 });
 

@@ -19,16 +19,35 @@ export async function adminAuth(req, res, next) {
     // expiry — without this lookup, a "deleted" account keeps working for
     // up to 30 days on any token issued before the delete.
     const store = await findStoreById(payload.storeId);
-    if (!store || store.deletedAt) {
+    if (!store || store.deletedAt || Number(payload.authVersion || 1) !== Number(store.authVersion || 1)) {
       return res.status(401).json({ error: 'Yetkisiz erişim' });
     }
     req.storeId = payload.storeId;
     req.store = store;
+    // Eski tokenlar (Faz 2 öncesi) role taşımaz — bunlar her zaman mağaza
+    // sahibi tarafından issue edildiği için 'owner' varsayımı geriye dönük uyumludur.
+    req.role = payload.role || 'owner';
+    req.memberId = payload.memberId || null;
+    req.impersonated = Boolean(payload.impersonated);
     req.subscriptionAccess = subscriptionAccess(store);
     next();
   } catch {
     return res.status(401).json({ error: 'Yetkisiz erişim' });
   }
+}
+
+/** Ekip/fatura/hesap silme gibi kritik işlemler yalnızca mağaza sahibine açıktır. */
+export function requireOwner(req, res, next) {
+  if (req.role === 'owner') return next();
+  return res.status(403).json({ error: 'Bu işlem için mağaza sahibi olmanız gerekir', code: 'OWNER_REQUIRED' });
+}
+
+/** Süper admin salt-okunur görüntüleme (impersonation) sırasında hiçbir mutasyona izin vermez. */
+export function blockIfImpersonating(req, res, next) {
+  if (req.impersonated) {
+    return res.status(403).json({ error: 'Salt okunur görüntüleme modunda değişiklik yapılamaz', code: 'IMPERSONATION_READ_ONLY' });
+  }
+  return next();
 }
 
 export function requireActiveSubscription(req, res, next) {

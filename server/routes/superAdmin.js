@@ -12,11 +12,24 @@ import {
   createStoreAsSuperAdmin,
   updateStoreProfile,
   createAuthToken,
+  getSuperAdmin2FA,
+  saveSuperAdmin2FASecret,
+  enableSuperAdmin2FA,
+  consumeSuperAdminBackupCode,
 } from '../store.js';
 import { sendPasswordResetEmail } from '../services/email.js';
 import { logSuperAdminAction, getSuperAdminAuditLog } from '../services/superAdminAudit.js';
 import { recordLoginAttempt, getLoginAttempts } from '../services/loginAttempts.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { decryptSecret, encryptSecret } from '../services/crypto.js';
+import {
+  buildOtpAuthUri,
+  generateBackupCodes,
+  generateSecretBase32,
+  verifyTotpCode,
+} from '../services/twoFactor.js';
+import crypto from 'crypto';
+import { persistentRateLimitStore } from '../services/persistentRateLimit.js';
 
 export const superAdminRouter = Router();
 
@@ -25,6 +38,7 @@ const loginLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: persistentRateLimitStore('super-admin-login'),
   message: { error: 'Çok fazla giriş denemesi. Lütfen daha sonra tekrar deneyin.' },
 });
 
@@ -41,12 +55,45 @@ superAdminRouter.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   if (!success) {
     return res.status(401).json({ error: 'E-posta veya şifre hatalı' });
   }
+  const twoFactor = await getSuperAdmin2FA();
+  if (twoFactor.enabled) {
+    const code = typeof req.body.code === 'string' ? req.body.code.trim() : '';
+    const secret = decryptSecret(twoFactor.secretEnc);
+    const validTotp = code && secret ? verifyTotpCode(config.superAdmin.email, secret, code) : false;
+    const validBackup = !validTotp && code ? await consumeSuperAdminBackupCode(code) : false;
+    if (!validTotp && !validBackup) {
+      return res.status(401).json({ error: 'İki adımlı doğrulama kodu gerekli', code: 'TWO_FACTOR_REQUIRED' });
+    }
+  }
   const token = jwt.sign(
-    { role: 'super_admin', email: config.superAdmin.email },
+    { role: 'super_admin', email: config.superAdmin.email, mfa: twoFactor.enabled },
     config.jwtSecret,
-    { expiresIn: '8h' },
+    { expiresIn: '2h' },
   );
   res.json({ token, admin: { email: config.superAdmin.email } });
+}));
+
+superAdminRouter.get('/2fa/status', superAdminAuth, asyncHandler(async (req, res) => {
+  const twoFactor = await getSuperAdmin2FA();
+  res.json({ enabled: twoFactor.enabled });
+}));
+
+superAdminRouter.post('/2fa/setup', superAdminAuth, asyncHandler(async (req, res) => {
+  const secret = generateSecretBase32();
+  await saveSuperAdmin2FASecret(encryptSecret(secret));
+  res.json({ secret, otpAuthUri: buildOtpAuthUri(config.superAdmin.email, secret) });
+}));
+
+superAdminRouter.post('/2fa/enable', superAdminAuth, asyncHandler(async (req, res) => {
+  const twoFactor = await getSuperAdmin2FA();
+  const secret = decryptSecret(twoFactor.secretEnc);
+  if (!secret || !verifyTotpCode(config.superAdmin.email, secret, req.body?.code)) {
+    return res.status(400).json({ error: 'Doğrulama kodu geçersiz' });
+  }
+  const backupCodes = generateBackupCodes();
+  const hashes = backupCodes.map((code) => crypto.createHash('sha256').update(code).digest('hex'));
+  await enableSuperAdmin2FA(hashes);
+  res.json({ enabled: true, backupCodes });
 }));
 
 superAdminRouter.get('/overview', superAdminAuth, asyncHandler(async (req, res) => {

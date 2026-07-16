@@ -3,7 +3,7 @@ export function generateEmbedCode(config, backendUrl, storeSlug) {
   const slug = storeSlug || 'MAGAZA-SLUGUNUZ';
 
   return `<!-- Çark Çevir Kazan Widget -->
-<script src="${base}/dist/cark-widget.js"></script>
+<script src="${base}/dist/cark-widget.v1.js"></script>
 <script>
   CarkWidget.init({
     apiBaseUrl: "${base}",   // backend'inizin adresi

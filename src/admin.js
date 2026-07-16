@@ -186,6 +186,7 @@ class AdminPanel {
     const headerTrigger = document.getElementById('supportHeaderTrigger');
     const popover = document.getElementById('supportPopover');
     const closeButton = document.getElementById('supportClose');
+    const ticketForm = document.getElementById('supportTicketForm');
     if (!widget || !trigger || !popover || trigger.dataset.ready === 'true') return;
     trigger.dataset.ready = 'true';
 
@@ -205,6 +206,31 @@ class AdminPanel {
     closeButton?.addEventListener('click', () => {
       setOpen(false);
       activeTrigger?.focus();
+    });
+    ticketForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = ticketForm.querySelector('button');
+      const status = document.getElementById('supportTicketStatus');
+      button.disabled = true;
+      status.textContent = 'Gönderiliyor...';
+      try {
+        const response = await fetch(`${getApiBase()}/api/admin/tickets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
+          body: JSON.stringify({
+            subject: document.getElementById('supportTicketSubject').value,
+            message: document.getElementById('supportTicketMessage').value,
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Destek talebi gönderilemedi');
+        ticketForm.reset();
+        status.textContent = 'Talebiniz alındı.';
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
     });
     document.addEventListener('click', (event) => {
       if (!popover.hidden && !widget.contains(event.target) && !headerTrigger?.contains(event.target)) setOpen(false);
@@ -2482,6 +2508,7 @@ class AdminPanel {
               <span class="billing-plan-badge ${pro ? 'pro' : 'free'}">${pro ? '✨ Pro Plan' : 'Ücretsiz Plan'}</span>
               <span class="billing-plan-dates">${startsAt ? `Başlangıç: ${startsAt}` : ''} ${endsAt ? `· ${pro ? 'Yenilenme' : 'Bitiş'}: ${endsAt}` : ''}</span>
             </div>
+            <p id="billingQuotaStatus" style="color:rgba(255,255,255,0.75);font-size:13px;">Aylık kullanım yükleniyor...</p>
             <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin:12px 0;">
               ${pro
                 ? 'Pro planla özel renkler, görselli arka plan, Premium çark stili ve daha yüksek aylık çevirme kotası kullanıyorsunuz.'
@@ -2504,20 +2531,22 @@ class AdminPanel {
 
   setupBillingListeners() {
     this.loadBillingHistory();
+    this.loadBillingStatus();
 
     document.getElementById('upgradeToProBtn')?.addEventListener('click', async (event) => {
       const button = event.currentTarget;
       button.disabled = true;
-      button.textContent = 'Yönlendiriliyor...';
+      button.textContent = 'Talep gönderiliyor...';
       try {
-        const res = await fetch(`${getApiBase()}/api/billing/checkout`, {
+        const res = await fetch(`${getApiBase()}/api/admin/purchase-requests`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken()}` },
-          body: JSON.stringify({ planType: 'pro' }),
+          body: JSON.stringify({ planType: 'pro', note: 'Panel üzerinden Pro plan talebi' }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Ödeme başlatılamadı');
-        window.location.href = data.paymentPageUrl;
+        if (!res.ok) throw new Error(data.error || 'Satın alma talebi gönderilemedi');
+        this.showToast(data.message || 'Talebiniz alındı');
+        button.textContent = 'Talep Alındı';
       } catch (err) {
         this.showToast(err.message, 'error');
         button.disabled = false;
@@ -2545,6 +2574,21 @@ class AdminPanel {
         button.disabled = false;
       }
     });
+  }
+
+  async loadBillingStatus() {
+    const statusEl = document.getElementById('billingQuotaStatus');
+    if (!statusEl) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/billing/status`, {
+        headers: { Authorization: `Bearer ${authToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Kullanım bilgisi alınamadı');
+      statusEl.textContent = `Bu ay ${Number(data.monthlyUsage || 0).toLocaleString('tr-TR')} / ${Number(data.monthlyLimit || 0).toLocaleString('tr-TR')} katılım kullanıldı.`;
+    } catch (error) {
+      statusEl.textContent = error.message;
+    }
   }
 
   async loadBillingHistory() {
