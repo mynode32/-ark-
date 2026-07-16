@@ -2342,7 +2342,7 @@ class AdminPanel {
           </div>
           <div class="admin-card">
             <h3>🧾 Fatura Bilgileri</h3>
-            <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin-bottom:16px;">
+            <p class="panel-card-description">
               Ödeme sonrası oluşturulacak faturada kullanılacak bilgileri girin.
             </p>
             <div class="form-group">
@@ -2353,7 +2353,7 @@ class AdminPanel {
               <label>Vergi No / T.C. Kimlik No</label>
               <input type="text" class="form-input" id="billingTaxId" inputmode="numeric" maxlength="11" placeholder="10 veya 11 rakam">
             </div>
-            <div id="billingInfoStatus" style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:16px;">Yükleniyor...</div>
+            <div id="billingInfoStatus" class="panel-status-text">Yükleniyor...</div>
             <div class="btn-group" style="justify-content:flex-end;">
               <button class="btn btn-primary" id="saveBillingInfoBtn" disabled>Fatura Bilgilerini Kaydet</button>
             </div>
@@ -2527,8 +2527,8 @@ class AdminPanel {
               <span class="billing-plan-badge ${pro ? 'pro' : 'free'}">${pro ? '✨ Pro Plan' : 'Ücretsiz Plan'}</span>
               <span class="billing-plan-dates">${startsAt ? `Başlangıç: ${startsAt}` : ''} ${endsAt ? `· ${pro ? 'Yenilenme' : 'Bitiş'}: ${endsAt}` : ''}</span>
             </div>
-            <p id="billingQuotaStatus" style="color:rgba(255,255,255,0.75);font-size:13px;">Aylık kullanım yükleniyor...</p>
-            <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin:12px 0;">
+            <p id="billingQuotaStatus" class="billing-quota-status">Aylık kullanım yükleniyor...</p>
+            <p class="billing-plan-description">
               Tüm planlarda İKAS entegrasyonu, özel renkler, görselli arka plan ve Premium çark stili kullanılabilir. Planlar arasındaki tek fark aylık katılım kotasıdır.
             </p>
             <div class="btn-group" style="justify-content:flex-end;">
@@ -2539,7 +2539,7 @@ class AdminPanel {
           </div>
           <div class="admin-card">
             <h3>🧾 Ödeme Geçmişi</h3>
-            <div id="billingHistoryList" style="font-size:13px;color:rgba(255,255,255,0.6);">Yükleniyor...</div>
+            <div id="billingHistoryList" class="billing-history-list">Yükleniyor...</div>
           </div>
         </div>
       </div>

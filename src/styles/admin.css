@@ -1130,12 +1130,26 @@ select.form-input option { color: var(--panel-ink); background: #fff; }
 
 .billing-plan-summary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .billing-plan-badge { font-weight: 700; padding: 6px 14px; border-radius: 999px; font-size: 13px; }
-.billing-plan-badge.pro { background: rgba(255, 215, 0, 0.15); color: #ffd700; }
-.billing-plan-badge.free { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.7); }
-.billing-plan-dates { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.billing-plan-badge.pro { background: #fef3c7; color: #92400e; }
+.billing-plan-badge.free { background: #e2e8f0; color: #334155; }
+.billing-plan-dates { font-size: 12px; color: #64748b; }
+.billing-quota-status { margin-top: 14px; color: #334155; font-size: 13px; font-weight: 650; }
+.billing-plan-description, .panel-card-description {
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.billing-plan-description { margin: 12px 0; }
+.panel-card-description { margin-bottom: 16px; }
+.panel-status-text, .billing-history-list {
+  color: #64748b;
+  font-size: 13px;
+}
+.panel-status-text { margin-bottom: 16px; }
 .billing-history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.billing-history-table th, .billing-history-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-.billing-history-table th { color: rgba(255, 255, 255, 0.5); font-weight: 650; font-size: 11px; text-transform: uppercase; }
+.billing-history-table th, .billing-history-table td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+.billing-history-table th { color: #64748b; background: #f8fafc; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+.billing-history-table a { color: var(--panel-primary); font-weight: 700; }
 .appearance-preview-column { min-width: 0; }
 .appearance-preview-card { position: sticky; top: 104px; padding: 18px; }
 .appearance-preview-heading { margin-bottom: 13px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
