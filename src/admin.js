@@ -508,12 +508,25 @@ class AdminPanel {
       showStep(2);
     });
 
+    const paletteOptions = document.getElementById('onboardingPaletteOptions');
+    paletteOptions.innerHTML = THEME_PRESETS.map((preset, index) => `
+      <label class="onboarding-palette-card">
+        <input type="radio" name="onboardingPalette" value="${preset.id}" ${index === 0 ? 'checked' : ''}>
+        <span class="onboarding-palette-content">
+          <span class="onboarding-palette-colors" aria-hidden="true">
+            ${preset.segments.slice(0, 6).map((color) => `<i style="background:${color}"></i>`).join('')}
+          </span>
+          <strong>${escapeHtml(preset.name)}</strong>
+        </span>
+      </label>
+    `).join('');
+
     const step2Button = document.getElementById('onboardingStep2Next');
     step2Button.onclick = () => runButtonAction(step2Button, async () => {
-      const primaryColor = document.getElementById('onboardingPrimaryColor').value;
-      const pointerColor = document.getElementById('onboardingPointerColor').value;
-      await this.onboardingRequest('PUT', '/api/admin/config', { theme: { primaryColor, pointerColor } });
-      this.config.theme = { ...this.config.theme, primaryColor, pointerColor };
+      const selectedPalette = document.querySelector('input[name="onboardingPalette"]:checked')?.value || THEME_PRESETS[0].id;
+      const updated = await this.onboardingRequest('PUT', '/api/admin/config', { themePresetId: selectedPalette });
+      this.config.segments = updated.segments;
+      this.config.theme = updated.theme;
       document.getElementById('onboardingEmbedCode').value = generateEmbedCode(this.config, getApiBase(), this.store?.slug);
       showStep(3);
     });
