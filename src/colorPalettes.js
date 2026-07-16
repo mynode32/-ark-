@@ -1,7 +1,6 @@
 // Sabit, tasarımı bozmayacak 5 hazır renk teması — server/store.js THEME_PRESETS
-// ile birebir aynı tutulmalı (id/segments/theme). Hem ücretsiz hem Pro
-// mağazalar bu temaların herhangi birini uygulayabilir; Pro mağazalar bunlara
-// ek olarak serbest hex seçimine devam edebilir.
+// ile birebir aynı tutulmalı (id/segments/theme). Tüm planlar hazır temaların
+// yanında serbest hex seçimini de kullanabilir; tek plan farkı aylık kotadır.
 export const THEME_PRESETS = [
   {
     id: 'klasik',
@@ -35,7 +34,6 @@ export const THEME_PRESETS = [
   },
 ];
 
-// Ücretsiz mağazaların dilim başına manuel olarak seçebileceği renkler —
-// yukarıdaki 5 hazır temanın tüm dilim renklerinin birleşimi (server/store.js
-// FREE_PALETTE ile aynı mantık).
+// Panelde hızlı seçim için sunulan renkler — yukarıdaki 5 hazır temanın tüm
+// dilim renklerinin birleşimi (server/store.js FREE_PALETTE ile aynı mantık).
 export const FREE_PALETTE = [...new Set(THEME_PRESETS.flatMap((preset) => preset.segments))];

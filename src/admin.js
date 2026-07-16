@@ -1105,11 +1105,7 @@ class AdminPanel {
       Object.assign(this.config, previous);
       this.cacheConfig();
       this.render();
-      if (error.code === 'PRO_FEATURE_REQUIRED') {
-        this.showToast(`🔒 ${error.message} Pro'ya yükseltmek için Plan & Faturalama sekmesine bakın.`, 'warning');
-      } else {
-        this.showToast(`Kaydedilemedi: ${error.message}`, 'error');
-      }
+      this.showToast(`Kaydedilemedi: ${error.message}`, 'error');
       return false;
     }
   }
@@ -1136,9 +1132,6 @@ class AdminPanel {
     const backgroundMode = theme.backgroundMode || (theme.autoSiteTheme !== false ? 'auto' : 'solid');
     const popupOpacity = Math.round((theme.popupOpacity ?? 0.82) * 100);
     const overlayOpacity = Math.round((theme.overlayOpacity ?? 0.55) * 100);
-    const pro = this.isPro();
-    const lockBadge = pro ? '' : ' <span class="pro-lock-badge" title="Bu özellik Pro plana özeldir">🔒 Pro</span>';
-
     return `
       <div class="tab-content active" id="tab-appearance">
         <div class="appearance-layout">
@@ -1147,7 +1140,7 @@ class AdminPanel {
               <h3>🎯 Çark Stili</h3>
               <div class="wheel-style-options" id="wheelStyleOptions" role="radiogroup" aria-label="Çark Stili">
                 <div class="wheel-style-option ${theme.wheelStyle !== 'standard' ? 'active' : ''}" data-style="premium" role="radio" tabindex="0" aria-checked="${theme.wheelStyle !== 'standard'}">
-                  <div class="wheel-style-title">✨ Premium${lockBadge}</div>
+                  <div class="wheel-style-title">✨ Premium</div>
                   <div class="wheel-style-desc">Metalik, parlayan, ışıklı çark</div>
                 </div>
                 <div class="wheel-style-option ${theme.wheelStyle === 'standard' ? 'active' : ''}" data-style="standard" role="radio" tabindex="0" aria-checked="${theme.wheelStyle === 'standard'}">
@@ -1173,7 +1166,7 @@ class AdminPanel {
 
             <div class="admin-card appearance-settings-card">
               <h3>🌈 Hazır Renk Temaları</h3>
-              <div class="appearance-help-text">Bir temaya tıklayın: çark dilimleri ve arka plan renkleri birlikte, tek tıkla güncellenir. Ücretsiz ve Pro planlarda kullanılabilir.</div>
+              <div class="appearance-help-text">Bir temaya tıklayın: çark dilimleri ve arka plan renkleri birlikte, tek tıkla güncellenir.</div>
               <div class="theme-preset-row" id="themePresetRow">
                 ${THEME_PRESETS.map((preset) => `
                   <button type="button" class="theme-preset-swatch" data-preset-id="${preset.id}" title="${escapeHtml(preset.name)}" style="background:linear-gradient(135deg, ${preset.theme.bgDark}, ${preset.theme.bgMid}, ${preset.theme.bgLight});border-color:${preset.theme.primaryColor}">
@@ -1185,7 +1178,7 @@ class AdminPanel {
             </div>
 
             <div class="admin-card appearance-settings-card">
-              <h3>🎨 Renkler${lockBadge}</h3>
+              <h3>🎨 Renkler</h3>
               <div class="form-group">
                 <label>Arka Plan Modu</label>
                 <select class="form-input" id="theme-backgroundMode">
@@ -1201,14 +1194,14 @@ class AdminPanel {
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Ana Renk (vurgu)${lockBadge}</label>
+                  <label>Ana Renk (vurgu)</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-primaryColor" value="${theme.primaryColor}">
                     <span class="color-value" data-color-for="theme-primaryColor">${theme.primaryColor}</span>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>İkincil Renk${lockBadge}</label>
+                  <label>İkincil Renk</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-primaryColorDark" value="${theme.primaryColorDark}">
                     <span class="color-value" data-color-for="theme-primaryColorDark">${theme.primaryColorDark}</span>
@@ -1216,7 +1209,7 @@ class AdminPanel {
                 </div>
               </div>
               <div class="form-group">
-                <label>Ok Rengi${lockBadge}</label>
+                <label>Ok Rengi</label>
                 <div class="color-input-wrapper">
                   <input type="color" id="theme-pointerColor" value="${theme.pointerColor}">
                   <span class="color-value" data-color-for="theme-pointerColor">${theme.pointerColor}</span>
@@ -1224,21 +1217,21 @@ class AdminPanel {
               </div>
               <div id="imageBgControl" style="display:${backgroundMode === 'image' ? 'block' : 'none'}">
                 <div class="form-group">
-                  <label>Kampanya Görseli URL’si${lockBadge}</label>
+                  <label>Kampanya Görseli URL’si</label>
                   <input type="url" class="form-input" id="theme-backgroundImageUrl" value="${escapeHtml(theme.backgroundImageUrl || '')}" placeholder="https://.../kampanya.jpg">
                 </div>
               </div>
               <div id="manualBgColors" style="display:${backgroundMode === 'solid' ? 'block' : 'none'}">
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Arka Plan (Koyu)${lockBadge}</label>
+                    <label>Arka Plan (Koyu)</label>
                     <div class="color-input-wrapper">
                       <input type="color" id="theme-bgDark" value="${theme.bgDark}">
                       <span class="color-value" data-color-for="theme-bgDark">${theme.bgDark}</span>
                     </div>
                   </div>
                   <div class="form-group">
-                    <label>Arka Plan (Orta)${lockBadge}</label>
+                    <label>Arka Plan (Orta)</label>
                     <div class="color-input-wrapper">
                       <input type="color" id="theme-bgMid" value="${theme.bgMid}">
                       <span class="color-value" data-color-for="theme-bgMid">${theme.bgMid}</span>
@@ -1246,7 +1239,7 @@ class AdminPanel {
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Arka Plan (Açık)${lockBadge}</label>
+                  <label>Arka Plan (Açık)</label>
                   <div class="color-input-wrapper">
                     <input type="color" id="theme-bgLight" value="${theme.bgLight}">
                     <span class="color-value" data-color-for="theme-bgLight">${theme.bgLight}</span>
@@ -1477,9 +1470,8 @@ class AdminPanel {
     const templates = this.getCouponTemplates();
     let seg = id ? templates.find((s) => String(s.couponGroupId) === String(id)) : null;
     if (!seg) {
-      // Free-tier saves reject any segment color outside FREE_PALETTE (see
-      // server/store.js saveWidgetConfig) — drawing the default from that
-      // same palette means a new segment always saves on the first try.
+      // Start from one of the curated colors; the user can still choose any
+      // custom color below because plans differ only by monthly quota.
       const colors = FREE_PALETTE;
       seg = {
         couponGroupId: `coupon-${generateId()}`,
@@ -1508,7 +1500,7 @@ class AdminPanel {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Arkaplan Rengi${this.isPro() ? '' : ' <span class="pro-lock-badge" title="Ücretsiz planda sadece hazır palet renkleri kullanılabilir">🔒 Özel renk Pro\'da</span>'}</label>
+          <label>Arkaplan Rengi</label>
           <div class="segment-color-swatches" id="segColorSwatches">
             ${FREE_PALETTE.map((color) => `<button type="button" class="segment-color-swatch ${color.toUpperCase() === String(seg.color).toUpperCase() ? 'active' : ''}" data-color="${color}" style="background:${color}" title="${color}"></button>`).join('')}
           </div>
@@ -2526,9 +2518,7 @@ class AdminPanel {
             </div>
             <p id="billingQuotaStatus" style="color:rgba(255,255,255,0.75);font-size:13px;">Aylık kullanım yükleniyor...</p>
             <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;margin:12px 0;">
-              ${pro
-                ? 'Pro planla özel renkler, görselli arka plan, Premium çark stili ve daha yüksek aylık çevirme kotası kullanıyorsunuz.'
-                : 'Ücretsiz planda hazır renk temaları ve standart çark stili kullanılabilir. Özel renkler, görselli arka plan ve Premium çark stili için Pro\'ya yükseltin.'}
+              Tüm planlarda İKAS entegrasyonu, özel renkler, görselli arka plan ve Premium çark stili kullanılabilir. Planlar arasındaki tek fark aylık katılım kotasıdır.
             </p>
             <div class="btn-group" style="justify-content:flex-end;">
               ${pro
@@ -2571,7 +2561,7 @@ class AdminPanel {
     });
 
     document.getElementById('cancelSubscriptionBtn')?.addEventListener('click', async (event) => {
-      if (!confirm('Aboneliğiniz iptal edilsin mi? Mevcut dönem sonuna kadar Pro özellikleri kullanmaya devam edersiniz.')) return;
+      if (!confirm('Aboneliğiniz iptal edilsin mi? Mevcut dönem sonuna kadar yüksek katılım kotanızı kullanmaya devam edersiniz.')) return;
       const button = event.currentTarget;
       button.disabled = true;
       try {

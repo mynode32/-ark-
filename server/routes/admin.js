@@ -2,7 +2,6 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import { adminAuth, requireActiveSubscription, requireVerifiedEmail, requireOwner, blockIfImpersonating } from '../middleware/auth.js';
-import { hasProAccess } from '../services/subscriptionAccess.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import {
   getWidgetConfig,
@@ -129,7 +128,7 @@ adminRouter.get('/config', asyncHandler(async (req, res) => {
  * Update widget configuration
  */
 adminRouter.put('/config', asyncHandler(async (req, res) => {
-  const updated = await saveWidgetConfig(req.storeId, req.body, { pro: hasProAccess(req.store) });
+  const updated = await saveWidgetConfig(req.storeId, req.body);
   res.json(updated);
 }));
 

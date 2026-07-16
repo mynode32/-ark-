@@ -310,12 +310,8 @@ export const REQUIRED_SEGMENT_COUNT = 6;
 const MAX_DISCOUNT_VALUE = { percentage: 100, fixed: 100000, freeShipping: 100000, noLuck: 0 };
 const THEME_MODES = new Set(['auto', 'darkGlass', 'lightGlass', 'solid', 'image']);
 
-// Sabit, tasarımı bozmayacak 5 hazır renk teması — hem ücretsiz hem Pro
-// mağazalar bu temalardan birini uygulayabilir (bkz. saveWidgetConfig
-// `themePresetId`). Pro mağazalar bunlara ek olarak serbest hex seçebilir;
-// ücretsiz mağazalar dilim renklerini yalnızca bu temaların renklerinden
-// (FREE_PALETTE) seçebilir, tema renklerini ise sadece tam bir preset
-// uygulayarak değiştirebilir.
+// Sabit, tasarımı bozmayacak 5 hazır renk teması. Tüm planlar hazır temaları
+// ve serbest renk seçimini kullanabilir; planların tek farkı aylık kotadır.
 export const THEME_PRESETS = [
   {
     id: 'klasik',
@@ -349,8 +345,7 @@ export const THEME_PRESETS = [
   },
 ];
 
-// Ücretsiz mağazaların dilim başına manuel olarak seçebileceği renkler —
-// yukarıdaki 5 hazır temanın tüm dilim renklerinin birleşimi.
+// Panelde hızlı seçim için gösterilen hazır dilim renkleri.
 export const FREE_PALETTE = [...new Set(THEME_PRESETS.flatMap((preset) => preset.segments))];
 
 function sanitizeTheme(input = {}) {
@@ -449,7 +444,7 @@ export async function getConfigHistory(storeId, limit = 30) {
   }));
 }
 
-export async function saveWidgetConfig(storeId, data, { pro = false } = {}) {
+export async function saveWidgetConfig(storeId, data) {
   const store = await findStoreById(storeId);
   if (!store) {
     throw new Error('Mağaza bulunamadı');
@@ -479,9 +474,6 @@ export async function saveWidgetConfig(storeId, data, { pro = false } = {}) {
     const error = validateSegments(normalizedSegments);
     if (error) {
       throw Object.assign(new Error(error), { status: 400 });
-    }
-    if (!pro && normalizedSegments.some((segment) => !FREE_PALETTE.includes(String(segment.color).toUpperCase()))) {
-      throw Object.assign(new Error('Özel dilim renkleri Pro plana özeldir. Ücretsiz paletteki renkleri kullanın.'), { status: 403, code: 'PRO_FEATURE_REQUIRED' });
     }
     const previousSegments = config.segments || [];
     config.segments = normalizedSegments.map((segment) => {
@@ -515,15 +507,6 @@ export async function saveWidgetConfig(storeId, data, { pro = false } = {}) {
   }
   if (data.theme) {
     const safeTheme = sanitizeTheme(data.theme);
-    if (!pro) {
-      const proKeys = ['backgroundImageUrl', 'primaryColor', 'primaryColorDark', 'pointerColor', 'bgDark', 'bgMid', 'bgLight'];
-      const changesProKey = proKeys.some((key) => key in safeTheme && safeTheme[key] !== config.theme?.[key]);
-      if (changesProKey || (safeTheme.wheelStyle && safeTheme.wheelStyle !== 'standard')) {
-        throw Object.assign(new Error('Özel renkler, görselli arka plan ve Premium çark stili Pro plana özeldir.'), { status: 403, code: 'PRO_FEATURE_REQUIRED' });
-      }
-      safeTheme.wheelStyle = 'standard';
-      safeTheme.backgroundImageUrl = '';
-    }
     config.theme = { ...config.theme, ...safeTheme };
   }
   await query('UPDATE stores SET widget_config = $1 WHERE id = $2', [JSON.stringify(config), storeId]);
