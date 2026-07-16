@@ -77,6 +77,7 @@ export const DEFAULT_CONFIG = {
     triggerType: 'delay',
     triggerDelay: 3000,
     triggerScrollPercent: 50,
+    soundEnabled: true,
   },
   kvkk: {
     version: '2026-07-16',

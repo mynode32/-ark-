@@ -9,8 +9,21 @@ test('İkas campaign with unknown value is not represented as 0 TL', () => {
 });
 
 test('free shipping and known manual discounts are formatted accurately', () => {
-  assert.equal(describeDiscount(campaignDiscountMetadata({ isFreeShipping: true })), 'Ücretsiz Kargo');
+  assert.equal(
+    describeDiscount(campaignDiscountMetadata({ type: 'FREE_SHIPPING', isFreeShipping: true })),
+    'Ücretsiz Kargo',
+  );
   assert.equal(describeDiscount({ discountType: 'percentage', discountValue: 10 }), '%10');
   assert.equal(describeDiscount({ discountType: 'fixed', discountValue: 150 }), '150 TL');
 });
 
+test('İkas fixed/ratio campaigns are not misclassified when they also include free shipping', () => {
+  assert.deepEqual(
+    campaignDiscountMetadata({ type: 'FIXED_AMOUNT', isFreeShipping: true }),
+    { discountType: 'ikasCampaign', discountValue: null },
+  );
+  assert.deepEqual(
+    campaignDiscountMetadata({ type: 'RATIO', isFreeShipping: true }),
+    { discountType: 'ikasCampaign', discountValue: null },
+  );
+});

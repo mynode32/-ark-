@@ -406,11 +406,14 @@ export function validateSegments(segments) {
 export function normalizeCampaignSegments(segments = []) {
   return segments.map((segment) => {
     if (!segment?.ikasCampaignId) return segment;
-    const isFreeShipping = segment.discountType === 'freeShipping';
     return {
       ...segment,
-      discountType: isFreeShipping ? 'freeShipping' : 'ikasCampaign',
-      discountValue: isFreeShipping ? 0 : null,
+      // The amount, rate and any accompanying free-shipping benefit are owned
+      // by the selected İkas campaign. Legacy records used freeShipping/0
+      // whenever İkas returned isFreeShipping=true, even for FIXED_AMOUNT and
+      // RATIO campaigns. Keep campaign-linked prizes value-less in our DB.
+      discountType: 'ikasCampaign',
+      discountValue: null,
     };
   });
 }

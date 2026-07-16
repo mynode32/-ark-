@@ -805,7 +805,7 @@ class AdminPanel {
               </div>
               <div class="form-group">
                 <label><input type="checkbox" id="setting-soundEnabled" ${this.config.settings.soundEnabled !== false ? 'checked' : ''}> Çark çevirme ve kazanma sesleri aktif</label>
-                <div class="appearance-help-text">Ziyaretçi bu tercihi kendi cihazında ayrıca kapatabilir.</div>
+                <div class="appearance-help-text">Bu ayar mağazadaki tüm ziyaretçiler için geçerlidir.</div>
               </div>
               <div class="btn-group" style="justify-content: flex-end;">
                 <button class="btn btn-primary" id="saveSettingsBtn">Ayarları Kaydet</button>

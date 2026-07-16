@@ -31,7 +31,7 @@ test('İkas campaign segments discard stale fixed discount values before validat
   assert.equal(validateSegments(normalized), null);
 });
 
-test('İkas free-shipping campaigns retain their display type with a valid numeric value', () => {
+test('legacy İkas free-shipping flags are normalized as campaign-owned rewards', () => {
   const segments = Array.from({ length: 6 }, (_, index) => segment(index + 1));
   segments[0] = segment(1, {
     ikasCampaignId: 'campaign-shipping',
@@ -41,7 +41,7 @@ test('İkas free-shipping campaigns retain their display type with a valid numer
 
   const normalized = normalizeCampaignSegments(segments);
 
-  assert.equal(normalized[0].discountType, 'freeShipping');
-  assert.equal(normalized[0].discountValue, 0);
+  assert.equal(normalized[0].discountType, 'ikasCampaign');
+  assert.equal(normalized[0].discountValue, null);
   assert.equal(validateSegments(normalized), null);
 });

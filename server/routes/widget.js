@@ -163,6 +163,7 @@ widgetRouter.get('/:storeSlug/config', asyncHandler(async (req, res) => {
       triggerType: config.settings.triggerType,
       triggerDelay: config.settings.triggerDelay,
       triggerScrollPercent: config.settings.triggerScrollPercent,
+      soundEnabled: config.settings.soundEnabled !== false,
     },
     kvkk: config.kvkk,
     theme: config.theme || {},
