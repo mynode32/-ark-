@@ -1093,7 +1093,10 @@ class AdminPanel {
     const previous = Object.fromEntries(Object.keys(payload).map((key) => [key, this.config[key]]));
     Object.assign(this.config, payload);
     try {
-      await this.saveConfigToBackend(payload);
+      const updated = await this.saveConfigToBackend(payload);
+      Object.keys(payload).forEach((key) => {
+        if (updated[key] !== undefined) this.config[key] = updated[key];
+      });
       this.cacheConfig();
       this.render();
       this.showToast("Backend'e kaydedildi", 'success');

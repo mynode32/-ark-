@@ -402,6 +402,24 @@ export function validateSegments(segments) {
   return null;
 }
 
+/**
+ * İkas owns the actual discount rule. Older panel versions could leave a
+ * campaign-linked segment with a stale fixed/percentage value (sometimes as
+ * a string), causing an otherwise valid campaign to fail generic validation.
+ * Canonicalize those records before validating and persisting them.
+ */
+export function normalizeCampaignSegments(segments = []) {
+  return segments.map((segment) => {
+    if (!segment?.ikasCampaignId) return segment;
+    const isFreeShipping = segment.discountType === 'freeShipping';
+    return {
+      ...segment,
+      discountType: isFreeShipping ? 'freeShipping' : 'ikasCampaign',
+      discountValue: isFreeShipping ? 0 : null,
+    };
+  });
+}
+
 const SECTION_LABELS = {
   segments: (data) => `${data.segments.length} dilim güncellendi`,
   settings: () => 'Genel ayarlar güncellendi',
@@ -457,15 +475,16 @@ export async function saveWidgetConfig(storeId, data, { pro = false } = {}) {
   }
 
   if (data.segments) {
-    const error = validateSegments(data.segments);
+    const normalizedSegments = normalizeCampaignSegments(data.segments);
+    const error = validateSegments(normalizedSegments);
     if (error) {
       throw Object.assign(new Error(error), { status: 400 });
     }
-    if (!pro && data.segments.some((segment) => !FREE_PALETTE.includes(String(segment.color).toUpperCase()))) {
+    if (!pro && normalizedSegments.some((segment) => !FREE_PALETTE.includes(String(segment.color).toUpperCase()))) {
       throw Object.assign(new Error('Özel dilim renkleri Pro plana özeldir. Ücretsiz paletteki renkleri kullanın.'), { status: 403, code: 'PRO_FEATURE_REQUIRED' });
     }
     const previousSegments = config.segments || [];
-    config.segments = data.segments.map((segment) => {
+    config.segments = normalizedSegments.map((segment) => {
       const safeSegment = { ...segment };
       delete safeSegment.couponVerifiedAt;
       delete safeSegment.couponVerifiedCampaignId;
