@@ -919,33 +919,39 @@ export async function getPlatformCredentials(storeId) {
   const res = await query('SELECT * FROM store_platform_credentials WHERE store_id = $1', [storeId]);
   const row = res.rows[0];
   if (!row) {
-    return { platform: 'none', ikasClientId: null, ikasClientSecretEnc: null, ikasStoreId: null };
+    return { platform: 'none', ikasClientId: null, ikasClientSecretEnc: null, ikasStoreId: null, wordpressUrl: null, wordpressKey: null, wordpressSecretEnc: null };
   }
   return {
     platform: row.platform,
     ikasClientId: row.ikas_client_id,
     ikasClientSecretEnc: row.ikas_client_secret_enc,
     ikasStoreId: row.ikas_store_id,
+    wordpressUrl: row.wordpress_url,
+    wordpressKey: row.wordpress_key,
+    wordpressSecretEnc: row.wordpress_secret_enc,
   };
 }
 
-export async function savePlatformCredentials(storeId, { platform, ikasClientId, ikasClientSecretEnc, ikasStoreId }) {
+export async function savePlatformCredentials(storeId, { platform, ikasClientId, ikasClientSecretEnc, ikasStoreId, wordpressUrl, wordpressKey, wordpressSecretEnc }) {
   await query(
-    `INSERT INTO store_platform_credentials (store_id, platform, ikas_client_id, ikas_client_secret_enc, ikas_store_id, ikas_token_enc, ikas_token_expires_at)
-     VALUES ($1, $2, $3, $4, $5, NULL, NULL)
+    `INSERT INTO store_platform_credentials (store_id, platform, ikas_client_id, ikas_client_secret_enc, ikas_store_id, ikas_token_enc, ikas_token_expires_at, wordpress_url, wordpress_key, wordpress_secret_enc)
+     VALUES ($1, $2, $3, $4, $5, NULL, NULL, $6, $7, $8)
      ON CONFLICT (store_id) DO UPDATE SET
        platform = EXCLUDED.platform,
        ikas_client_id = EXCLUDED.ikas_client_id,
        ikas_client_secret_enc = EXCLUDED.ikas_client_secret_enc,
        ikas_store_id = EXCLUDED.ikas_store_id,
        ikas_token_enc = NULL,
-       ikas_token_expires_at = NULL`,
-    [storeId, platform, ikasClientId || null, ikasClientSecretEnc || null, ikasStoreId || null],
+       ikas_token_expires_at = NULL,
+       wordpress_url = EXCLUDED.wordpress_url,
+       wordpress_key = EXCLUDED.wordpress_key,
+       wordpress_secret_enc = EXCLUDED.wordpress_secret_enc`,
+    [storeId, platform, ikasClientId || null, ikasClientSecretEnc || null, ikasStoreId || null, wordpressUrl || null, wordpressKey || null, wordpressSecretEnc || null],
   );
   await logConfigChange(
     storeId,
     'platform-credentials',
-    platform === 'ikas' ? 'İkas bağlantısı güncellendi' : 'Platform bağlantısı kaldırıldı (manuel moda geçildi)',
+    platform === 'ikas' ? 'İkas bağlantısı güncellendi' : platform === 'wordpress' ? 'WooCommerce bağlantısı güncellendi' : 'Platform bağlantısı kaldırıldı (manuel moda geçildi)',
   );
   return getPlatformCredentials(storeId);
 }
