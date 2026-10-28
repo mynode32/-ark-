@@ -545,7 +545,9 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
     if (!parsed || parsed.protocol !== 'https:' || parsed.username || parsed.password || privateAddress || !wordpressKey || (!wordpressSecret && !(await getPlatformCredentials(req.storeId)).wordpressSecretEnc)) {
       return res.status(400).json({ error: 'HTTPS mağaza adresi, WooCommerce API anahtarı ve gizli anahtar zorunludur.' });
     }
-    if (!/^ck_[a-f0-9]{32}$/i.test(wordpressKey) || (wordpressSecret && !/^cs_[a-f0-9]{32}$/i.test(wordpressSecret))) {
+    // WooCommerce generates 40-hex-character keys. Keep accepting the older
+    // 32-character format used by existing installations as well.
+    if (!/^ck_(?:[a-f0-9]{32}|[a-f0-9]{40})$/i.test(wordpressKey) || (wordpressSecret && !/^cs_(?:[a-f0-9]{32}|[a-f0-9]{40})$/i.test(wordpressSecret))) {
       return res.status(400).json({ error: 'WooCommerce API anahtar biçimi geçersiz (ck_… / cs_…).' });
     }
   }
