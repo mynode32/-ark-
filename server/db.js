@@ -78,7 +78,10 @@ export async function ensureSchema() {
       ikas_client_secret_enc TEXT,
       ikas_store_id TEXT,
       ikas_token_enc TEXT,
-      ikas_token_expires_at TIMESTAMPTZ
+      ikas_token_expires_at TIMESTAMPTZ,
+      wordpress_url TEXT,
+      wordpress_key TEXT,
+      wordpress_secret_enc TEXT
     )
   `);
 
@@ -88,6 +91,9 @@ export async function ensureSchema() {
   // İkas simultaneously on its next spin.
   await query('ALTER TABLE store_platform_credentials ADD COLUMN IF NOT EXISTS ikas_token_enc TEXT');
   await query('ALTER TABLE store_platform_credentials ADD COLUMN IF NOT EXISTS ikas_token_expires_at TIMESTAMPTZ');
+  await query('ALTER TABLE store_platform_credentials ADD COLUMN IF NOT EXISTS wordpress_url TEXT');
+  await query('ALTER TABLE store_platform_credentials ADD COLUMN IF NOT EXISTS wordpress_key TEXT');
+  await query('ALTER TABLE store_platform_credentials ADD COLUMN IF NOT EXISTS wordpress_secret_enc TEXT');
 
   await query(`
     CREATE TABLE IF NOT EXISTS entries (

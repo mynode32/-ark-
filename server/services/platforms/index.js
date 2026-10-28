@@ -1,5 +1,6 @@
 import * as ikasPlatform from './ikas.js';
 import * as manualPlatform from './manual.js';
+import * as wordpressPlatform from './wordpress.js';
 import { getPlatformCredentials } from '../../store.js';
 import { decryptSecret } from '../crypto.js';
 import { CouponConfigurationError } from './couponPolicy.js';
@@ -41,6 +42,27 @@ export async function getPlatformAdapter(storeId) {
       createCustomer: async () => null,
       testConnection: notConnected,
     };
+  }
+
+  if (creds.platform === 'wordpress' && creds.wordpressUrl && creds.wordpressKey && creds.wordpressSecretEnc) {
+    const resolved = {
+      url: creds.wordpressUrl,
+      key: creds.wordpressKey,
+      secret: decryptSecret(creds.wordpressSecretEnc),
+    };
+    return {
+      platform: 'wordpress', connected: true,
+      createCoupon: (args) => wordpressPlatform.createCoupon(args, resolved),
+      listCampaigns: async () => [],
+      addCouponToCampaign: async () => { throw new CouponConfigurationError('WooCommerce kampanyası kullanımda değil.'); },
+      createCustomer: async () => null,
+      testConnection: () => wordpressPlatform.testConnection(resolved),
+    };
+  }
+
+  if (creds.platform === 'wordpress') {
+    const notConnected = async () => { throw new CouponConfigurationError('WooCommerce bağlantı bilgileri eksik.'); };
+    return { platform: 'wordpress', connected: false, createCoupon: notConnected, listCampaigns: async () => [], addCouponToCampaign: notConnected, createCustomer: async () => null, testConnection: notConnected };
   }
 
   return {

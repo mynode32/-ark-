@@ -2329,7 +2329,14 @@ class AdminPanel {
               <select class="form-input" id="platform-select">
                 <option value="none">Yok — Manuel Mod</option>
                 <option value="ikas">İkas</option>
+                <option value="wordpress">WordPress / WooCommerce</option>
               </select>
+            </div>
+            <div id="wordpressCredsFields" style="display:none">
+              <div class="form-group"><label>WordPress mağaza adresi (HTTPS)</label><input type="url" class="form-input" id="platform-wordpressUrl" placeholder="https://magazaniz.com"></div>
+              <div class="form-group"><label>WooCommerce Consumer Key</label><input type="text" class="form-input" id="platform-wordpressKey" placeholder="ck_…"></div>
+              <div class="form-group"><label>WooCommerce Consumer Secret</label><input type="password" class="form-input" id="platform-wordpressSecret" placeholder="Kayıtlıysa boş bırakabilirsiniz"></div>
+              <p style="color:rgba(255,255,255,0.6);font-size:12px">WooCommerce → Ayarlar → Gelişmiş → REST API bölümünden yalnızca kupon okuma/yazma yetkili bir anahtar oluşturun.</p>
             </div>
             <div id="ikasCredsFields" style="display:none">
               <div class="form-group">
@@ -2390,8 +2397,13 @@ class AdminPanel {
 
     const select = document.getElementById('platform-select');
     const ikasFields = document.getElementById('ikasCredsFields');
-    select.addEventListener('change', () => {
+    const wordpressFields = document.getElementById('wordpressCredsFields');
+    const updatePlatformFields = () => {
       ikasFields.style.display = select.value === 'ikas' ? 'block' : 'none';
+      wordpressFields.style.display = select.value === 'wordpress' ? 'block' : 'none';
+    };
+    select.addEventListener('change', () => {
+      updatePlatformFields();
     });
 
     const saveBtn = document.getElementById('savePlatformBtn');
@@ -2422,12 +2434,21 @@ class AdminPanel {
           return;
         }
       }
-      const body = {
-        platform,
-        ikasStoreId: document.getElementById('platform-ikasStoreId').value.trim(),
-        ikasClientId: document.getElementById('platform-ikasClientId').value.trim(),
-        ikasClientSecret: document.getElementById('platform-ikasClientSecret').value.trim(),
-      };
+      const body = platform === 'ikas'
+        ? {
+            platform,
+            ikasStoreId: document.getElementById('platform-ikasStoreId').value.trim(),
+            ikasClientId: document.getElementById('platform-ikasClientId').value.trim(),
+            ikasClientSecret: document.getElementById('platform-ikasClientSecret').value.trim(),
+          }
+        : platform === 'wordpress'
+          ? {
+              platform,
+              wordpressUrl: document.getElementById('platform-wordpressUrl').value.trim(),
+              wordpressKey: document.getElementById('platform-wordpressKey').value.trim(),
+              wordpressSecret: document.getElementById('platform-wordpressSecret').value.trim(),
+            }
+          : { platform };
       try {
         const res = await fetch(`${base}/api/admin/platform-credentials`, {
           method: 'PUT',
@@ -2439,8 +2460,8 @@ class AdminPanel {
           if (data.connectionTest) {
             this.showToast(
               data.connectionTest.ok
-                ? 'Kaydedildi — İkas bağlantısı doğrulandı ✓'
-                : `Kaydedildi ama İkas bağlantı testi başarısız oldu: ${data.connectionTest.error || 'bilinmeyen hata'}. Bilgileri kontrol edin.`,
+                ? `Kaydedildi — ${platform === 'wordpress' ? 'WooCommerce' : 'İkas'} bağlantısı doğrulandı ✓`
+                : `Kaydedildi ama ${platform === 'wordpress' ? 'WooCommerce' : 'İkas'} bağlantı testi başarısız oldu: ${data.connectionTest.error || 'bilinmeyen hata'}. Bilgileri kontrol edin.`,
               data.connectionTest.ok ? 'success' : 'warning',
             );
           } else {
@@ -2669,17 +2690,23 @@ class AdminPanel {
       const creds = await res.json();
       const select = document.getElementById('platform-select');
       const ikasFields = document.getElementById('ikasCredsFields');
+      const wordpressFields = document.getElementById('wordpressCredsFields');
       if (!select) {
         return;
       }
       select.value = creds.platform || 'none';
       ikasFields.style.display = creds.platform === 'ikas' ? 'block' : 'none';
+      wordpressFields.style.display = creds.platform === 'wordpress' ? 'block' : 'none';
       document.getElementById('platform-ikasStoreId').value = creds.ikasStoreId || '';
       document.getElementById('platform-ikasClientId').value = creds.ikasClientId || '';
+      document.getElementById('platform-wordpressUrl').value = creds.wordpressUrl || '';
+      document.getElementById('platform-wordpressKey').value = creds.wordpressKey || '';
       if (statusEl) {
         statusEl.textContent =
           creds.platform === 'ikas'
             ? `✅ İkas'a bağlı${creds.hasSecret ? '' : ' (client secret eksik!)'}`
+          : creds.platform === 'wordpress'
+            ? `✅ WooCommerce'e bağlı${creds.hasWordPressSecret ? '' : ' (secret eksik!)'}`
             : '⚪ Bağlı değil — manuel mod aktif';
       }
       this.platformCredsLoaded = true;

@@ -52,6 +52,7 @@ import {
 } from '../services/platforms/couponPolicy.js';
 import { clearTokenCache } from '../services/platforms/ikas.js';
 import { encryptSecret } from '../services/crypto.js';
+import { isIP } from 'node:net';
 
 export const adminRouter = Router();
 
@@ -301,7 +302,7 @@ async function retryEntryCoupon(storeId, entryId) {
     });
   }
   const adapter = await getPlatformAdapter(storeId);
-  if (segment.couponCode && adapter.platform !== 'ikas') {
+  if (segment.couponCode && !['ikas', 'wordpress'].includes(adapter.platform)) {
     return updateEntryCoupon(storeId, entryId, {
       couponCode: segment.couponCode,
       status: 'processed',
@@ -310,7 +311,7 @@ async function retryEntryCoupon(storeId, entryId) {
     });
   }
 
-  if (adapter.platform !== 'ikas') {
+  if (adapter.platform !== 'ikas' && adapter.platform !== 'wordpress') {
     return updateEntryCoupon(storeId, entryId, {
       couponCode: entry.couponCode,
       status: 'manual_review',
@@ -320,6 +321,10 @@ async function retryEntryCoupon(storeId, entryId) {
   }
 
   try {
+    if (adapter.platform === 'wordpress') {
+      const coupon = await provisionCouponForSegment(adapter, segment);
+      return updateEntryCoupon(storeId, entryId, { couponCode: coupon.code, status: 'processed', error: null, isLocalCoupon: false });
+    }
     const campaigns = await adapter.listCampaigns({ force: true, strict: true });
     const campaign = campaigns.find((item) => String(item.id) === String(segment.ikasCampaignId));
     const campaignState = assessIkasCampaign(campaign);
@@ -483,7 +488,7 @@ adminRouter.post('/segments/:segmentId/test-coupon', testCouponLimiter, asyncHan
   } else if (!couponCode) {
     const coupon = await provisionCouponForSegment(adapter, segment);
     couponCode = coupon.code;
-    isLocalCoupon = true;
+    isLocalCoupon = coupon.isLocal === true;
   }
 
   res.json({ tested: true, couponCode, isLocalCoupon, couponHealth: await couponHealthForStore(req.storeId) });
@@ -502,6 +507,9 @@ adminRouter.get('/platform-credentials', asyncHandler(async (req, res) => {
     ikasClientId: creds.ikasClientId,
     ikasStoreId: creds.ikasStoreId,
     hasSecret: Boolean(creds.ikasClientSecretEnc),
+    wordpressUrl: creds.wordpressUrl,
+    wordpressKey: creds.wordpressKey,
+    hasWordPressSecret: Boolean(creds.wordpressSecretEnc),
   });
 }));
 
@@ -511,7 +519,7 @@ adminRouter.get('/platform-credentials', asyncHandler(async (req, res) => {
  * ikasClientSecret is optional on update — omit it to keep the previously saved one.
  */
 adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
-  const { platform, ikasClientId, ikasClientSecret, ikasStoreId } = req.body;
+  const { platform, ikasClientId, ikasClientSecret, ikasStoreId, wordpressUrl, wordpressKey, wordpressSecret } = req.body;
 
   if (platform === 'ikas' && (!ikasClientId || !ikasStoreId)) {
     return res.status(400).json({ error: 'İkas client id ve mağaza id zorunludur' });
@@ -528,6 +536,20 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'İkas client id geçersiz' });
   }
 
+  if (platform === 'wordpress') {
+    let parsed;
+    try { parsed = new URL(wordpressUrl); } catch { parsed = null; }
+    const hostname = parsed?.hostname?.toLowerCase() || '';
+    const ip = hostname.replace(/^\[|\]$/g, '');
+    const privateAddress = hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || (isIP(ip) === 4 && (/^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip))) || (isIP(ip) === 6 && (ip === '::1' || /^(fc|fd|fe80)/i.test(ip)));
+    if (!parsed || parsed.protocol !== 'https:' || parsed.username || parsed.password || privateAddress || !wordpressKey || (!wordpressSecret && !(await getPlatformCredentials(req.storeId)).wordpressSecretEnc)) {
+      return res.status(400).json({ error: 'HTTPS mağaza adresi, WooCommerce API anahtarı ve gizli anahtar zorunludur.' });
+    }
+    if (!/^ck_[a-f0-9]{32}$/i.test(wordpressKey) || (wordpressSecret && !/^cs_[a-f0-9]{32}$/i.test(wordpressSecret))) {
+      return res.status(400).json({ error: 'WooCommerce API anahtar biçimi geçersiz (ck_… / cs_…).' });
+    }
+  }
+
   // Guard against a stale/broken frontend sending platform:'none' alongside
   // populated ikas fields (e.g. the credentials-load request failed and the
   // platform dropdown silently reverted to its default) — that combination
@@ -537,15 +559,22 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
       error: 'Tutarsız istek: platform İkas olarak seçili değilken İkas bilgileri gönderildi. Sayfayı yenileyip tekrar deneyin.',
     });
   }
+  if (platform !== 'wordpress' && (wordpressUrl || wordpressKey || wordpressSecret)) {
+    return res.status(400).json({ error: 'WooCommerce bilgileri yalnızca WooCommerce seçiliyken gönderilebilir.' });
+  }
 
   const existing = await getPlatformCredentials(req.storeId);
   const secretEnc = ikasClientSecret ? encryptSecret(ikasClientSecret) : existing.ikasClientSecretEnc;
+  const wordpressSecretEnc = wordpressSecret ? encryptSecret(wordpressSecret) : existing.wordpressSecretEnc;
 
   const updated = await savePlatformCredentials(req.storeId, {
     platform: platform || 'none',
     ikasClientId: platform === 'ikas' ? ikasClientId : null,
     ikasClientSecretEnc: platform === 'ikas' ? secretEnc : null,
     ikasStoreId: platform === 'ikas' ? ikasStoreId : null,
+    wordpressUrl: platform === 'wordpress' ? wordpressUrl.replace(/\/$/, '') : null,
+    wordpressKey: platform === 'wordpress' ? wordpressKey : null,
+    wordpressSecretEnc: platform === 'wordpress' ? wordpressSecretEnc : null,
   });
 
   // Credentials just changed — any cached access token was minted for the
@@ -565,12 +594,24 @@ adminRouter.put('/platform-credentials', asyncHandler(async (req, res) => {
       connectionTest = { ok: false, error: err.message };
     }
   }
+  if (updated.platform === 'wordpress') {
+    try {
+      const adapter = await getPlatformAdapter(req.storeId);
+      await adapter.testConnection();
+      connectionTest = { ok: true };
+    } catch (err) {
+      connectionTest = { ok: false, error: err.message };
+    }
+  }
 
   res.json({
     platform: updated.platform,
     ikasClientId: updated.ikasClientId,
     ikasStoreId: updated.ikasStoreId,
     hasSecret: Boolean(updated.ikasClientSecretEnc),
+    wordpressUrl: updated.wordpressUrl,
+    wordpressKey: updated.wordpressKey,
+    hasWordPressSecret: Boolean(updated.wordpressSecretEnc),
     connectionTest,
   });
 }));

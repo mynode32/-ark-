@@ -115,6 +115,11 @@ export function assessCouponHealth({
 } = {}) {
   const rewards = uniqueRewardSegments(segments);
 
+  if (platform === 'wordpress') {
+    const issues = connected ? rewards.filter((segment) => !segment.couponCode && !['percentage', 'fixed', 'freeShipping'].includes(segment.discountType)).map((segment) => ({ id: String(segment.id), reason: 'unsupported_reward', message: `${segment.label}: ödülü WooCommerce kupon türüne çevirin.` })) : [{ reason: 'connection_missing', message: 'WooCommerce bağlantı bilgileri eksik.' }];
+    return { ready: issues.length === 0, level: issues.length ? 'blocked' : 'healthy', platform, message: issues.length ? issues[0].message : 'WooCommerce kupon bağlantısı hazır.', issues, rewardCount: rewards.length, verifiedCount: connected ? rewards.length - issues.length : 0 };
+  }
+
   if (platform !== 'ikas') {
     return {
       ready: true,
@@ -212,7 +217,7 @@ export function assertCouponReady(health) {
 
 export async function provisionCouponForSegment(adapter, segment) {
   if (!segment || segment.discountType === 'noLuck') return { code: null, isLocal: false };
-  if (segment.couponCode && adapter.platform !== 'ikas') {
+  if (segment.couponCode && !['ikas', 'wordpress'].includes(adapter.platform)) {
     return { code: segment.couponCode, isLocal: adapter.platform === 'manual' };
   }
   if (adapter.platform === 'ikas') {
@@ -227,6 +232,9 @@ export async function provisionCouponForSegment(adapter, segment) {
       throw new CouponProvisionError('İkas gerçek bir kupon kodu döndürmedi; kupon verilmedi.');
     }
     return { code: coupon.code, isLocal: false };
+  }
+  if (adapter.platform === 'wordpress') {
+    return adapter.createCoupon({ label: segment.label, discountType: segment.discountType, discountValue: segment.discountValue });
   }
   return adapter.createCoupon({
     label: segment.label,
